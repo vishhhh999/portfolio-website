@@ -17,7 +17,8 @@ for (const [name, w, h] of [['16x10', 1440, 900], ['16x9', 1920, 1080], ['portra
   await page.goto(BASE + '/?gpu=high', { waitUntil: 'networkidle' });
   await page.waitForSelector('.booth-stage[data-ready="true"]', { timeout: 60000 });
   await page.waitForTimeout(2500);
-  await page.addStyleTag({ content: '.masthead,.hero,.panel,.footer,.booth-poster,.booth-stage::after{visibility:hidden!important;display:none!important}' });
+  // keep the layout (the camera frames the cabinet into .booth-frame): hide the copy, don't remove it
+  await page.addStyleTag({ content: '.masthead,.hero__copy,.panel,.footer,.booth-poster,.booth-stage::after{visibility:hidden!important}' });
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}poster-${name}.png` });
   console.log('poster', name);

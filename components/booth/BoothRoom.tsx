@@ -284,11 +284,14 @@ export function CalibrationProps() {
     if (cardMat.current) applyUV(cardMat.current, { fluorMask: cardFluor, uvInk: cardInk });
   }, [cardFluor, cardInk]);
 
+  // the tray shot looks up past the shelf: the props would sit under the masthead, so they step out
+  const activeSlug = useBooth((s) => s.activeSlug);
+
   const { ledge, checker: ch, card, gloss: gl } = PROPS;
   const back = BOOTH.backZ;
   const top = ledge.y + ledge.h;
   return (
-    <group>
+    <group visible={!activeSlug}>
       <mesh position={[ledge.x, ledge.y + ledge.h / 2, back + ledge.d / 2]} castShadow receiveShadow>
         <boxGeometry args={[ledge.w, ledge.h, ledge.d]} />
         <meshStandardMaterial color={PLINTH_GREY} roughness={0.85} />
