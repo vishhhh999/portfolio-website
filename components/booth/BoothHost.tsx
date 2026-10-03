@@ -3,6 +3,9 @@
 import dynamic from 'next/dynamic';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
+import { getWork, isInLineup } from '@/content/work';
+import { lampById } from '@/lib/lampPresets';
+import { switchLamp } from '@/lib/lampController';
 import { useBooth } from '@/lib/store';
 
 const BoothCanvas = dynamic(() => import('./BoothCanvas'), { ssr: false });
@@ -10,7 +13,7 @@ const BoothCanvas = dynamic(() => import('./BoothCanvas'), { ssr: false });
 /** Routes where the booth is on stage. Everywhere else it is hidden and paused, not unmounted. */
 export function boothMode(pathname: string): 'full' | 'header' | 'off' {
   if (pathname === '/') return 'full';
-  if (pathname.startsWith('/work/')) return 'header';
+  if (pathname.startsWith('/work/') && isInLineup(pathname.split('/')[2] ?? '')) return 'header';
   return 'off';
 }
 
@@ -22,9 +25,25 @@ export function BoothHost() {
   const pathname = usePathname();
   const mode = boothMode(pathname);
   const setActiveSlug = useBooth((s) => s.setActiveSlug);
+  const lamp = useBooth((s) => s.lamp);
   const [mounted, setMounted] = useState(false);
   const [inView, setInView] = useState(true);
   const hostRef = useRef<HTMLDivElement>(null);
+
+  // Project pages: the object goes on the tray under the lamp it was designed for.
+  useEffect(() => {
+    const slug = mode === 'header' ? pathname.split('/')[2] : null;
+    setActiveSlug(slug);
+    const work = slug ? getWork(slug) : null;
+    if (work) switchLamp(work.nativeLamp);
+  }, [pathname, mode, setActiveSlug]);
+
+  // DOM over the booth flips to light text under dark lamps.
+  useEffect(() => {
+    const root = document.documentElement;
+    root.dataset.lamp = lamp;
+    root.dataset.dark = String(mode !== 'off' && lampById(lamp).dark);
+  }, [lamp, mode]);
 
   // Stop rendering once the booth has scrolled out of view (project pages).
   useEffect(() => {
@@ -34,10 +53,6 @@ export function BoothHost() {
     io.observe(el);
     return () => io.disconnect();
   }, []);
-
-  useEffect(() => {
-    setActiveSlug(pathname.startsWith('/work/') ? pathname.split('/')[2] ?? null : null);
-  }, [pathname, setActiveSlug]);
 
   useEffect(() => {
     if (mounted || mode === 'off') return;

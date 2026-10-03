@@ -1,143 +1,229 @@
 'use client';
 
 import { RoundedBox } from '@react-three/drei';
-import type { ReactNode } from 'react';
+import type { ThreeElements } from '@react-three/fiber';
+import { useLayoutEffect, useMemo, useRef, type ReactNode } from 'react';
+import { Color, MeshBasicMaterial, PlaneGeometry, type MeshStandardMaterial, type RectAreaLight, type Texture } from 'three';
+import { getScreenTexture, REGIONS, screens, type ScreenRegion } from './screens';
+import { applyUV, createInkDecalMaterial } from './uvMaterial';
 
 /**
- * Phase 0 stand-ins at real-world scale (metres, origin at base centre).
- * Replaced one by one with Blender GLBs in Phase 4.
+ * Phase 0–3 stand-ins at real-world scale (metres, origin at base centre).
+ * Every surface goes through the UV chunk; paper surfaces fluoresce; every
+ * object carries its uvNotes as a hidden ink layer. Swapped for Blender GLBs
+ * in Phase 4, which plug into the same fluorMask / uvInk slots.
  */
-type Placeholder = { width: number; height: number; render: () => ReactNode };
-
 const paper = '#EDEBE4';
 const ink = '#1A1A1A';
-const screen = '#0E0F12';
-const metal = '#9B9B98';
+const alu = '#A7A7A4';
+const blackGlass = '#0B0C0E';
 
-function Mat({ color, rough = 0.7, metalness = 0 }: { color: string; rough?: number; metalness?: number }) {
-  return <meshStandardMaterial color={color} roughness={rough} metalness={metalness} />;
+export function BoothMat({
+  color,
+  roughness = 0.7,
+  metalness = 0,
+  fluor = 0,
+}: {
+  color: string;
+  roughness?: number;
+  metalness?: number;
+  fluor?: number;
+}) {
+  const ref = useRef<MeshStandardMaterial>(null);
+  useLayoutEffect(() => {
+    if (ref.current) applyUV(ref.current, { fluor });
+  }, [fluor]);
+  return <meshStandardMaterial ref={ref} color={color} roughness={roughness} metalness={metalness} />;
 }
 
-function Laptop() {
-  const w = 0.3, d = 0.21, t = 0.015;
+/** Hidden annotation layer: invisible until the UV lamp strikes. */
+function InkDecal({ ink: tex, w, h, ...rest }: { ink: Texture; w: number; h: number } & ThreeElements['mesh']) {
+  const mat = useMemo(() => createInkDecalMaterial(tex), [tex]);
+  return (
+    <mesh {...rest} material={mat} renderOrder={2}>
+      <planeGeometry args={[w, h]} />
+    </mesh>
+  );
+}
+
+/** Self-lit device screen: a region of the shared test video + a RectAreaLight that spills its colour. */
+function Screen({ w, h, region }: { w: number; h: number; region: ScreenRegion }) {
+  const lightRef = useRef<RectAreaLight>(null);
+  const { geometry, material } = useMemo(() => {
+    const geometry = new PlaneGeometry(w, h);
+    const uv = geometry.attributes.uv;
+    for (let i = 0; i < uv.count; i++) uv.setX(i, region[0] + uv.getX(i) * (region[1] - region[0]));
+    const material = new MeshBasicMaterial({ map: getScreenTexture(), toneMapped: true });
+    return { geometry, material };
+  }, [w, h, region]);
+
+  useLayoutEffect(() => {
+    if (!lightRef.current) return;
+    const entry = { material, light: lightRef.current, region, colour: new Color(0.3, 0.3, 0.4) };
+    screens.add(entry);
+    return () => void screens.delete(entry);
+  }, [material, region]);
+
   return (
     <group>
-      <mesh position={[0, t / 2, 0]} castShadow receiveShadow>
-        <boxGeometry args={[w, t, d]} />
-        <Mat color={metal} rough={0.4} metalness={0.6} />
-      </mesh>
-      <group position={[0, t, -d / 2]} rotation={[-0.26, 0, 0]}>
-        <mesh position={[0, d / 2, 0]} castShadow>
-          <boxGeometry args={[w, d, 0.008]} />
-          <Mat color={metal} rough={0.4} metalness={0.6} />
-        </mesh>
-        <mesh position={[0, d / 2, 0.0045]}>
-          <planeGeometry args={[w * 0.92, d * 0.88]} />
-          <Mat color={screen} rough={0.2} />
-        </mesh>
-      </group>
+      <mesh geometry={geometry} material={material} />
+      {/* RectAreaLight emits along its local -Z; flip it to face out of the screen. */}
+      <rectAreaLight ref={lightRef} width={w} height={h} intensity={0} rotation={[0, Math.PI, 0]} position={[0, 0, 0.001]} />
     </group>
   );
 }
 
-function LeaningDevice({ w, h }: { w: number; h: number }) {
+function Laptop({ inkTex }: { inkTex: Texture }) {
+  const w = 0.3, d = 0.21, t = 0.014;
+  const open = -0.33; // lid ~109° from the deck
   return (
-    <group>
-      <mesh position={[0, 0.01, 0.02]} castShadow receiveShadow>
-        <boxGeometry args={[w * 0.6, 0.02, 0.05]} />
-        <Mat color={ink} />
-      </mesh>
-      <group position={[0, 0.005, 0]} rotation={[-0.22, 0, 0]}>
-        <RoundedBox args={[w, h, 0.008]} radius={0.003} position={[0, h / 2, 0]} castShadow>
-          <Mat color={ink} rough={0.3} />
+    <group position={[0, 0, 0.02]}>
+      <RoundedBox args={[w, t, d]} radius={0.004} smoothness={2} position={[0, t / 2, 0]} castShadow receiveShadow>
+        <BoothMat color={alu} roughness={0.35} metalness={0.7} />
+      </RoundedBox>
+      <group position={[0, t, -d / 2]} rotation={[open, 0, 0]}>
+        <RoundedBox args={[w, d, 0.007]} radius={0.003} smoothness={2} position={[0, d / 2, 0]} castShadow receiveShadow>
+          <BoothMat color={alu} roughness={0.35} metalness={0.7} />
         </RoundedBox>
-        <mesh position={[0, h / 2, 0.0045]}>
-          <planeGeometry args={[w * 0.92, h * 0.94]} />
-          <Mat color={screen} rough={0.2} />
-        </mesh>
+        <group position={[0, d / 2 + 0.004, 0.0037]}>
+          <Screen w={w * 0.92} h={d * 0.86} region={REGIONS.laptop} />
+          <InkDecal ink={inkTex} w={w * 0.9} h={d * 0.84} position={[0, 0, 0.0008]} />
+        </group>
       </group>
     </group>
   );
 }
+
+/** Tablet, landscape, on a low A-frame easel. */
+function TabletOnEasel({ inkTex }: { inkTex: Texture }) {
+  const w = 0.25, h = 0.175, tilt = -0.42;
+  return (
+    <group>
+      {/* easel: front ledge + two rear legs */}
+      <mesh position={[0, 0.008, 0.03]} castShadow receiveShadow>
+        <boxGeometry args={[0.2, 0.016, 0.022]} />
+        <BoothMat color="#2B2A28" roughness={0.6} />
+      </mesh>
+      {[-0.07, 0.07].map((x) => (
+        <mesh key={x} position={[x, 0.05, -0.035]} rotation={[0.55, 0, 0]} castShadow>
+          <boxGeometry args={[0.012, 0.12, 0.008]} />
+          <BoothMat color="#2B2A28" roughness={0.6} />
+        </mesh>
+      ))}
+      <group position={[0, 0.016, 0.03]} rotation={[tilt, 0, 0]}>
+        <RoundedBox args={[w, h, 0.007]} radius={0.006} smoothness={3} position={[0, h / 2, -0.004]} castShadow receiveShadow>
+          <BoothMat color="#2E2F33" roughness={0.3} metalness={0.4} />
+        </RoundedBox>
+        <group position={[0, h / 2, 0.0002]}>
+          <Screen w={w * 0.92} h={h * 0.88} region={REGIONS.tablet} />
+          <InkDecal ink={inkTex} w={w * 0.9} h={h * 0.86} position={[0, 0, 0.0008]} />
+        </group>
+      </group>
+    </group>
+  );
+}
+
+/** Phone, portrait, in a solid wedge stand. */
+function PhoneInStand({ inkTex }: { inkTex: Texture }) {
+  const w = 0.072, h = 0.15, tilt = -0.3;
+  return (
+    <group>
+      <mesh position={[0, 0.015, -0.005]} castShadow receiveShadow>
+        <boxGeometry args={[0.08, 0.03, 0.07]} />
+        <BoothMat color="#3A3936" roughness={0.45} metalness={0.2} />
+      </mesh>
+      <group position={[0, 0.022, 0.012]} rotation={[tilt, 0, 0]}>
+        <RoundedBox args={[w, h, 0.008]} radius={0.007} smoothness={3} position={[0, h / 2, -0.004]} castShadow receiveShadow>
+          <BoothMat color={blackGlass} roughness={0.2} metalness={0.3} />
+        </RoundedBox>
+        <group position={[0, h / 2, 0.0002]}>
+          <Screen w={w * 0.9} h={h * 0.93} region={REGIONS.phone} />
+          <InkDecal ink={inkTex} w={w * 0.88} h={h * 0.9} position={[0, 0, 0.0008]} />
+        </group>
+      </group>
+    </group>
+  );
+}
+
+type Placeholder = (inkTex: Texture) => ReactNode;
 
 export const PLACEHOLDERS: Record<string, Placeholder> = {
-  'too-yumm': {
-    width: 0.16,
-    height: 0.24,
-    render: () => (
-      <RoundedBox args={[0.16, 0.24, 0.07]} radius={0.01} position={[0, 0.12, 0]} castShadow receiveShadow>
-        <Mat color="#E9C46A" rough={0.35} />
+  'too-yumm': (inkTex) => (
+    <group>
+      <RoundedBox args={[0.16, 0.24, 0.07]} radius={0.012} smoothness={3} position={[0, 0.12, 0]} castShadow receiveShadow>
+        <BoothMat color="#E9C46A" roughness={0.32} />
       </RoundedBox>
-    ),
-  },
-  sook: {
-    width: 0.24,
-    height: 0.13,
-    render: () => (
-      <group>
-        {[-0.08, 0, 0.08].map((x, i) => (
-          <mesh key={x} position={[x, 0.065, 0]} castShadow receiveShadow>
-            <boxGeometry args={[0.07, 0.13, 0.07]} />
-            <Mat color={['#7A9E7E', '#C97B63', '#D8C8A8'][i]} />
+      <InkDecal ink={inkTex} w={0.14} h={0.21} position={[0, 0.125, 0.0352]} />
+    </group>
+  ),
+  'jsw-sports': (inkTex) => (
+    <group>
+      {[-1, 1].map((s) => (
+        <group key={s} rotation={[0, -s * 0.45, 0]}>
+          <mesh position={[s * 0.12, 0.15, 0]} castShadow receiveShadow>
+            <boxGeometry args={[0.24, 0.3, 0.012]} />
+            {s < 0 ? <BoothMat color={ink} roughness={0.28} /> : <BoothMat color={paper} roughness={0.85} fluor={1} />}
           </mesh>
-        ))}
-      </group>
-    ),
-  },
-  shunya: {
-    width: 0.2,
-    height: 0.09,
-    render: () => (
-      <group>
-        <mesh position={[-0.05, 0.045, 0]} castShadow receiveShadow>
-          <cylinderGeometry args={[0.04, 0.04, 0.09, 48]} />
-          <Mat color={paper} rough={0.15} />
+          {s > 0 && <InkDecal ink={inkTex} w={0.22} h={0.27} position={[0.12, 0.15, 0.0065]} />}
+        </group>
+      ))}
+    </group>
+  ),
+  mitooshi: (inkTex) => <Laptop inkTex={inkTex} />,
+  'indo-thai': (inkTex) => <Laptop inkTex={inkTex} />,
+  sonde: (inkTex) => <TabletOnEasel inkTex={inkTex} />,
+  'house-of-hex': (inkTex) => <PhoneInStand inkTex={inkTex} />,
+  'bengal-t20': (inkTex) => (
+    <group>
+      <mesh position={[0, 0.02, 0]} castShadow receiveShadow>
+        <boxGeometry args={[0.22, 0.04, 0.15]} />
+        <BoothMat color="#1F3A93" roughness={0.9} />
+      </mesh>
+      <mesh position={[0.01, 0.045, 0.01]} castShadow receiveShadow>
+        <boxGeometry args={[0.18, 0.01, 0.12]} />
+        <BoothMat color="#F2B705" roughness={0.9} />
+      </mesh>
+      <mesh position={[-0.02, 0.0525, 0.02]} rotation={[0, 0.2, 0]} castShadow receiveShadow>
+        <boxGeometry args={[0.15, 0.005, 0.06]} />
+        <BoothMat color={paper} roughness={0.6} fluor={1} />
+      </mesh>
+      <InkDecal ink={inkTex} w={0.2} h={0.034} position={[0, 0.02, 0.0755]} />
+    </group>
+  ),
+  sook: (inkTex) => (
+    <group>
+      {[-0.08, 0, 0.08].map((x, i) => (
+        <mesh key={x} position={[x, 0.065, 0]} castShadow receiveShadow>
+          <boxGeometry args={[0.07, 0.13, 0.07]} />
+          <BoothMat color={['#7A9E7E', '#C97B63', '#D8C8A8'][i]} roughness={0.5} fluor={i === 2 ? 0.4 : 0} />
         </mesh>
-        <mesh position={[0.06, 0.015, 0.01]} castShadow receiveShadow>
-          <cylinderGeometry args={[0.05, 0.05, 0.03, 48]} />
-          <Mat color={metal} rough={0.35} metalness={0.8} />
-        </mesh>
-      </group>
-    ),
-  },
-  'jsw-sports': {
-    width: 0.4,
-    height: 0.3,
-    render: () => (
-      <group>
-        {[-1, 1].map((s) => (
-          <group key={s} rotation={[0, -s * 0.45, 0]}>
-            <mesh position={[s * 0.12, 0.15, 0]} castShadow receiveShadow>
-              <boxGeometry args={[0.24, 0.3, 0.012]} />
-              <Mat color={s < 0 ? ink : paper} />
-            </mesh>
-          </group>
-        ))}
-      </group>
-    ),
-  },
-  'bengal-t20': {
-    width: 0.22,
-    height: 0.055,
-    render: () => (
-      <group>
-        <mesh position={[0, 0.02, 0]} castShadow receiveShadow>
-          <boxGeometry args={[0.22, 0.04, 0.15]} />
-          <Mat color="#1F3A93" />
-        </mesh>
-        <mesh position={[0.01, 0.045, 0.01]} castShadow receiveShadow>
-          <boxGeometry args={[0.18, 0.01, 0.12]} />
-          <Mat color="#F2B705" />
-        </mesh>
-        <mesh position={[-0.02, 0.0525, 0.02]} rotation={[0, 0.2, 0]} castShadow receiveShadow>
-          <boxGeometry args={[0.15, 0.005, 0.06]} />
-          <Mat color={paper} />
-        </mesh>
-      </group>
-    ),
-  },
-  mitooshi: { width: 0.3, height: 0.22, render: () => <Laptop /> },
-  'indo-thai': { width: 0.3, height: 0.22, render: () => <Laptop /> },
-  'house-of-hex': { width: 0.1, height: 0.15, render: () => <LeaningDevice w={0.072} h={0.15} /> },
-  sonde: { width: 0.25, height: 0.18, render: () => <LeaningDevice w={0.25} h={0.18} /> },
+      ))}
+      <InkDecal ink={inkTex} w={0.23} h={0.12} position={[0, 0.065, 0.0355]} />
+    </group>
+  ),
+  shunya: () => (
+    <group>
+      <mesh position={[-0.05, 0.045, 0]} castShadow receiveShadow>
+        <cylinderGeometry args={[0.04, 0.04, 0.09, 48]} />
+        <BoothMat color={paper} roughness={0.15} fluor={0.6} />
+      </mesh>
+      <mesh position={[0.06, 0.015, 0.01]} castShadow receiveShadow>
+        <cylinderGeometry args={[0.05, 0.05, 0.03, 48]} />
+        <BoothMat color={alu} roughness={0.35} metalness={0.8} />
+      </mesh>
+    </group>
+  ),
+};
+
+/** Aspect of each object's ink layer (w / h of the face it is printed on). */
+export const INK_ASPECT: Record<string, number> = {
+  'too-yumm': 0.14 / 0.21,
+  'jsw-sports': 0.22 / 0.27,
+  mitooshi: 0.27 / 0.176,
+  'indo-thai': 0.27 / 0.176,
+  sonde: 0.225 / 0.15,
+  'house-of-hex': 0.063 / 0.135,
+  'bengal-t20': 0.2 / 0.034,
+  sook: 0.23 / 0.12,
+  shunya: 1,
 };

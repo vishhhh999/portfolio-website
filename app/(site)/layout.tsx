@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { CONTACT_EMAIL, CONTACT_MAILTO } from '@/lib/site';
 import { BoothHost } from '@/components/booth/BoothHost';
 import { Providers } from '@/components/ui/Providers';
 import { SwitchPanel } from '@/components/ui/SwitchPanel';
@@ -18,8 +19,9 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
       <SwitchPanel />
       <main id="main">{children}</main>
       <footer className="footer">
-        <a href="mailto:hello@visheshmahendru.com">Book a viewing ↗</a>
-        <span className="mono">© {new Date().getFullYear()} · India, working worldwide</span>
+        <a href={CONTACT_MAILTO}>Book a viewing ↗</a>
+        <span className="mono">{CONTACT_EMAIL}</span>
+        <span className="mono footer__legal">© {new Date().getFullYear()} · India, working worldwide</span>
       </footer>
     </Providers>
   );

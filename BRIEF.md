@@ -74,7 +74,7 @@ This matters more than any effect. A recruiter with 40 tabs open must get to the
 /index            House-lights view (also reachable by switch / key I). SSR, no WebGL.
 /about            The calibration certificate.
 /archive          Secondary. Contact-sheet view (see 3.4).
-contact           "Book a viewing" (mailto + email copy), lives in footer and panel.
+contact           "Book a viewing" (mailto:work@visheshmahendru.com + email copy), lives in footer and panel.
 ```
 
 ### 3.1 Home: the lineup
@@ -135,7 +135,7 @@ Switch panel becomes a bottom rail of 7 round lamps. Objects become a horizontal
 
 ### 5.3 Performance budget (non-negotiable)
 - LCP under 2.5s on a mid-range Android over 4G. Headline + switches are DOM and render before WebGL.
-- Initial JS under ~300KB gz including three. Lazy-load every GLB after first paint, in viewport order.
+- JS budget (revised in Phase 2): **≤200KB gzipped before the 3D loads.** The 3D code (three, R3F, drei, postprocessing, lamp rigs) is always lazy-loaded after first paint and never blocks LCP. (The original "~300KB including three" isn't reachable: three + R3F alone is ~210KB gz.) Lazy-load every GLB after first paint, in viewport order.
 - Each GLB under 2MB, textures KTX2, 2K max (4K only for the tray hero object).
 - Canvas pauses (`frameloop="demand"`) when nothing animates and when the booth is scrolled out of view.
 - GPU tier detection (drei `PerformanceMonitor` / detect-gpu). Low tier → pre-rendered image fallback (5.4). `prefers-reduced-motion` → no strike flicker, no parallax, instant lamp swaps.
@@ -207,6 +207,8 @@ Order on the lineup follows your positioning: brand + web pieces centre-stage, p
 ---
 
 ## 7. Build phases (run in Claude Code, review after each)
+
+> **Git workflow.** Until launch, Claude Code commits straight to `main` with descriptive messages (one author, no review overhead). **Before the custom domain is pointed at Vercel (Phase 7), switch to branch → Vercel preview → merge**, so the live site only changes after a preview has been checked.
 
 - **Phase 0: Scaffold.** Next.js + R3F + Lenis + GSAP, persistent canvas in layout, routes, content types, 9 placeholder objects (simple primitives at the right scale), deploy preview on Vercel. Stop.
 - **Phase 1: The booth + D50 + house lights.** N7 room, rect top light, camera lock, lineup, hover spec plates, click to tray, routing without canvas remount, /index house-lights page. Stop.

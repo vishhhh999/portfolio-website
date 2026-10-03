@@ -122,10 +122,26 @@ main a, .work__body, .houselights, .page { pointer-events: auto; }
 .switch[aria-pressed='true'] .switch__led { background: var(--lamp); box-shadow: 0 0 8px var(--lamp); }
 .switch[aria-pressed='true'] { background: #2a2a28; }
 .switch__readout { opacity: 0.55; }
-.sound {
+.sound, .panel__contact {
   border: 0; background: transparent; cursor: pointer; text-align: left; padding: 6px 10px; opacity: 0.6;
-  font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; text-decoration: none;
 }
+.sound:hover, .panel__contact:hover { opacity: 1; }
+.sound[aria-pressed='true'] { opacity: 1; }
+.panel__foot { display: flex; justify-content: space-between; white-space: nowrap; }
+.panel__foot > * { padding-left: 10px; padding-right: 10px; }
+.panel__status {
+  margin: 0; padding: 4px 10px 2px; display: flex; align-items: center; gap: 8px;
+  font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.1em; text-transform: uppercase; color: #9d9b94;
+}
+.panel__status-led { width: 6px; height: 6px; border-radius: 50%; background: var(--lamp); box-shadow: 0 0 6px var(--lamp); flex: none; }
+
+/* Dark lamps (UV, FLOOD, SCREEN, AFTER DARK): DOM over the booth goes light. */
+html[data-dark='true'] .masthead,
+html[data-dark='true'] .hero { color: var(--paper); }
+html[data-dark='true'] .booth::after { mix-blend-mode: screen; opacity: 0.05; }
+html[data-lamp='AFTERDARK'] main, html[data-lamp='AFTERDARK'] .booth { cursor: none; }
+html[data-lamp='AFTERDARK'] main a { cursor: pointer; }
 
 /* ── Project page ─────────────────────────────────────────────── */
 .work__stage { height: calc(70svh - var(--masthead-h)); pointer-events: none; }
@@ -159,6 +175,11 @@ main a, .work__body, .houselights, .page { pointer-events: auto; }
 .index a { transition: padding 180ms var(--ease-rail); }
 .index a:hover { padding-left: 12px; background: rgba(17,17,17,0.035); }
 .index__object { opacity: 0.7; font-size: 14px; }
+.index__archive { display: inline-block; margin-left: 10px; padding: 2px 6px 1px; border: 1px solid currentColor; border-radius: 2px; vertical-align: middle; opacity: 0.6; }
+.archive-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: var(--gutter); }
+.archive-list a { display: flex; flex-direction: column; gap: 10px; text-decoration: none; }
+.archive-list__frame { aspect-ratio: 4 / 3; border: 1px solid var(--rule); display: grid; place-items: center; font-size: 13px; opacity: 0.6; }
+.archive-list__title { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; }
 .index__legend span:last-child, .index a > span:last-child { text-align: right; }
 .index__title { font-size: clamp(20px, 2.2vw, 32px); font-weight: 600; letter-spacing: -0.02em; }
 .index__tags { opacity: 0.7; }
@@ -180,7 +201,7 @@ main a, .work__body, .houselights, .page { pointer-events: auto; }
   .switch { grid-template-columns: auto; justify-items: center; padding: 10px 6px; }
   .switch__label, .switch__readout { display: none; }
   .switch__led { width: 14px; height: 14px; }
-  .sound { display: none; }
+  .sound, .panel__status, .panel__foot { display: none; }
   .footer { padding-bottom: 90px; flex-direction: column; }
   .index a { grid-template-columns: 32px 1fr 48px; }
   .index__tags, .index__object, .index__legend { display: none; }

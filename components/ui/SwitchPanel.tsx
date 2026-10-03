@@ -2,7 +2,10 @@
 
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect } from 'react';
-import { LAMPS } from '@/lib/lampPresets';
+import { LAMPS, lampById } from '@/lib/lampPresets';
+import { switchLamp } from '@/lib/lampController';
+import { CONTACT_MAILTO } from '@/lib/site';
+import { enableSound, playClick } from '@/lib/sound';
 import { readHouseLightsPreference, useBooth } from '@/lib/store';
 
 /** The remembered house-lights choice is honoured on a fresh load only, never on in-app navigation. */
@@ -10,17 +13,14 @@ let preferenceChecked = false;
 
 /**
  * Hardware-style lamp switches. Real buttons, aria-pressed, keys 1–7, I for house lights.
- * Phase 0: switches drive store state only. Lamps physically relight the booth in Phase 2.
  */
 export function SwitchPanel() {
   const router = useRouter();
   const pathname = usePathname();
   const lamp = useBooth((s) => s.lamp);
-  const setLamp = useBooth((s) => s.setLamp);
   const houseLights = useBooth((s) => s.houseLights);
   const setHouseLights = useBooth((s) => s.setHouseLights);
   const sound = useBooth((s) => s.sound);
-  const setSound = useBooth((s) => s.setSound);
 
   const onIndex = pathname === '/index';
 
@@ -32,8 +32,14 @@ export function SwitchPanel() {
     if (pathname === '/' && readHouseLightsPreference()) router.replace('/index');
   }, [onIndex, pathname, houseLights, setHouseLights, router]);
 
+  const flip = (id: (typeof LAMPS)[number]['id']) => {
+    playClick();
+    switchLamp(id);
+  };
+
   const toggleHouseLights = () => {
     const next = !onIndex;
+    playClick();
     setHouseLights(next);
     router.push(next ? '/index' : '/');
   };
@@ -47,8 +53,9 @@ export function SwitchPanel() {
         toggleHouseLights();
         return;
       }
+      if (onIndex) return;
       const match = LAMPS.find((l) => l.key === e.key);
-      if (match) setLamp(match.id);
+      if (match) flip(match.id);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -56,13 +63,7 @@ export function SwitchPanel() {
 
   return (
     <nav className="panel" aria-label="Booth lamps">
-      <button
-        type="button"
-        className="rocker"
-        aria-pressed={onIndex}
-        onClick={toggleHouseLights}
-        aria-keyshortcuts="I"
-      >
+      <button type="button" className="rocker" aria-pressed={onIndex} onClick={toggleHouseLights} aria-keyshortcuts="I">
         <span className="rocker__state" aria-hidden="true">{onIndex ? 'On' : 'Off'}</span>
         <span>House lights</span>
         <kbd aria-hidden="true">I</kbd>
@@ -71,6 +72,10 @@ export function SwitchPanel() {
       {/* House lights on: the booth is off, so the lamp bank folds away. */}
       {!onIndex && (
         <>
+          <p className="panel__status" aria-live="polite">
+            <span className="panel__status-led" style={{ ['--lamp' as string]: lampById(lamp).indicator }} aria-hidden="true" />
+            {lampById(lamp).spec}
+          </p>
           <ul className="switches" role="list">
             {LAMPS.map((l) => (
               <li key={l.id}>
@@ -80,7 +85,7 @@ export function SwitchPanel() {
                   aria-pressed={lamp === l.id}
                   aria-label={l.ariaLabel}
                   aria-keyshortcuts={l.key}
-                  onClick={() => setLamp(l.id)}
+                  onClick={() => flip(l.id)}
                   style={{ ['--lamp' as string]: l.indicator }}
                 >
                   <span className="switch__led" aria-hidden="true" />
@@ -91,9 +96,12 @@ export function SwitchPanel() {
             ))}
           </ul>
 
-          <button type="button" className="sound" aria-pressed={sound} onClick={() => setSound(!sound)}>
-            Sound {sound ? 'on' : 'off'}
-          </button>
+          <div className="panel__foot">
+            <button type="button" className="sound" aria-pressed={sound} onClick={() => void enableSound(!sound)}>
+              Sound {sound ? 'on' : 'off'}
+            </button>
+            <a className="panel__contact" href={CONTACT_MAILTO}>Book a viewing ↗</a>
+          </div>
         </>
       )}
     </nav>

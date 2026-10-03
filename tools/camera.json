@@ -1,0 +1,558 @@
+{
+  "_readme": "Booth camera + staging for the Blender fallback renders. Units: metres. \"three\" = three.js world (Y-up, +Z towards camera). \"blender\" = same point in Blender (Z-up): (x, y, z)three -> (x, -z, y)blender. Run tools/blender_camera.py inside Blender to build both cameras, plinths, tray and props.",
+  "units": "metres",
+  "lens": {
+    "fovVerticalDeg": 13.7,
+    "sensorFit": "VERTICAL",
+    "sensorHeightMm": 24,
+    "focalLengthMm": 99.893,
+    "clipStart": 0.1,
+    "clipEnd": 60,
+    "note": "Vertical FOV is fixed; horizontal FOV follows the render aspect. The lineup shot distance is solved per aspect so the whole row fills the width, so it differs between 16:9 and 16:10."
+  },
+  "shots": {
+    "LINEUP_16x9 (1920x1080)": {
+      "three": {
+        "position": [
+          0,
+          0.39686,
+          6.35323
+        ],
+        "target": [
+          0,
+          0.39686,
+          0
+        ]
+      },
+      "blender": {
+        "location": [
+          0,
+          -6.35323,
+          0.39686
+        ],
+        "target": [
+          0,
+          0,
+          0.39686
+        ]
+      }
+    },
+    "LINEUP_16x10 (1440x900)": {
+      "three": {
+        "position": [
+          0,
+          0.44096,
+          7.05914
+        ],
+        "target": [
+          0,
+          0.44096,
+          0
+        ]
+      },
+      "blender": {
+        "location": [
+          0,
+          -7.05914,
+          0.44096
+        ],
+        "target": [
+          0,
+          0,
+          0.44096
+        ]
+      }
+    },
+    "TRAY_16x9": {
+      "too-yumm": {
+        "three": {
+          "position": [
+            0,
+            0.132,
+            2.99744
+          ],
+          "target": [
+            0,
+            0.132,
+            0.6
+          ]
+        },
+        "blender": {
+          "location": [
+            0,
+            -2.99744,
+            0.132
+          ],
+          "target": [
+            0,
+            -0.6,
+            0.132
+          ]
+        }
+      },
+      "jsw-sports": {
+        "three": {
+          "position": [
+            0,
+            0.165,
+            3.5968
+          ],
+          "target": [
+            0,
+            0.165,
+            0.6
+          ]
+        },
+        "blender": {
+          "location": [
+            0,
+            -3.5968,
+            0.165
+          ],
+          "target": [
+            0,
+            -0.6,
+            0.165
+          ]
+        }
+      },
+      "mitooshi": {
+        "three": {
+          "position": [
+            0,
+            0.1155,
+            2.69776
+          ],
+          "target": [
+            0,
+            0.1155,
+            0.6
+          ]
+        },
+        "blender": {
+          "location": [
+            0,
+            -2.69776,
+            0.1155
+          ],
+          "target": [
+            0,
+            -0.6,
+            0.1155
+          ]
+        }
+      },
+      "sonde": {
+        "three": {
+          "position": [
+            0,
+            0.1045,
+            2.68111
+          ],
+          "target": [
+            0,
+            0.1045,
+            0.6
+          ]
+        },
+        "blender": {
+          "location": [
+            0,
+            -2.68111,
+            0.1045
+          ],
+          "target": [
+            0,
+            -0.6,
+            0.1045
+          ]
+        }
+      },
+      "house-of-hex": {
+        "three": {
+          "position": [
+            0,
+            0.0825,
+            2.68111
+          ],
+          "target": [
+            0,
+            0.0825,
+            0.6
+          ]
+        },
+        "blender": {
+          "location": [
+            0,
+            -2.68111,
+            0.0825
+          ],
+          "target": [
+            0,
+            -0.6,
+            0.0825
+          ]
+        }
+      },
+      "bengal-t20": {
+        "three": {
+          "position": [
+            0,
+            0.033,
+            2.68111
+          ],
+          "target": [
+            0,
+            0.033,
+            0.6
+          ]
+        },
+        "blender": {
+          "location": [
+            0,
+            -2.68111,
+            0.033
+          ],
+          "target": [
+            0,
+            -0.6,
+            0.033
+          ]
+        }
+      },
+      "sook": {
+        "three": {
+          "position": [
+            0,
+            0.0715,
+            2.68111
+          ],
+          "target": [
+            0,
+            0.0715,
+            0.6
+          ]
+        },
+        "blender": {
+          "location": [
+            0,
+            -2.68111,
+            0.0715
+          ],
+          "target": [
+            0,
+            -0.6,
+            0.0715
+          ]
+        }
+      }
+    }
+  },
+  "booth": {
+    "width": 4.2,
+    "depth": 16,
+    "height": 2.4,
+    "backZ": -0.7
+  },
+  "trayPlate": {
+    "z": 0.6,
+    "w": 0.9,
+    "d": 0.5,
+    "three": {
+      "center": [
+        0,
+        0.002,
+        0.6
+      ]
+    },
+    "blender": {
+      "center": [
+        0,
+        -0.6,
+        0.002
+      ]
+    }
+  },
+  "plinthChamferMetres": 0.004,
+  "plinths": [
+    {
+      "slug": "too-yumm",
+      "size": {
+        "width_x": 0.26,
+        "depth": 0.2,
+        "height": 0.03
+      },
+      "three": {
+        "center": [
+          -1.15,
+          0.015,
+          0
+        ],
+        "objectBase": [
+          -1.15,
+          0.03,
+          0
+        ]
+      },
+      "blender": {
+        "center": [
+          -1.15,
+          0,
+          0.015
+        ],
+        "objectBase": [
+          -1.15,
+          0,
+          0.03
+        ]
+      },
+      "objectFootprint": {
+        "w": 0.16,
+        "h": 0.24,
+        "d": 0.07
+      }
+    },
+    {
+      "slug": "jsw-sports",
+      "size": {
+        "width_x": 0.46,
+        "depth": 0.28,
+        "height": 0.03
+      },
+      "three": {
+        "center": [
+          -0.74,
+          0.015,
+          0
+        ],
+        "objectBase": [
+          -0.74,
+          0.03,
+          0
+        ]
+      },
+      "blender": {
+        "center": [
+          -0.74,
+          0,
+          0.015
+        ],
+        "objectBase": [
+          -0.74,
+          0,
+          0.03
+        ]
+      },
+      "objectFootprint": {
+        "w": 0.4,
+        "h": 0.3,
+        "d": 0.17
+      }
+    },
+    {
+      "slug": "mitooshi",
+      "size": {
+        "width_x": 0.38,
+        "depth": 0.32,
+        "height": 0.1
+      },
+      "three": {
+        "center": [
+          -0.27,
+          0.05,
+          0
+        ],
+        "objectBase": [
+          -0.27,
+          0.1,
+          0
+        ]
+      },
+      "blender": {
+        "center": [
+          -0.27,
+          0,
+          0.05
+        ],
+        "objectBase": [
+          -0.27,
+          0,
+          0.1
+        ]
+      },
+      "objectFootprint": {
+        "w": 0.3,
+        "h": 0.21,
+        "d": 0.24
+      }
+    },
+    {
+      "slug": "sonde",
+      "size": {
+        "width_x": 0.32,
+        "depth": 0.24,
+        "height": 0.13
+      },
+      "three": {
+        "center": [
+          0.13,
+          0.065,
+          0
+        ],
+        "objectBase": [
+          0.13,
+          0.13,
+          0
+        ]
+      },
+      "blender": {
+        "center": [
+          0.13,
+          0,
+          0.065
+        ],
+        "objectBase": [
+          0.13,
+          0,
+          0.13
+        ]
+      },
+      "objectFootprint": {
+        "w": 0.25,
+        "h": 0.19,
+        "d": 0.14
+      }
+    },
+    {
+      "slug": "house-of-hex",
+      "size": {
+        "width_x": 0.24,
+        "depth": 0.2,
+        "height": 0.24
+      },
+      "three": {
+        "center": [
+          0.46,
+          0.12,
+          0
+        ],
+        "objectBase": [
+          0.46,
+          0.24,
+          0
+        ]
+      },
+      "blender": {
+        "center": [
+          0.46,
+          0,
+          0.12
+        ],
+        "objectBase": [
+          0.46,
+          0,
+          0.24
+        ]
+      },
+      "objectFootprint": {
+        "w": 0.08,
+        "h": 0.15,
+        "d": 0.07
+      }
+    },
+    {
+      "slug": "bengal-t20",
+      "size": {
+        "width_x": 0.3,
+        "depth": 0.24,
+        "height": 0.17
+      },
+      "three": {
+        "center": [
+          0.78,
+          0.085,
+          0
+        ],
+        "objectBase": [
+          0.78,
+          0.17,
+          0
+        ]
+      },
+      "blender": {
+        "center": [
+          0.78,
+          0,
+          0.085
+        ],
+        "objectBase": [
+          0.78,
+          0,
+          0.17
+        ]
+      },
+      "objectFootprint": {
+        "w": 0.22,
+        "h": 0.06,
+        "d": 0.15
+      }
+    },
+    {
+      "slug": "sook",
+      "size": {
+        "width_x": 0.3,
+        "depth": 0.18,
+        "height": 0.08
+      },
+      "three": {
+        "center": [
+          1.13,
+          0.04,
+          0
+        ],
+        "objectBase": [
+          1.13,
+          0.08,
+          0
+        ]
+      },
+      "blender": {
+        "center": [
+          1.13,
+          0,
+          0.04
+        ],
+        "objectBase": [
+          1.13,
+          0,
+          0.08
+        ]
+      },
+      "objectFootprint": {
+        "w": 0.24,
+        "h": 0.13,
+        "d": 0.07
+      }
+    }
+  ],
+  "props": {
+    "shelf": {
+      "x": 1.02,
+      "w": 0.62,
+      "d": 0.12,
+      "h": 0.25
+    },
+    "checker": {
+      "x": 1.12,
+      "w": 0.279,
+      "h": 0.216,
+      "lean": 0.2
+    },
+    "card": {
+      "x": 0.82,
+      "w": 0.15,
+      "h": 0.1,
+      "lean": 0.24
+    }
+  }
+}

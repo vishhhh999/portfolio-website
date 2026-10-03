@@ -9,6 +9,7 @@ const work: Work = {
   year: 2025,
   role: 'TBC',
   scope: 'TBC',
+  inLineup: true,
   nativeLamp: 'FLOOD',
   glb: '',
   object: 'Folded flag, match ticket and jersey swatch stack',

@@ -9,6 +9,7 @@ const work: Work = {
   year: 2025,
   role: 'TBC',
   scope: 'TBC',
+  inLineup: true,
   nativeLamp: 'SCREEN',
   glb: '',
   object: 'Tablet with the product UI',

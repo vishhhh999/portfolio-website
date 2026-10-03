@@ -27,9 +27,9 @@ export default async function WorkPage({ params }: Props) {
 
   return (
     <article className="work">
-      <div className="work__stage" aria-hidden="true" />
+      {work.inLineup && <div className="work__stage" aria-hidden="true" />}
       <div className="work__body">
-        <SlugLine id={index} lamp={work.nativeLamp} />
+        <SlugLine id={index} lamp={work.inLineup ? work.nativeLamp : 'ARCHIVE'} />
         <h1>{work.title}</h1>
 
         {/* Spec plate: styled as a calibration label in Phase 5. */}

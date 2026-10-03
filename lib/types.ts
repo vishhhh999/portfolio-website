@@ -26,6 +26,8 @@ export type Work = {
   /** Exactly 6. */
   deliverables: [Deliverable, Deliverable, Deliverable, Deliverable, Deliverable, Deliverable];
   behance?: string;
+  /** false = archive only: not on the booth floor, listed in /archive and /index. */
+  inLineup: boolean;
   /** Hero object description, used for alt text and the house-lights index. */
   object: string;
 };
