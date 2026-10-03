@@ -1,0 +1,73 @@
+{
+  "url": "https://www.visheshmahendru.com/projects/indothai",
+  "title": "INDO THAI",
+  "tags": [
+    "WEB DESIGN",
+    "3D RENDERING"
+  ],
+  "year": 2024,
+  "role": "Web Designer, 3D Visualization",
+  "clientType": "Studio",
+  "live": "https://www.indothai.in/",
+  "description": [
+    "Website design and a 3D hero animation for IndoThai, a ground-handling operator serving airlines and airports across northern India, replacing a dated site with something that actually looked like the scale of the operation behind it.\n\nDesigned and rendered while working at The Graphē in Kolkata. The brief was to modernize the site for an established company, not introduce a new brand."
+  ],
+  "sections": [
+    {
+      "heading": "MAKING SCALE VISIBLE",
+      "body": [
+        "IndoThai has been running since 2010 and holds the Airport Authority of India's ground-handling concession across several northern-region airports, real infrastructure, real airline clients, a genuinely large operation. None of that showed up on the old site, which read like a static company brochure from a decade earlier and did nothing to signal the scale or precision the business actually runs on.\n\nGround handling is also an inherently invisible industry: ramp services, load control, station management, none of it is something the public sees or has a mental image of. The challenge was making a technical, largely unseen operation feel credible and sophisticated on screen, without falling back on generic corporate stock photography that could describe any logistics company."
+      ]
+    },
+    {
+      "heading": "MOTION BEFORE COPY",
+      "body": [
+        "The hero opens on a full 3D render of ground operations that plays out as the visitor scrolls, aircraft, ground vehicles, the choreography of a turnaround, before transitioning into the rest of the site. It's built to do in a few seconds of motion what a paragraph of copy couldn't: signal scale, precision, and safety before the visitor reads a single word.\n\nThe rest of the site is organized around IndoThai's actual service catalog, ramp services, load control, passenger services, station management, and its real airline and airport roster, including Akasa Air and airports from Varanasi to Kolkata, so the credibility comes from specificity rather than claims."
+      ]
+    }
+  ],
+  "deliverables": [
+    {
+      "type": "video",
+      "src": "/work/indo-thai/01.mp4",
+      "alt": "TBC",
+      "source": "https://framerusercontent.com/assets/h3ZDz8jfxemCOthedYoOxpKYw.mp4",
+      "width": 1920,
+      "height": 1200,
+      "poster": "/work/indo-thai/01-poster.webp"
+    },
+    {
+      "type": "video",
+      "src": "/work/indo-thai/02.mp4",
+      "alt": "TBC",
+      "source": "https://framerusercontent.com/assets/a99gjEKDLF2f5yf8HD9tMXypk.mp4",
+      "width": 1080,
+      "height": 676,
+      "poster": "/work/indo-thai/02-poster.webp"
+    },
+    {
+      "type": "image",
+      "src": "/work/indo-thai/03.webp",
+      "alt": "Two phones showing the Indo Thai website, with the contact page open, on lilac ridged steps.",
+      "source": "https://framerusercontent.com/images/sNvRbmvFbx3bXWaRgQZXV1bOiec.png",
+      "width": 2385,
+      "height": 1500
+    },
+    {
+      "type": "image",
+      "src": "/work/indo-thai/04.webp",
+      "alt": "Two phones showing Indo Thai website pages for airlines and services, lying on lilac ridged steps.",
+      "source": "https://framerusercontent.com/images/fS1KTKmQfXbXyGMlOHJBx4j8R2M.png",
+      "width": 2385,
+      "height": 1500
+    },
+    {
+      "type": "image",
+      "src": "/work/indo-thai/05.webp",
+      "alt": "Indo Thai design system sheet showing typography, colour palette, buttons, components and spacing.",
+      "source": "https://framerusercontent.com/images/xZa5WFm41uOg3T7XFDmKkGO4xaM.png",
+      "width": 2400,
+      "height": 1500
+    }
+  ]
+}

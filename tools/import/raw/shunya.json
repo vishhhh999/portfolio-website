@@ -1,0 +1,71 @@
+{
+  "url": "https://www.visheshmahendru.com/projects/shunya",
+  "title": "SHUNYA",
+  "tags": [
+    "PACKAGING DESIGN",
+    "BRAND IDENTITY"
+  ],
+  "year": 2026,
+  "role": "Brand + Packaging Designer (Solo)",
+  "clientType": "Self-initiated",
+  "description": [
+    "Pure camphor, designed around the one thing it does best: disappear. Packaging, brand identity and 3D for SHUNYA (शून्य, zero).\n\nA self-initiated project. Concept, brand identity, packaging design, 3D and motion, built in Figma and Blender."
+  ],
+  "sections": [
+    {
+      "heading": "BUILT TO DISAPPEAR",
+      "body": [
+        "Camphor sublimates. It goes from solid straight to vapour and burns without leaving ash, which also means a cheap pouch lets it evaporate before you ever use it. SHUNYA (शून्य, zero) is built on that single material truth. The packaging exists to hold something that wants to leave, and the identity shows it leaving."
+      ]
+    },
+    {
+      "heading": "LOSING MASS",
+      "body": [
+        "The wordmark loses weight as the range moves from solid to vapour, with the letters drifting apart as the weight drops. A grid of rounded squares, one per tablet, thins out the same way. One square is printed in ember orange: the tablet you light. It is the only colour in the whole system.\n\nThe range has four pieces: foil-sealed Pooja tablets, Bhimseni crystal in a glass and cork jar, Air diffuser cubes in a tin whose lid is pierced in the grid pattern, and a Ritual Set that holds the full story on one lid. Every pack was built to real dielines and rendered in Blender with debossed grids, raised wordmarks and a copper foil ember."
+      ]
+    }
+  ],
+  "deliverables": [
+    {
+      "type": "video",
+      "src": "/work/shunya/01.mp4",
+      "alt": "TBC",
+      "source": "https://framerusercontent.com/assets/hfjn0LVzYd8XtUzVEwOYSfDm9Kw.mp4",
+      "width": 1920,
+      "height": 1200,
+      "poster": "/work/shunya/01-poster.webp"
+    },
+    {
+      "type": "image",
+      "src": "/work/shunya/02.webp",
+      "alt": "SHUNYA camphor range on a grey studio background: the white Ritual Set box, a tablet carton, a glass jar with a cork stopper and a round tin, with loose camphor tablets in front.",
+      "source": "https://framerusercontent.com/images/tmFI9wK0lpN1A7grnyWPhCYwZY.png",
+      "width": 2385,
+      "height": 1500
+    },
+    {
+      "type": "image",
+      "src": "/work/shunya/03.webp",
+      "alt": "SHUNYA tablet carton open to show a foil blister pack, beside a second carton and a strip of ten foil sealed camphor tablets, all marked with a grid of black rounded squares.",
+      "source": "https://framerusercontent.com/images/2K0HHR5cOq2uYn7wxAAw2VV1m0s.png",
+      "width": 2400,
+      "height": 1500
+    },
+    {
+      "type": "image",
+      "src": "/work/shunya/04.webp",
+      "alt": "Top down view of the SHUNYA Air tin with its lid beside it, the lid printed with a thinning grid of dots and the tin filled with white camphor cubes.",
+      "source": "https://framerusercontent.com/images/QNA6Mg3KaFhCALKIZyspDur0Ag.png",
+      "width": 2385,
+      "height": 1500
+    },
+    {
+      "type": "image",
+      "src": "/work/shunya/05.webp",
+      "alt": "SHUNYA identity system sheet: the wordmark in Latin and Devanagari thinning from solid to vapour to zero, the matching grid of squares, and the chalk, graphite and ember colour palette.",
+      "source": "https://framerusercontent.com/images/uO1ZKefqIlWht6ObKaZbQj76PdA.png",
+      "width": 2385,
+      "height": 1500
+    }
+  ]
+}

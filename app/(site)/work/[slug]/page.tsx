@@ -38,7 +38,15 @@ export default async function WorkPage({ params }: Props) {
           <SpecPlate work={work} serial={serial} />
           <div className="work__copy">
             {work.description?.length ? (
-              work.description.map((p) => <p key={p.slice(0, 32)}>{p}</p>)
+              <>
+                {work.description.map((p) => <p key={p.slice(0, 32)}>{p}</p>)}
+                {work.sections?.map((sec) => (
+                  <section key={sec.heading} className="work__section">
+                    <h2>{sec.heading}</h2>
+                    {sec.body.map((p) => <p key={p.slice(0, 32)}>{p}</p>)}
+                  </section>
+                ))}
+              </>
             ) : (
               <p className="work__tbc">Case copy imports from the live site (TBC).</p>
             )}
@@ -53,6 +61,9 @@ export default async function WorkPage({ params }: Props) {
         <ProofStrip deliverables={work.deliverables} serialBase={serial} />
 
         <div className="work__links">
+          {work.live && (
+            <a href={work.live} target="_blank" rel="noreferrer" className="proofset">Live site ↗</a>
+          )}
           {work.behance ? (
             <a href={work.behance} target="_blank" rel="noreferrer" className="proofset">Full proof set ↗</a>
           ) : (

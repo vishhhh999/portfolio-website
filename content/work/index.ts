@@ -15,20 +15,24 @@ import sonde from './sonde';
  * Imported copy wins over placeholders; anything not found stays as authored (TBC).
  */
 function withImport(w: Work): Work {
-  const o = imported[w.slug] as Partial<Work> & { deliverables?: (Deliverable & { source?: string })[] } | undefined;
+  const o = imported[w.slug] as (Omit<Partial<Work>, 'deliverables'> & { deliverables?: (Deliverable & { source?: string })[] }) | undefined;
   if (!o) return w;
-  const d = o.deliverables?.slice(0, 6).map(({ type, src, alt }) => ({ type, src, alt }));
+  const d = o.deliverables?.filter((x) => x.src).slice(0, 6).map(({ source: _source, ...x }) => x);
   return {
     ...w,
-    ...(o.title ? { title: o.title } : {}),
+    // the live site sets titles in caps; keep the authored casing unless the name itself differs
+    ...(o.title && o.title.toLowerCase() !== w.title.toLowerCase() ? { title: o.title } : {}),
     ...(o.description ? { description: o.description } : {}),
+    ...(o.sections ? { sections: o.sections } : {}),
+    ...(o.live ? { live: o.live } : {}),
     ...(typeof o.year === 'number' ? { year: o.year } : {}),
     ...(o.role ? { role: o.role } : {}),
     ...(o.scope ? { scope: o.scope } : {}),
     ...(o.client ? { client: o.client } : {}),
     ...(o.clientType ? { clientType: o.clientType } : {}),
     ...(o.credits ? { credits: o.credits } : {}),
-    ...(d && d.length ? { deliverables: [...d, ...w.deliverables.slice(d.length)].slice(0, 6) as Work['deliverables'] } : {}),
+    // real deliverables replace the placeholders outright; per-project extras (UV masks) carry over by index
+    ...(d && d.length ? { deliverables: d.map((x, i) => (x.type === 'image' && w.deliverables[i]?.type === 'image' && w.deliverables[i].fluorMask ? { ...w.deliverables[i], ...x } : x)) } : {}),
   };
 }
 

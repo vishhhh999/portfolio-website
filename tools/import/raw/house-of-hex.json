@@ -1,0 +1,73 @@
+{
+  "url": "https://www.visheshmahendru.com/projects/house-of-hex",
+  "title": "HOUSE OF HEX",
+  "tags": [
+    "WEB DESIGN",
+    "ART DIRECTION"
+  ],
+  "year": 2025,
+  "role": "Web Designer, Framer Build",
+  "clientType": "Freelance",
+  "live": "https://www.houseofhex.design/",
+  "description": [
+    "Complete website design for House of Hex, a brand and identity design studio, built to house a growing roster of heavyweight client work that, until this project, had nowhere online to live.\n\nDesigned the full site end to end as a visual designer at the studio. This was a website project, not a branding one, the studio's identity work came from elsewhere on the team."
+  ],
+  "sections": [
+    {
+      "heading": "NO HOME FOR THE WORK",
+      "body": [
+        "House of Hex had serious client work behind it, brand and visual identity systems for names like the Bengal Pro T20 League and JSW Sports, but no site of its own. There was no formal brief in the usual sense: the problem was simply that a studio doing sharp, considered work for other people had nothing that sharp or considered representing itself.\n\nThe harder problem is the one every design studio site runs into: the category is saturated with the same moves, bold type, hover reveals, a masonry grid of thumbnails, so it's easy to build something competent and forgettable. The site needed to hold heavyweight case studies without flattening them into generic portfolio tiles, and needed to read as credible to the kind of client that was actually going to hire the studio, not just other designers scrolling for inspiration."
+      ]
+    },
+    {
+      "heading": "LETTING WORK LEAD",
+      "body": [
+        "The structure leans on a grid-driven portfolio landing page that gets out of the way fast, restrained typography, generous whitespace, so each project thumbnail can carry its own visual weight instead of competing with the site's own design for attention. Project pages were built to flex around each case study's actual visual language rather than forcing every project into one identical layout.\n\nBeyond the portfolio itself, the site carries a process section and an FAQ that do real work: they answer the practical questions a prospective client has before reaching out, scope, timeline, how the studio works, rather than leaving that conversation entirely to a contact form. The result is a site that functions as a working sales tool for the studio, not just a gallery."
+      ]
+    }
+  ],
+  "deliverables": [
+    {
+      "type": "video",
+      "src": "/work/house-of-hex/01.mp4",
+      "alt": "TBC",
+      "source": "https://framerusercontent.com/assets/u6ZzY557ntGb2hYZVqfBico2qY.mp4",
+      "width": 1920,
+      "height": 1200,
+      "poster": "/work/house-of-hex/01-poster.webp"
+    },
+    {
+      "type": "video",
+      "src": "/work/house-of-hex/02.mp4",
+      "alt": "TBC",
+      "source": "https://framerusercontent.com/assets/A2i4iyqXZ4PKkY7FY4BXHfkz2Y.mp4",
+      "width": 1080,
+      "height": 676,
+      "poster": "/work/house-of-hex/02-poster.webp"
+    },
+    {
+      "type": "image",
+      "src": "/work/house-of-hex/03.webp",
+      "alt": "House of Hex website contact page open on a laptop on a ridged dark surface with an orange backdrop.",
+      "source": "https://framerusercontent.com/images/vxZ1bnzbipXjTZhUWXd9mE4nnQc.png",
+      "width": 2385,
+      "height": 1500
+    },
+    {
+      "type": "image",
+      "src": "/work/house-of-hex/04.webp",
+      "alt": "Two phones showing the House of Hex mobile site, an FAQ page and a services page, lying on a dark ridged surface.",
+      "source": "https://framerusercontent.com/images/KsAEEFmhLS8aydMcj2hAg0sLik.png",
+      "width": 2385,
+      "height": 1500
+    },
+    {
+      "type": "image",
+      "src": "/work/house-of-hex/05.webp",
+      "alt": "House of Hex design system sheet showing typography, colour palette, buttons, components and spacing.",
+      "source": "https://framerusercontent.com/images/IdLhTusjoQcGMDY0xgo8dOpGA.png",
+      "width": 2400,
+      "height": 1500
+    }
+  ]
+}

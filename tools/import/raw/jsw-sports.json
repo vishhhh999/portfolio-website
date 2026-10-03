@@ -1,0 +1,78 @@
+{
+  "url": "https://www.visheshmahendru.com/projects/jsw-sports",
+  "title": "JSW SPORTS",
+  "tags": [
+    "EDITORIAL DESIGN",
+    "PUBLICATION DESIGN"
+  ],
+  "year": 2025,
+  "role": "Editorial Designer",
+  "clientType": "Studio",
+  "description": [
+    "Editorial design for two JSW Sports publications: a coffee table book for the Haryana Steelers' maiden PKL title, and the Inspire Institute of Sport's 2025 annual report.\n\nWorked on both as part of the team at House of Hex. Neither publication existed in this form before, both were built from the ground up."
+  ],
+  "sections": [
+    {
+      "heading": "MORE THAN A SCOREBOARD",
+      "body": [
+        "Both projects shared the same underlying problem: an elite sports organization whose real story lives almost entirely in match highlights, stats, and press releases, not in anything built to be kept. The Haryana Steelers had just won their first PKL title after seven seasons of building, a story with real texture: rural academies, a co-captaincy experiment, a losing final the year before, that a scoreboard alone couldn't carry. IIS runs a sprawling, genuinely impressive high-performance ecosystem across a dozen Olympic sports, and needed a flagship document that could communicate that scale to partners and sponsors, not just list results.\n\nThe design problem that followed was structural: both publications had to hold dense, long-form editorial content, athlete profiles, coach bios, bilingual quotes, data, across dozens of pages, while staying visually premium enough to function as a physical object people actually keep, a coffee-table book and a boardroom annual report, not a printed PDF."
+      ]
+    },
+    {
+      "heading": "STRUCTURE FOR WEIGHT",
+      "body": [
+        "For the Haryana Steelers book, the layout was built to let raw kabaddi imagery and typographic movement carry the weight, sectioned into distinct chapters like \"Roots of Glory\" and \"Losses, Lessons & the Big Win\" rather than one undifferentiated run of pages, with bilingual Hindi-English pull-quotes from players and coaches kept as a recurring device throughout.\n\nFor the IIS Annual Report, the structure leans on long-form storytelling, athlete comeback narratives, coach profiles, infrastructure deep-dives, given an editorial hierarchy that signals this is the organization's flagship document rather than a routine report, with partner credit built into the layout rather than tacked on as a logo strip at the end."
+      ]
+    }
+  ],
+  "deliverables": [
+    {
+      "type": "image",
+      "src": "/work/jsw-sports/01.webp",
+      "alt": "Haryana Steelers book cover, Haqq Se Steelers, showing three players with the trophy on a navy and gold cover.",
+      "source": "https://framerusercontent.com/images/KAxYJfW0ceC81ikKvuy0FM5eMl8.png",
+      "width": 2385,
+      "height": 1500
+    },
+    {
+      "type": "image",
+      "src": "/work/jsw-sports/02.webp",
+      "alt": "Inspire Institute of Sport annual report 2024 2025 cover with a group of athletes in front of a red building, on a teal back cover.",
+      "source": "https://framerusercontent.com/images/J4NDvqDhkSdGOGX6EF8WtEhZkko.png",
+      "width": 2385,
+      "height": 1500
+    },
+    {
+      "type": "image",
+      "src": "/work/jsw-sports/03.webp",
+      "alt": "Full wraparound cover of the Haryana Steelers book, with a quote on the back and the players and trophy on the front.",
+      "source": "https://framerusercontent.com/images/MLk6ybRtGFNkyfydwruH3xPm4.png",
+      "width": 2400,
+      "height": 1500
+    },
+    {
+      "type": "image",
+      "src": "/work/jsw-sports/04.webp",
+      "alt": "Full wraparound cover of the Inspire Institute of Sport annual report, with the logo on the teal back and athletes on the front.",
+      "source": "https://framerusercontent.com/images/Ve7eJq5FOfuCj1deltYsU0bheM.png",
+      "width": 2385,
+      "height": 1500
+    },
+    {
+      "type": "image",
+      "src": "/work/jsw-sports/05.webp",
+      "alt": "Four spreads from the Haryana Steelers book: Foreword, The Early Years, A Strategic Shift and The Semi-Final.",
+      "source": "https://framerusercontent.com/images/ARH9e0wQb2OFMSqsxUHNMNYo0g.png",
+      "width": 2385,
+      "height": 1500
+    },
+    {
+      "type": "image",
+      "src": "/work/jsw-sports/06.webp",
+      "alt": "Four spreads from the Inspire Institute of Sport annual report in orange, green and teal, with athlete photos and statistics such as 22%.",
+      "source": "https://framerusercontent.com/images/hLZpoUBTOhTLTiaiFTjdlUL58CY.png",
+      "width": 2385,
+      "height": 1500
+    }
+  ]
+}

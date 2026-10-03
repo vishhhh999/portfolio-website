@@ -1,0 +1,78 @@
+{
+  "url": "https://www.visheshmahendru.com/projects/too-yumm",
+  "title": "TOO YUMM",
+  "tags": [
+    "PACKAGING DESIGN",
+    "3D RENDERING"
+  ],
+  "year": 2024,
+  "role": "Packaging Designer, 3D Visualization",
+  "clientType": "Studio",
+  "description": [
+    "Packaging and 3D visualization for Too Yumm's new flavored nuts line, extending an established mass-market brand into a category that runs on cluttered shelves and repetitive visual language.\n\nDesigned while working at The Graphē in Kolkata, with creative input from the team there. The line needed to feel unmistakably Too Yumm while giving each new flavor its own distinct shelf identity, balancing a \"Roasted, Not Fried\" health claim against the brand's youth-facing, high-energy tone."
+  ],
+  "sections": [
+    {
+      "heading": "ONE BRAND, MANY SHELVES",
+      "body": [
+        "Flavored nuts is a crowded category, and most of that clutter comes from packaging that's fighting for attention rather than communicating anything specific. Too Yumm needed a new range in that same space, but couldn't afford to look like it was just adding to the noise. The brand already had an established identity in market, built on a fun, mass-appeal tone, so the new line had to read as an extension of that system, not a departure from it. Anyone who already knew Too Yumm needed to recognize this as the same brand the moment they saw it on shelf.\n\nAt the same time, the product itself carried a specific claim worth building around: roasted, not fried. That's a genuine point of difference in a category where most snacking nuts lean on flavor alone and say nothing about how they're made. The brief was to give that claim real visual weight without turning the packaging serious or clinical, the kind of shift that would alienate the audience the brand had already built. Every flavor also needed to stand on its own, since a range that looks identical variant to variant loses the ability to signal \"which one do I want\" at a glance, which matters more in this category than almost any other packaging decision."
+      ]
+    },
+    {
+      "heading": "COLOR AS SYSTEM",
+      "body": [
+        "The approach was to give each flavor its own color identity and hand-drawn illustration, treating the pack less like a static label and more like a small piece of storytelling for whatever's inside, green for the tea-forward flavor, orange for the achari cashews, and so on down the line. That illustration style did double duty: it kept the tone playful and approachable, which is where the brand's existing equity lives, while the color-coding did the actual functional job of letting a shopper sort variants without reading a word of copy.\n\nUnderneath the illustration, the layout followed a fixed hierarchy across every pack: the Too Yumm logo held its position as the anchor so brand recognition never wavered, the \"Roasted, Not Fried\" callout sat in a consistent, legible spot rather than competing for space, and nutritional highlights were placed for a quick scan rather than a full read. That structure is what makes the system scale, new flavors can be added without redesigning the whole pack, they just slot a new color and illustration into a layout that's already proven. Final packs were rendered in Blender and composited in Photoshop to get accurate material behavior and real shelf presence for presentation, rather than relying on flat mockups that wouldn't hold up next to the physical product."
+      ]
+    }
+  ],
+  "deliverables": [
+    {
+      "type": "image",
+      "src": "/work/too-yumm/01.webp",
+      "alt": "Two Too Yumm flavored peanut pouches, Thai sweet chilli in red and Peri Peri in orange, standing against a cream background.",
+      "source": "https://framerusercontent.com/images/uoal01j88pTv4gp9cfAPDzYsGfk.png",
+      "width": 2385,
+      "height": 1500
+    },
+    {
+      "type": "image",
+      "src": "/work/too-yumm/02.webp",
+      "alt": "Three Too Yumm pouches fanned out: coffee almonds in peach, achaari cashews in green and salted cashews in aqua.",
+      "source": "https://framerusercontent.com/images/iCxNNLWR0ZT6dSESjiDs64mTjqQ.png",
+      "width": 2385,
+      "height": 1500
+    },
+    {
+      "type": "image",
+      "src": "/work/too-yumm/03.webp",
+      "alt": "Overhead view of seven Too Yumm pouches in different flavor colors arranged in a circle on a cream surface.",
+      "source": "https://framerusercontent.com/images/9Dlcq1faVT5LXKmwrDgnF4FiDU.png",
+      "width": 2385,
+      "height": 1500
+    },
+    {
+      "type": "image",
+      "src": "/work/too-yumm/04.webp",
+      "alt": "A row of Too Yumm pouches in red, green, purple, orange, aqua and sage, staggered in depth with the orange Peri Peri peanuts pouch at the front.",
+      "source": "https://framerusercontent.com/images/S6lgWv2lspym3PiGJqe422tH5mo.png",
+      "width": 2385,
+      "height": 1500
+    },
+    {
+      "type": "image",
+      "src": "/work/too-yumm/05.webp",
+      "alt": "Too Yumm coffee almonds pouch lying on a wooden table with a glass jar of almonds tipped over beside it and a plant leaf in the corner.",
+      "source": "https://framerusercontent.com/images/ggXCAK7peHs2dKQnKRV1Z5hDdE8.png",
+      "width": 2385,
+      "height": 1500
+    },
+    {
+      "type": "image",
+      "src": "/work/too-yumm/06.webp",
+      "alt": "Two Too Yumm coffee almonds pouches on a dark wooden table with scattered almonds and a glass bowl.",
+      "source": "https://framerusercontent.com/images/1ZFLnqhJnk2Kha5xPYKk7q1QXY.png",
+      "width": 2385,
+      "height": 1500
+    }
+  ]
+}

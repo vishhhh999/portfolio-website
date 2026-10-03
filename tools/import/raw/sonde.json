@@ -1,0 +1,79 @@
+{
+  "url": "https://www.visheshmahendru.com/projects/sonde",
+  "title": "SONDE",
+  "tags": [
+    "PRODUCT DESIGN",
+    "UI/UX",
+    "FULL CASE STUDY"
+  ],
+  "year": 2026,
+  "role": "Product Designer (Solo)",
+  "clientType": "Self-initiated",
+  "description": [
+    "Sonde is a self-initiated product concept for franchise brand teams. It reads everything a location publishes, rescues off-brand posts with the owner's consent, and turns repeat drift into the templates HQ is missing.\n\nSolo project: research, product strategy, UX, UI, design system, brand, motion and 3D. Three surfaces: an HQ web app, an owner iOS app and a no-login link for the print shop."
+  ],
+  "sections": [
+    {
+      "heading": "THE PROBLEM",
+      "body": [
+        "A franchise brand team can approve every template and still lose control of the brand. Owners of individual locations post what they need, when they need it, and most of it never passes through HQ. Sonde starts from a different reading: when a location posts something off-brand, it is rarely disobedience. It is demand for something HQ has not provided."
+      ]
+    },
+    {
+      "heading": "THE PRODUCT",
+      "body": [
+        "Sonde reads everything each location publishes, flags drift, and shows HQ where it clusters. Instead of blocking the owner, it offers to rescue the post: rebuild it on brand, with the owner's consent, in their own words. Repeat drift becomes a signal for which templates HQ should build next. The loop is detect, rescue, learn.\n\nAn HQ web app for the brand team: the network wall, drift detection and the inspector. An iOS app for the owner: the rescue flow, built to take seconds, not a ticket. A no-login link for the print shop: the final file, verified against the brand, with nothing to sign into.\n\nOne design system across all three surfaces. Violet marks only where Sonde is looking or acting. Amber means drift. Green means resolved. The scan line is always horizontal. Type is Geist and Geist Mono.\n\nNorthline Fitness, its studios and everyone shown are fictional. Photography from Unsplash, with screens composited by me. Survey figures come from secondary research. Pilot numbers are illustrative targets, not results."
+      ]
+    }
+  ],
+  "deliverables": [
+    {
+      "type": "image",
+      "src": "/work/sonde/01.webp",
+      "alt": "Sonde research board: 84% of franchisors found locations using off-brand content, 42% of confident franchisors still find it frequently, and a breakdown of where a Northline studio's local posts get made, with two illustrative quotes.",
+      "source": "https://framerusercontent.com/images/xqipCkYkAtQ4de8FnMmU2k4fn4.png",
+      "width": 2400,
+      "height": 1510
+    },
+    {
+      "type": "image",
+      "src": "/work/sonde/02.webp",
+      "alt": "Sonde reframe slide on a dark background: off-brand isn't disobedience, it's demand, followed by five findings about drift, speed, local intent, missing HQ feedback and the sign shop.",
+      "source": "https://framerusercontent.com/images/xiQYP0HasLeG3cUymYMv7lf9Xvs.png",
+      "width": 2400,
+      "height": 1510
+    },
+    {
+      "type": "image",
+      "src": "/work/sonde/03.webp",
+      "alt": "Sonde core loop diagram with lanes for studio owner, Sonde, brand HQ and print shop, showing how a post is scored, rescued, kept as a signal and clustered into a template need.",
+      "source": "https://framerusercontent.com/images/keVeEDGpezX1hTEWuR9YOezqqg.png",
+      "width": 2400,
+      "height": 1500
+    },
+    {
+      "type": "image",
+      "src": "/work/sonde/04.webp",
+      "alt": "Exploded layer diagram of a rebuilt Northline Fitness post, 'Teachers train free, all August', with callouts for what was kept and what was rebuilt.",
+      "source": "https://framerusercontent.com/images/ZHD8zsLseLrrmw7IvJ2WNVvh9Jk.png",
+      "width": 2400,
+      "height": 1510
+    },
+    {
+      "type": "image",
+      "src": "/work/sonde/05.webp",
+      "alt": "Four iOS screens of the Sonde owner app: a lock screen push, the rescued post compared with the original, the swapped-on-Instagram confirmation, and the home screen.",
+      "source": "https://framerusercontent.com/images/RGVPPiLdOKZGRPWuLOk5pLrW4.png",
+      "width": 2400,
+      "height": 1510
+    },
+    {
+      "type": "image",
+      "src": "/work/sonde/06.webp",
+      "alt": "Sonde pilot targets slide: four illustrative metrics for a 90 day pilot, plus what to test first and the risks to name.",
+      "source": "https://framerusercontent.com/images/jLc5HArIOpyijPBql8SZFrqP4.png",
+      "width": 2400,
+      "height": 1510
+    }
+  ]
+}

@@ -1,0 +1,117 @@
+{
+  "url": "https://www.visheshmahendru.com/projects/mitooshi",
+  "title": "MITOOSHI",
+  "tags": [
+    "WEB DESIGN",
+    "ART DIRECTION"
+  ],
+  "year": 2026,
+  "role": "Web Designer, 3D + ASCII Art Direction",
+  "clientType": "Studio",
+  "live": "https://www.mitooshi.com/",
+  "description": [
+    "Homepage design, 3D visuals, and ASCII art direction for Mitooshi, a private operator network connecting funds, portfolio companies, and operators across the prediction market and Web3 ecosystem. Designed during my internship at BHONG, a Barcelona-based design studio.\n\nThe site needed to read as institutional and exclusive on first load, since most of its traffic would be high-value operators deciding whether to even apply."
+  ],
+  "sections": [
+    {
+      "heading": "FILTER, NOT FUNNEL",
+      "body": [
+        "Most Web3 sites lean on one of two failure modes: generic crypto aesthetics (gradients, glowing orbs, stock 3D coins) or visuals so abstract they say nothing about what the product does. Mitooshi couldn't afford either. It's an operator network, not a retail product, so the site's actual job was closer to gatekeeping than converting: it had to filter for the kind of fund and operator that would take the network seriously, and make the wrong kind of visitor bounce.\n\nThat meant the tone had to carry weight most crypto sites never earn: institutional and exclusive, while staying legible enough that a first-time visitor could tell what Mitooshi actually connects and why it mattered, without wading through jargon-heavy copy to find out."
+      ]
+    },
+    {
+      "heading": "PRECISION MEETS TEXTURE",
+      "body": [
+        "The system was built around a tension between technical precision and organic motion. ASCII art became the hero treatment: a nod to raw code culture that read as more considered than a typical crypto landing page, without tipping into gimmick. 3D elements ran alongside it, giving the brand spatial depth and something tactile to hold onto rather than a flat, templated feel.\n\nI worked through the homepage design explorations that set the visual tone and layout hierarchy, built the 3D renders used across the site, and developed the ASCII art direction that ended up as the site's signature element. Everything fed back into the same brief: institutional weight, without sacrificing clarity."
+      ]
+    }
+  ],
+  "deliverables": [
+    {
+      "type": "image",
+      "src": "/work/mitooshi/01.webp",
+      "alt": "Mitooshi homepage on a laptop screen against a blue studio backdrop, with the headline Strategic Infrastructure for Industry Leaders.",
+      "source": "https://framerusercontent.com/images/94lSj3YNa0MsDpjKTvelimnuo0.png",
+      "width": 2385,
+      "height": 1500
+    },
+    {
+      "type": "image",
+      "src": "/work/mitooshi/02.webp",
+      "alt": "Mitooshi website shown on a tablet on a dark background, with stat cards reading $4B+, 28%, 88, 930M+, 33 and 27.",
+      "source": "https://framerusercontent.com/images/1NbiiJkIzdz4E01TH6Ejnnvpww.png",
+      "width": 2385,
+      "height": 1500
+    },
+    {
+      "type": "video",
+      "src": "/work/mitooshi/03.mp4",
+      "alt": "TBC",
+      "source": "https://framerusercontent.com/assets/jc55ZHsn3bSDyvL9fiTrjWp3Epw.mp4",
+      "width": 1920,
+      "height": 1200,
+      "poster": "/work/mitooshi/03-poster.webp"
+    },
+    {
+      "type": "video",
+      "src": "/work/mitooshi/04.mp4",
+      "alt": "TBC",
+      "source": "https://framerusercontent.com/assets/mfsxI5Ms61CajefwgV58SZWMQI.mp4",
+      "width": 1080,
+      "height": 676,
+      "poster": "/work/mitooshi/04-poster.webp"
+    },
+    {
+      "type": "image",
+      "src": "/work/mitooshi/05.webp",
+      "alt": "Dithered dot pattern globe in white on a bright blue square, part of the Mitooshi ASCII style visuals.",
+      "source": "https://framerusercontent.com/images/sHXbDiPMzn5FgbSifh9I6U4XvOg.jpg",
+      "width": 1080,
+      "height": 1080
+    },
+    {
+      "type": "video",
+      "src": "/work/mitooshi/06.mp4",
+      "alt": "TBC",
+      "source": "https://framerusercontent.com/assets/jbMdS64t3KY0rHlruevvZQbj43s.mp4",
+      "width": 1920,
+      "height": 1920,
+      "poster": "/work/mitooshi/06-poster.webp"
+    },
+    {
+      "type": "video",
+      "src": "/work/mitooshi/07.mp4",
+      "alt": "TBC",
+      "source": "https://framerusercontent.com/assets/0OgynTJIhpZXqhCu2izoVADICc.mp4",
+      "width": 1080,
+      "height": 1080,
+      "poster": "/work/mitooshi/07-poster.webp"
+    },
+    {
+      "type": "image",
+      "src": "/work/mitooshi/08.webp",
+      "alt": "Scattered white dot pattern shapes on a bright blue square, an ASCII style graphic from the Mitooshi visuals.",
+      "source": "https://framerusercontent.com/images/Hy1jBizPfzMOK5Zbcm2dDAV9N2w.jpg",
+      "width": 1080,
+      "height": 1080
+    },
+    {
+      "type": "video",
+      "src": "/work/mitooshi/09.mp4",
+      "alt": "TBC",
+      "source": "https://framerusercontent.com/assets/NL3wgtGIFpCop1GyVdZmmk9lU4.mp4",
+      "width": 1920,
+      "height": 1920,
+      "poster": "/work/mitooshi/09-poster.webp"
+    },
+    {
+      "type": "video",
+      "src": "/work/mitooshi/10.mp4",
+      "alt": "TBC",
+      "source": "https://framerusercontent.com/assets/fRqq1nNqrxRkSxk1hv42bVAu0c.mp4",
+      "width": 1080,
+      "height": 1080,
+      "poster": "/work/mitooshi/10-poster.webp"
+    }
+  ]
+}

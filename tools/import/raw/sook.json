@@ -1,0 +1,78 @@
+{
+  "url": "https://www.visheshmahendru.com/projects/sook",
+  "title": "SOOK",
+  "tags": [
+    "PACKAGING DESIGN",
+    "BRANDING"
+  ],
+  "year": 2023,
+  "role": "Packaging Designer, 3D Visualization",
+  "clientType": "Studio",
+  "description": [
+    "Packaging design for SOOK, an organic tea brand built on authenticity, wellness, and quiet luxury. The branding system blends minimal illustration, natural tones, and a touch of modern charm.\n\nDesigned while working at The Graphē in Kolkata, with team collaboration and feedback throughout. The brief was to make SOOK feel premium without losing warmth, in a category that usually picks one or the other."
+  ],
+  "sections": [
+    {
+      "heading": "PREMIUM, STILL WARM",
+      "body": [
+        "Organic tea packaging tends to collapse into one of two clichés: overcorrect into opulence and lose the \"organic\" claim entirely, or overcorrect into earthiness and end up looking like every other eco-minimalist shelf brand. SOOK needed to sit between those, premium enough to justify its price point, warm enough to still feel personal and human rather than clinical.\n\nThe harder problem was tone. Most sustainability-driven packaging shouts about it, leaning on visible eco-iconography and heavy-handed messaging. SOOK's brand was closer to the opposite: visual storytelling that communicates mindfulness without overdesign, packaging that whispers calm rather than announcing it."
+      ]
+    },
+    {
+      "heading": "QUIET STORYTELLING",
+      "body": [
+        "The approach centered on quiet storytelling, minimal design with a human presence at its core. Each variant carries its own female illustration paired with a muted, natural tone, greens, reds, browns, drawn from the tea's own origins, so the color itself does emotional work rather than just decorating the pack. The illustration style stayed gentle and editorial, closer to hand-finished than mass-produced.\n\nEach variant was built to stand on its own while still reading as one system, so the range could grow without losing cohesion. I built out 3D mockups in Blender to check shelf consistency and proportions, and pushed for soft, material-accurate light renders over flat mockups, so the final presentation matched SOOK's tone: calm, clean, and modern, an identity that feels serene rather than shouted."
+      ]
+    }
+  ],
+  "deliverables": [
+    {
+      "type": "image",
+      "src": "/work/sook/01.webp",
+      "alt": "Five SOOK tea boxes in white, aqua, red and gold floating at different angles against a warm beige background.",
+      "source": "https://framerusercontent.com/images/gUwhwJCChe2DoaRuWlRyDYB8g.png",
+      "width": 2385,
+      "height": 1500
+    },
+    {
+      "type": "image",
+      "src": "/work/sook/02.webp",
+      "alt": "A group of SOOK tea boxes in aqua, white, red and gold standing on a beige surface, each with an illustrated girl on the front.",
+      "source": "https://framerusercontent.com/images/2gjz0KoqFAnwfMKSBv3TkSNMw.png",
+      "width": 2385,
+      "height": 1500
+    },
+    {
+      "type": "image",
+      "src": "/work/sook/03.webp",
+      "alt": "SOOK tea boxes stacked in a pyramid, showing the illustrated fronts and the back panels with tea details and barcodes.",
+      "source": "https://framerusercontent.com/images/V0a5JyPI8HTTXa0mEyWroEkUtc.png",
+      "width": 2385,
+      "height": 1500
+    },
+    {
+      "type": "image",
+      "src": "/work/sook/04.webp",
+      "alt": "A green SOOK Garden Fresh Green Tea pouch standing against a beige wall, with an illustrated girl carrying a plant.",
+      "source": "https://framerusercontent.com/images/vFK6AnEYJvyUFasRZvsHEr058Q.png",
+      "width": 2385,
+      "height": 1500
+    },
+    {
+      "type": "image",
+      "src": "/work/sook/05.webp",
+      "alt": "Close up of SOOK boxes tiled together, showing the aqua Berry Bloom herbal tea panels and the white Summer Sun black tea panels.",
+      "source": "https://framerusercontent.com/images/FIT3TpJDrXzxaMCx3xXBFIQVWg.png",
+      "width": 2385,
+      "height": 1500
+    },
+    {
+      "type": "image",
+      "src": "/work/sook/06.webp",
+      "alt": "A teal SOOK Berry Bloom tea box on a white block beside a matching tea sachet and a white cup with a tea bag on a saucer.",
+      "source": "https://framerusercontent.com/images/cUvOnRGl9EQArEuQlSYKEuWKFXA.png",
+      "width": 2385,
+      "height": 1500
+    }
+  ]
+}
