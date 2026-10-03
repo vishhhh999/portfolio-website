@@ -1,4 +1,5 @@
-import type { Work } from '@/lib/types';
+import type { Deliverable, Work } from '@/lib/types';
+import { imported } from './imported';
 import tooYumm from './too-yumm';
 import sook from './sook';
 import shunya from './shunya';
@@ -10,21 +11,33 @@ import indoThai from './indo-thai';
 import sonde from './sonde';
 
 /**
+ * Overlay content imported from the live Framer site (tools/import-framer.mjs).
+ * Imported copy wins over placeholders; anything not found stays as authored (TBC).
+ */
+function withImport(w: Work): Work {
+  const o = imported[w.slug] as Partial<Work> & { deliverables?: (Deliverable & { source?: string })[] } | undefined;
+  if (!o) return w;
+  const d = o.deliverables?.slice(0, 6).map(({ type, src, alt }) => ({ type, src, alt }));
+  return {
+    ...w,
+    ...(o.title ? { title: o.title } : {}),
+    ...(o.description ? { description: o.description } : {}),
+    ...(typeof o.year === 'number' ? { year: o.year } : {}),
+    ...(o.role ? { role: o.role } : {}),
+    ...(o.scope ? { scope: o.scope } : {}),
+    ...(o.client ? { client: o.client } : {}),
+    ...(o.clientType ? { clientType: o.clientType } : {}),
+    ...(o.credits ? { credits: o.credits } : {}),
+    ...(d && d.length ? { deliverables: [...d, ...w.deliverables.slice(d.length)].slice(0, 6) as Work['deliverables'] } : {}),
+  };
+}
+
+/**
  * Every project. Order here is the booth lineup order, left to right:
  * packaging on the flanks, brand + web centre stage. Archive-only
  * projects (inLineup: false) are listed last.
  */
-export const works: Work[] = [
-  tooYumm,
-  jswSports,
-  mitooshi,
-  sonde,
-  houseOfHex,
-  bengalT20,
-  sook,
-  shunya,
-  indoThai,
-];
+export const works: Work[] = [tooYumm, jswSports, mitooshi, sonde, houseOfHex, bengalT20, sook, shunya, indoThai].map(withImport);
 
 /** The 7 objects on the booth floor. */
 export const lineup: Work[] = works.filter((w) => w.inLineup);

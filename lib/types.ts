@@ -12,6 +12,11 @@ export type Deliverable = { type: 'image' | 'video'; src: string; alt: string };
 export type Work = {
   slug: string;
   title: string;
+  /** Case copy, paragraph by paragraph, imported as written. */
+  description?: string[];
+  client?: string;
+  clientType?: string;
+  credits?: string;
   disciplines: string[];
   year: number;
   role: string;
