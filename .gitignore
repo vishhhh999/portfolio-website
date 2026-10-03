@@ -11,3 +11,5 @@ next-env.d.ts
 tools/lamp-review/
 # Framer source backup (originals, not served)
 tools/import/source/
+# Throwaway local scripts
+tools/_*.mjs
