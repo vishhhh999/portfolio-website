@@ -8,13 +8,25 @@ import {
   EffectComposer,
   EffectPass,
   NoiseEffect,
-  RenderPass,
+  Pass,
   ShaderPass,
   ToneMappingEffect,
   ToneMappingMode,
 } from 'postprocessing';
 import { useEffect, useMemo } from 'react';
-import { HalfFloatType, Matrix3, NoToneMapping, ShaderMaterial, Uniform } from 'three';
+import {
+  HalfFloatType,
+  Matrix3,
+  NoToneMapping,
+  ShaderMaterial,
+  Uniform,
+  Vector4,
+  type Camera,
+  type Scene,
+  type WebGLRenderer,
+  type WebGLRenderTarget,
+} from 'three';
+import { planeEntries, planeRect, stageRect } from '@/lib/views';
 
 /** Written by the lamp rig every frame, read here. */
 export const postState = {
@@ -25,6 +37,58 @@ export const postState = {
   /** Set by the rig to request a one-off console report after the next frame. */
   diagnose: null as null | Record<string, unknown>,
 };
+
+/** The proof-strip layer (screen-space planes), registered by ProofLayer when a page has deliverables. */
+export const proofLayer: { scene: Scene | null; camera: Camera | null } = { scene: null, camera: null };
+
+const MAX_RECTS = 16;
+
+/**
+ * Renders every view into the composer's input buffer: the booth scene
+ * scissored into the stage rect (with its own aspect), then the proof-strip
+ * planes in screen space. Everything else stays transparent.
+ */
+class ViewsPass extends Pass {
+  constructor(private booth: Scene, private boothCamera: Camera) {
+    super('ViewsPass');
+    this.needsSwap = false;
+  }
+  render(renderer: WebGLRenderer, inputBuffer: WebGLRenderTarget) {
+    const dpr = renderer.getPixelRatio();
+    const H = inputBuffer.height;
+    const autoClear = renderer.autoClear;
+    renderer.autoClear = false;
+    renderer.setRenderTarget(inputBuffer);
+    inputBuffer.viewport.set(0, 0, inputBuffer.width, H);
+    inputBuffer.scissorTest = false;
+    renderer.setRenderTarget(inputBuffer);
+    renderer.setClearColor(0x000000, 0);
+    renderer.clear(true, true, false);
+
+    const s = stageRect();
+    if (s && s.top < window.innerHeight && s.top + s.height > 0) {
+      const x = Math.round(s.left * dpr);
+      const w = Math.round(s.width * dpr);
+      const h = Math.round(s.height * dpr);
+      const y = Math.round(H - (s.top + s.height) * dpr);
+      inputBuffer.viewport.set(x, y, w, h);
+      inputBuffer.scissor.set(x, Math.max(0, y), w, Math.min(h, H - Math.max(0, y)));
+      inputBuffer.scissorTest = true;
+      renderer.setRenderTarget(inputBuffer);
+      renderer.clear(true, true, false); // scene background fills the stage only
+      renderer.render(this.booth, this.boothCamera);
+      inputBuffer.viewport.set(0, 0, inputBuffer.width, H);
+      inputBuffer.scissorTest = false;
+      renderer.setRenderTarget(inputBuffer);
+    }
+
+    if (proofLayer.scene && proofLayer.camera && planeEntries().size) {
+      renderer.clearDepth();
+      renderer.render(proofLayer.scene, proofLayer.camera);
+    }
+    renderer.autoClear = autoClear;
+  }
+}
 
 /**
  * 3×3 colour matrix in linear light, applied before tone mapping. Spectral
@@ -41,6 +105,45 @@ class ColorMatrixEffect extends Effect {
       }`,
       { uniforms: new Map([['matrix', new Uniform(new Matrix3())]]) },
     );
+  }
+}
+
+/**
+ * Last effect: pixels inside a view keep their colour at alpha 1; everything
+ * else becomes fully transparent (premultiplied zero), so the page shows
+ * through. Doesn't rely on alpha surviving bloom/grain: the view rects are known.
+ */
+class ViewMaskEffect extends Effect {
+  constructor() {
+    const rects = Array.from({ length: MAX_RECTS }, () => new Vector4());
+    super(
+      'ViewMaskEffect',
+      /* glsl */ `
+      uniform vec4 rects[${MAX_RECTS}];
+      uniform int count;
+      void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor) {
+        float m = 0.0;
+        for (int i = 0; i < ${MAX_RECTS}; i++) {
+          if (i >= count) break;
+          vec4 r = rects[i];
+          m = max(m, step(r.x, uv.x) * step(uv.x, r.z) * step(r.y, uv.y) * step(uv.y, r.w));
+        }
+        outputColor = vec4(inputColor.rgb * m, m);
+      }`,
+      { uniforms: new Map<string, Uniform>([['rects', new Uniform(rects)], ['count', new Uniform(0)]]) },
+    );
+  }
+  setRects(list: { left: number; top: number; width: number; height: number }[]) {
+    const W = window.innerWidth;
+    const H = window.innerHeight;
+    const rects = this.uniforms.get('rects')!.value as Vector4[];
+    let n = 0;
+    for (const r of list) {
+      if (n >= MAX_RECTS) break;
+      if (r.top > H || r.top + r.height < 0) continue;
+      rects[n++].set(r.left / W, 1 - (r.top + r.height) / H, (r.left + r.width) / W, 1 - r.top / H);
+    }
+    this.uniforms.get('count')!.value = n;
   }
 }
 
@@ -67,9 +170,10 @@ function sanitizeMaterial() {
 }
 
 /**
- * HDR post chain on pmndrs/postprocessing: sanitize → bloom → colour matrix →
- * neutral tone mapping → film grain. Bloom's blur passes are skipped entirely
- * under lamps that don't use it. Takes over rendering at priority 1.
+ * The single post chain over the whole frame (booth + photos): views →
+ * sanitize → bloom → colour matrix → neutral tone mapping → grain → view mask.
+ * Bloom's blur passes are skipped entirely under lamps that don't use it.
+ * Takes over rendering at priority 1.
  */
 export function Post() {
   const gl = useThree((s) => s.gl);
@@ -82,7 +186,6 @@ export function Post() {
     const noise = new NoiseEffect({ premultiply: true, blendFunction: BlendFunction.SOFT_LIGHT });
     noise.blendMode.opacity.value = 0;
     const bloom = new BloomEffect({ mipmapBlur: true, intensity: 0, luminanceThreshold: 1, luminanceSmoothing: 0.2, radius: 0.7 });
-    // Skip the luminance + mip-blur passes whenever bloom contributes nothing.
     const update = bloom.update.bind(bloom);
     bloom.update = (renderer, inputBuffer, deltaTime) => {
       if (bloom.intensity > 0.001) update(renderer, inputBuffer, deltaTime);
@@ -93,15 +196,16 @@ export function Post() {
       matrix: new ColorMatrixEffect(),
       tone: new ToneMappingEffect({ mode: ToneMappingMode.NEUTRAL }),
       noise,
+      mask: new ViewMaskEffect(),
     };
   }, []);
 
   useEffect(() => {
     const prev = gl.toneMapping;
     gl.toneMapping = NoToneMapping; // tone mapping happens in the effect pass
-    composer.addPass(new RenderPass(scene, camera));
+    composer.addPass(new ViewsPass(scene, camera));
     composer.addPass(fx.sanitize);
-    composer.addPass(new EffectPass(camera, fx.bloom, fx.matrix, fx.tone, fx.noise));
+    composer.addPass(new EffectPass(camera, fx.bloom, fx.matrix, fx.tone, fx.noise, fx.mask));
     return () => {
       composer.removeAllPasses();
       gl.toneMapping = prev;
@@ -116,6 +220,14 @@ export function Post() {
     fx.bloom.luminanceMaterial.threshold = postState.bloomThreshold;
     fx.noise.blendMode.opacity.value = postState.grain;
     (fx.matrix.uniforms.get('matrix')!.value as Matrix3).copy(postState.matrix);
+    const rects = [];
+    const s = stageRect();
+    if (s) rects.push(s);
+    for (const id of planeEntries().keys()) {
+      const r = planeRect(id);
+      if (r) rects.push(r);
+    }
+    fx.mask.setRects(rects);
     composer.render(dt);
 
     if (postState.diagnose) {

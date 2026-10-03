@@ -12,6 +12,16 @@ import { ContactBlob } from './BoothRoom';
 import { BoothMat, INK_ASPECT, PLACEHOLDERS } from './placeholders';
 import { PLINTH_CHAMFER, PLINTH_GREY, RECEDE_DZ, STAGING, TRAY } from './staging';
 import { createInkTexture } from './uvMaterial';
+import { stageRect } from '@/lib/views';
+import { Vector3, type Camera, type Object3D } from 'three';
+
+const _v = new Vector3();
+/** drei Html places labels in canvas space; the booth draws into the stage rect, so project into that. */
+function stagePosition(el: Object3D, camera: Camera): [number, number] {
+  const r = stageRect() ?? { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight };
+  _v.setFromMatrixPosition(el.matrixWorld).project(camera);
+  return [r.left + ((_v.x + 1) / 2) * r.width, r.top + ((1 - _v.y) / 2) * r.height];
+}
 
 /** How dark the lineup gets while another sample is on the tray. */
 const RECEDE_DIM = 0.9;
@@ -132,7 +142,7 @@ export function ObjectSlot({ work }: { work: Work }) {
       <group ref={objRef} position={[0, plinth.h, 0]}>
         <ContactBlob w={object.w} d={Math.min(object.d, plinth.d * 0.8)} spread={1.2} />
         {PLACEHOLDERS[work.slug]?.(inkTex)}
-        <Html position={[0, object.h + 0.025, 0]} center zIndexRange={[5, 0]} style={{ pointerEvents: 'none' }}>
+        <Html position={[0, object.h + 0.025, 0]} center zIndexRange={[5, 0]} calculatePosition={stagePosition} style={{ pointerEvents: 'none' }}>
           <div className="specchip" data-visible={showPlate}>
             <span className="specchip__title">{work.title}</span>
             <span className="specchip__meta">

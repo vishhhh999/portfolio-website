@@ -7,10 +7,11 @@ import { getWork, isInLineup } from '@/content/work';
 import { lampById } from '@/lib/lampPresets';
 import { switchLamp } from '@/lib/lampController';
 import { useBooth } from '@/lib/store';
+import { onViewsChanged, registerStage, viewCount } from '@/lib/views';
 
 const BoothCanvas = dynamic(() => import('./BoothCanvas'), { ssr: false });
 
-/** Routes where the booth is on stage. Everywhere else it is hidden and paused, not unmounted. */
+/** Routes where the booth is on stage. Everywhere else there is no stage (planes may still draw). */
 export function boothMode(pathname: string): 'full' | 'header' | 'off' {
   if (pathname === '/') return 'full';
   if (pathname.startsWith('/work/') && isInLineup(pathname.split('/')[2] ?? '')) return 'header';
@@ -18,8 +19,14 @@ export function boothMode(pathname: string): 'full' | 'header' | 'off' {
 }
 
 /**
- * Mounts the WebGL booth once, after first paint, the first time a booth route
- * is visited. DOM (headline, switches) always renders first for LCP.
+ * Owns the booth stage (a DOM rect the canvas draws the booth into) and the
+ * one fixed, full-screen, transparent canvas behind the page.
+ *
+ * First paint: the stage is booth grey with a pre-rendered D50 poster of this
+ * exact shot (the LCP image) and the headline over it in dark ink. The 3D code
+ * loads after first paint; once the live booth has drawn, the poster fades out
+ * and the canvas is revealed underneath. The dark-lamp text theme only applies
+ * once a dark lamp is actually being drawn.
  */
 export function BoothHost() {
   const pathname = usePathname();
@@ -27,10 +34,11 @@ export function BoothHost() {
   const setActiveSlug = useBooth((s) => s.setActiveSlug);
   const lamp = useBooth((s) => s.lamp);
   const [mounted, setMounted] = useState(false);
-  const [inView, setInView] = useState(true);
-  const hostRef = useRef<HTMLDivElement>(null);
+  const [ready, setReady] = useState(false);
+  const [hasViews, setHasViews] = useState(false);
+  const stageRef = useRef<HTMLDivElement>(null);
 
-  // Project pages: the object goes on the tray under the lamp it was designed for.
+  // Project pages: the sample goes on the tray under the lamp it was designed for.
   useEffect(() => {
     const slug = mode === 'header' ? pathname.split('/')[2] : null;
     setActiveSlug(slug);
@@ -38,32 +46,49 @@ export function BoothHost() {
     if (work) switchLamp(work.nativeLamp);
   }, [pathname, mode, setActiveSlug]);
 
-  // DOM over the booth flips to light text under dark lamps.
+  useEffect(() => {
+    if (mode === 'off' || !stageRef.current) return;
+    return registerStage(stageRef.current);
+  }, [mode]);
+
+  useEffect(() => {
+    const update = () => setHasViews(viewCount() > 0);
+    update();
+    return onViewsChanged(update);
+  }, []);
+
+  // DOM over the booth flips to light text only when a dark lamp is really on screen.
   useEffect(() => {
     const root = document.documentElement;
     root.dataset.lamp = lamp;
-    root.dataset.dark = String(mode !== 'off' && lampById(lamp).dark);
-  }, [lamp, mode]);
+    root.dataset.dark = String(ready && mode !== 'off' && lampById(lamp).dark);
+  }, [lamp, mode, ready]);
 
-  // Stop rendering once the booth has scrolled out of view (project pages).
+  // Load the 3D after first paint, as soon as there is anything for it to draw.
   useEffect(() => {
-    const el = hostRef.current;
-    if (!el) return;
-    const io = new IntersectionObserver(([entry]) => setInView(entry.isIntersecting));
-    io.observe(el);
-    return () => io.disconnect();
-  }, []);
-
-  useEffect(() => {
-    if (mounted || mode === 'off') return;
-    const idle = window.requestIdleCallback ?? ((cb: () => void) => window.setTimeout(cb, 200));
-    const id = idle(() => setMounted(true));
+    if (mounted || !hasViews) return;
+    const idle = window.requestIdleCallback ?? ((cb: () => void) => window.setTimeout(cb, 120));
+    const id = idle(() => setMounted(true), { timeout: 1200 });
     return () => (window.cancelIdleCallback ?? window.clearTimeout)(id as number);
-  }, [mode, mounted]);
+  }, [hasViews, mounted]);
 
   return (
-    <div ref={hostRef} className="booth" data-mode={mode} aria-hidden="true">
-      {mounted && <BoothCanvas active={mode !== 'off' && inView} />}
-    </div>
+    <>
+      <div className="booth-canvas" data-visible={hasViews} aria-hidden="true">
+        {mounted && <BoothCanvas onReady={() => setReady(true)} />}
+      </div>
+      {mode !== 'off' && (
+        <div ref={stageRef} className="booth-stage" data-mode={mode} data-ready={ready} aria-hidden="true">
+          {mode === 'full' && (
+            <picture className="booth-poster">
+              <source media="(max-aspect-ratio: 1/1)" srcSet="/booth/poster-portrait.webp" type="image/webp" />
+              <source media="(min-aspect-ratio: 17/10)" srcSet="/booth/poster-16x9.webp" type="image/webp" />
+              <source srcSet="/booth/poster-16x10.webp" type="image/webp" />
+              <img src="/booth/poster-16x10.jpg" alt="" width={1440} height={900} fetchPriority="high" decoding="async" />
+            </picture>
+          )}
+        </div>
+      )}
+    </>
   );
 }

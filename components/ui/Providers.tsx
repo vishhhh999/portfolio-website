@@ -1,19 +1,48 @@
 'use client';
 
-import gsap from 'gsap';
 import { ReactLenis, type LenisRef } from 'lenis/react';
+import { usePathname } from 'next/navigation';
 import { useEffect, useRef, type ReactNode } from 'react';
+import { attachLenis, startClock } from '@/lib/clock';
+import { measure } from '@/lib/views';
 
-/** Lenis smooth scroll, driven by GSAP's ticker so DOM motion and scroll share one clock. */
+/** Set just before a "next project" navigation: scroll up smoothly while the next sample slides onto the tray. */
+export const navIntent = { smoothTop: false };
+
+/**
+ * Lenis smooth scroll on the page's single clock (lib/clock.ts): GSAP's
+ * ticker runs Lenis, then the canvas, in that order, every tick.
+ */
 export function Providers({ children }: { children: ReactNode }) {
   const lenisRef = useRef<LenisRef>(null);
+  const pathname = usePathname();
 
   useEffect(() => {
-    const update = (time: number) => lenisRef.current?.lenis?.raf(time * 1000);
-    gsap.ticker.add(update);
-    gsap.ticker.lagSmoothing(0);
-    return () => gsap.ticker.remove(update);
+    attachLenis(() => lenisRef.current?.lenis);
+    startClock();
+    return () => attachLenis(() => null);
   }, []);
+
+  // Route change: Lenis keeps its old scroll target and page height unless told otherwise, which can
+  // pin a new page at the old offset (or stop it scrolling at all). Re-measure and go to the top.
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    const lenis = lenisRef.current?.lenis;
+    if (lenis) {
+      lenis.resize();
+      if (navIntent.smoothTop) lenis.scrollTo(0, { duration: 1.1 });
+      else lenis.scrollTo(0, { immediate: true, force: true });
+    } else window.scrollTo(0, 0);
+    navIntent.smoothTop = false;
+    requestAnimationFrame(() => {
+      lenisRef.current?.lenis?.resize();
+      measure();
+    });
+  }, [pathname]);
 
   return (
     <ReactLenis root ref={lenisRef} options={{ autoRaf: false, lerp: 0.12 }}>

@@ -21,8 +21,8 @@ for (const [name, viewport, mobile] of [['desktop', { width: 1440, height: 900 }
   page.on('console', (m) => m.type() === 'error' && errors.push(name + ': ' + m.text()));
   page.on('pageerror', (e) => errors.push(name + ' pageerror: ' + e.message));
   await page.goto(BASE + '/', { waitUntil: 'networkidle' });
-  await page.waitForSelector('canvas');
-  await page.waitForTimeout(3500);
+  await page.waitForSelector('.booth-stage[data-ready="true"]', { timeout: 60000 });
+  await page.waitForTimeout(1500);
   for (const lamp of only) {
     const i = LAMPS.indexOf(lamp);
     await page.click('.switch >> nth=' + i, { force: true });

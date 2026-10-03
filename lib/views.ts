@@ -1,0 +1,138 @@
+'use client';
+
+/**
+ * The view system for the one fixed, full-screen, transparent canvas.
+ *
+ * A "view" is a DOM element whose rectangle the canvas draws into:
+ *   - the booth stage (home: full screen; project pages: the 70svh header)
+ *   - proof-strip planes (one per deliverable image/video)
+ *
+ * Layout is cached in document coordinates (measured on mount, resize, image
+ * load and body-size changes), so per-frame positions are just
+ * `docTop − scroll`: no layout reads during scroll, and the scroll value is
+ * the same Lenis value the page was moved with, on the same tick. Zero drift.
+ */
+
+export type DocRect = { left: number; top: number; width: number; height: number };
+
+export type PlaneSpec = {
+  el: HTMLImageElement | HTMLVideoElement;
+  kind: 'image' | 'video';
+  src: string;
+  fluorMask?: string;
+  uvInk?: string;
+  /** Called once the plane has drawn, so the DOM element can be visually hidden. */
+  onReady?: () => void;
+};
+
+type Entry = { el: HTMLElement; rect: DocRect };
+
+let stage: Entry | null = null;
+const planes = new Map<number, PlaneSpec & { rect: DocRect }>();
+let nextId = 1;
+let scrollY = 0;
+const listeners = new Set<() => void>();
+let ro: ResizeObserver | null = null;
+
+const docRect = (el: HTMLElement): DocRect => {
+  const r = el.getBoundingClientRect();
+  return { left: r.left + window.scrollX, top: r.top + window.scrollY, width: r.width, height: r.height };
+};
+
+/** Re-measure every registered element (cheap: a handful of rects). */
+export function measure() {
+  if (stage) stage.rect = docRect(stage.el);
+  for (const p of planes.values()) p.rect = docRect(p.el);
+  scrollY = window.scrollY;
+  changed();
+}
+
+function changed() {
+  listeners.forEach((l) => l());
+}
+
+/** Notified when views are added/removed or re-measured: the canvas should draw a frame. */
+export function onViewsChanged(cb: () => void) {
+  listeners.add(cb);
+  return () => void listeners.delete(cb);
+}
+
+function ensureObserver() {
+  if (ro || typeof ResizeObserver === 'undefined') return;
+  ro = new ResizeObserver(() => measure());
+  ro.observe(document.body);
+  window.addEventListener('resize', measure);
+}
+
+export function registerStage(el: HTMLElement) {
+  ensureObserver();
+  stage = { el, rect: docRect(el) };
+  changed();
+  return () => {
+    if (stage?.el === el) stage = null;
+    changed();
+  };
+}
+
+export function registerPlane(spec: PlaneSpec) {
+  ensureObserver();
+  const id = nextId++;
+  planes.set(id, { ...spec, rect: docRect(spec.el) });
+  const onLoad = () => measure();
+  spec.el.addEventListener('load', onLoad);
+  spec.el.addEventListener('loadedmetadata', onLoad);
+  changed();
+  return () => {
+    spec.el.removeEventListener('load', onLoad);
+    spec.el.removeEventListener('loadedmetadata', onLoad);
+    planes.delete(id);
+    changed();
+  };
+}
+
+/** The scroll value the page was positioned with this tick (set by the clock right after Lenis). */
+export function setScroll(y: number) {
+  scrollY = y;
+}
+export const getScroll = () => scrollY;
+
+const toViewport = (r: DocRect) => ({ left: r.left - window.scrollX, top: r.top - scrollY, width: r.width, height: r.height });
+
+/** Booth stage rect in viewport CSS px, or null when there is no stage. */
+export function stageRect() {
+  return stage ? toViewport(stage.rect) : null;
+}
+export const hasStage = () => stage !== null;
+
+export function planeEntries() {
+  return planes;
+}
+export function planeRect(id: number) {
+  const p = planes.get(id);
+  return p ? toViewport(p.rect) : null;
+}
+
+const vh = () => window.innerHeight;
+const intersects = (r: { top: number; height: number }) => r.top < vh() && r.top + r.height > 0;
+
+/** Is any view on screen right now? (Otherwise the canvas skips rendering entirely.) */
+export function anyViewVisible() {
+  const s = stageRect();
+  if (s && intersects(s)) return true;
+  for (const p of planes.values()) if (intersects(toViewport(p.rect))) return true;
+  return false;
+}
+
+export function anyVideoVisible() {
+  for (const p of planes.values()) if (p.kind === 'video' && intersects(toViewport(p.rect))) return true;
+  return false;
+}
+
+export const viewCount = () => (stage ? 1 : 0) + planes.size;
+
+if (typeof window !== 'undefined') {
+  window.__boothStageRect = () => {
+    const r = stageRect() ?? { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight };
+    return new DOMRect(r.left, r.top, r.width, r.height);
+  };
+}

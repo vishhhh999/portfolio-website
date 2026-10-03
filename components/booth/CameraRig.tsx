@@ -4,6 +4,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useRef } from 'react';
 import { MathUtils, Vector3, type PerspectiveCamera } from 'three';
 import { useBooth } from '@/lib/store';
+import { stageRect } from '@/lib/views';
 import { useReducedMotion } from '@/lib/useReducedMotion';
 import { lineupShot, trayShot } from './shots';
 import { FOV } from './staging';
@@ -52,7 +53,13 @@ export function CameraRig() {
   useEffect(() => invalidate(), [activeSlug, size.width, size.height, invalidate]);
 
   useFrame((_, dt) => {
-    const aspect = size.width / size.height;
+    // The booth renders into the stage rect, so its aspect is the stage's, not the canvas's.
+    const r = stageRect();
+    const aspect = r && r.height > 0 ? r.width / r.height : size.width / size.height;
+    if (Math.abs(camera.aspect - aspect) > 1e-4) {
+      camera.aspect = aspect;
+      camera.updateProjectionMatrix();
+    }
     const goal = activeSlug ? trayShot(activeSlug, aspect) : lineupShot(aspect);
     goalTarget.current.set(...goal.target);
 
