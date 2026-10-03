@@ -34,8 +34,10 @@ const black = (() => {
  * hand lamp), and the same fluorMask / uvInk slots as the 3D objects glow under UV.
  * The colour matrix and tone mapping are applied by the shared post pass.
  */
-function printMaterial(map: Texture, fluor: Texture | null, ink: Texture | null) {
+function printMaterial(map: Texture, fluor: Texture | null, ink: Texture | null, withUV: boolean) {
   return new ShaderMaterial({
+    // the base variant has no UV code at all; the UV variant is compiled only once UV is on
+    defines: withUV ? { PRINT_UV: '' } : {},
     uniforms: {
       ...proofUniforms,
       ...uvUniforms,
@@ -50,7 +52,8 @@ function printMaterial(map: Texture, fluor: Texture | null, ink: Texture | null)
     fragmentShader: /* glsl */ `
       uniform sampler2D map, uFluorMask, uUvInk, uCookie;
       uniform vec3 uColour, uFluorColor, uInkColor;
-      uniform float uAmbient, uSpotMix, uSpotOutside, uUseCookie, uUV, uFluorGain, uInkGain, uHasUV;
+      uniform float uAmbient, uSpotMix, uSpotOutside, uUseCookie, uProofUV, uFluorGain, uInkGain, uHasUV, uFloor;
+      uniform mat3 uNeutralize;
       uniform vec4 uGrad, uSpot;
       uniform vec2 uBuffer;
       varying vec2 vUv;
@@ -77,18 +80,37 @@ function printMaterial(map: Texture, fluor: Texture | null, ink: Texture | null)
           if (uUseCookie > 0.5) pool *= texture2D(uCookie, (frag - uSpot.xy) / (2.0 * uSpot.z) + 0.5).r * 1.25;
           light = mix(light, mix(uSpotOutside, 1.0, pool), uSpotMix);
         }
-        vec3 col = base * (uColour * light + uAmbient);
-        if (uHasUV > 0.5) {
-          col += uUV * (uFluorGain * uFluorColor * texture2D(uFluorMask, vUv).rgb + uInkGain * uInkColor * texture2D(uUvInk, vUv).r);
+        vec3 lit = uColour * light + uAmbient;
+        // readability floor: never let the print light's luminance drop below uFloor. Below it, the
+        // light keeps a tint of the lamp but mostly neutral: a saturated violet scaled up to the floor
+        // would turn into a wash (blue carries little luminance).
+        float y = dot(lit, vec3(0.2126, 0.7152, 0.0722));
+        if (y < uFloor) {
+          vec3 hue = y > 1e-4 ? lit / y : vec3(1.0);
+          vec3 tint = mix(vec3(1.0), hue, 0.3);
+          lit = tint / dot(tint, vec3(0.2126, 0.7152, 0.0722)) * uFloor;
         }
-        gl_FragColor = vec4(max(col, 0.0), 1.0);
+        vec3 col = base * lit;
+        #ifdef PRINT_UV
+          col += uProofUV * (uFluorGain * uFluorColor * texture2D(uFluorMask, vUv).rgb + uInkGain * uInkColor * texture2D(uUvInk, vUv).r);
+        #endif
+        gl_FragColor = vec4(max(uNeutralize * col, 0.0), 1.0);
       }`,
     depthTest: false,
     depthWrite: false,
   });
 }
 
-type PlaneObj = { mesh: Mesh; ready: boolean; announced: boolean; video?: HTMLVideoElement };
+type PlaneObj = {
+  mesh: Mesh | null;
+  ready: boolean;
+  announced: boolean;
+  base?: ShaderMaterial;
+  uv?: ShaderMaterial;
+  uvMaps?: [Texture | null, Texture | null];
+  hasUV: boolean;
+  map?: Texture;
+};
 
 /**
  * The proof-strip layer: one screen-space plane per registered deliverable,
@@ -102,6 +124,7 @@ export function ProofLayer() {
   const geo = useMemo(() => new PlaneGeometry(1, 1), []);
   const objs = useRef(new Map<number, PlaneObj>());
   const loader = useMemo(() => new TextureLoader(), []);
+  const createRef = useRef<(id: number) => void>(() => {});
 
   useEffect(() => {
     proofLayer.scene = scene;
@@ -124,43 +147,51 @@ export function ProofLayer() {
       const entries = planeEntries();
       for (const [id, o] of objs.current) {
         if (!entries.has(id)) {
-          scene.remove(o.mesh);
-          (o.mesh.material as ShaderMaterial).dispose();
+          if (o.mesh) scene.remove(o.mesh);
+          o.base?.dispose();
+          o.uv?.dispose();
+          o.map?.dispose();
           objs.current.delete(id);
         }
       }
       for (const [id, spec] of entries) {
         if (objs.current.has(id)) continue;
-        let map: Texture;
-        const obj: PlaneObj = { mesh: null as unknown as Mesh, ready: false, announced: false };
-        if (spec.kind === 'video') {
-          const v = spec.el as HTMLVideoElement;
-          map = new VideoTexture(v);
-          map.colorSpace = SRGBColorSpace;
-          obj.video = v;
-          const ready = () => {
-            obj.ready = true;
-            invalidate();
-          };
-          if (v.readyState >= 2) ready();
-          else v.addEventListener('loadeddata', ready, { once: true });
-        } else {
-          const url = (spec.el as HTMLImageElement).currentSrc || spec.src;
-          map = loader.load(url, () => {
-            obj.ready = true;
-            invalidate();
-          });
-          map.colorSpace = SRGBColorSpace;
-          map.anisotropy = 8;
-        }
-        const mat = printMaterial(map, load(spec.fluorMask, true), load(spec.uvInk));
-        obj.mesh = new Mesh(geo, mat);
-        obj.mesh.visible = false;
-        obj.mesh.frustumCulled = false;
-        scene.add(obj.mesh);
-        objs.current.set(id, obj);
+        // created lazily, once the frame comes within a viewport of the screen (see useFrame)
+        objs.current.set(id, { mesh: null, ready: false, announced: false, hasUV: !!(spec.fluorMask || spec.uvInk) });
       }
       invalidate();
+    };
+    createRef.current = (id: number) => {
+      const spec = planeEntries().get(id);
+      const obj = objs.current.get(id);
+      if (!spec || !obj || obj.mesh) return;
+      let map: Texture;
+      if (spec.kind === 'video') {
+        const v = spec.el as HTMLVideoElement;
+        map = new VideoTexture(v);
+        map.colorSpace = SRGBColorSpace;
+        const ready = () => {
+          obj.ready = true;
+          invalidate();
+        };
+        if (v.readyState >= 2) ready();
+        else v.addEventListener('loadeddata', ready, { once: true });
+      } else {
+        const url = (spec.el as HTMLImageElement).currentSrc || spec.src;
+        map = loader.load(url, () => {
+          obj.ready = true;
+          invalidate();
+        });
+        map.colorSpace = SRGBColorSpace;
+        map.anisotropy = 8;
+      }
+      obj.map = map;
+      obj.base = printMaterial(map, null, null, false);
+      if (obj.hasUV) obj.uvMaps = [load(spec.fluorMask, true), load(spec.uvInk)];
+      obj.mesh = new Mesh(geo, obj.base);
+      obj.mesh.visible = false;
+      obj.mesh.frustumCulled = false;
+      scene.add(obj.mesh);
     };
     sync();
     return onViewsChanged(sync);
@@ -182,9 +213,16 @@ export function ProofLayer() {
     const dpr = gl.getPixelRatio();
     proofUniforms.uBuffer.value.set(W * dpr, H * dpr);
     const entries = planeEntries();
+    const wantUV = proofUniforms.uProofUV.value > 0.001;
     for (const [id, o] of objs.current) {
       const r = planeRect(id);
       if (!r) continue;
+      // only frames within one viewport of the screen get a texture and a plane
+      if (!o.mesh && r.top < 2 * H && r.top + r.height > -H) createRef.current(id);
+      if (!o.mesh) continue;
+      if (o.hasUV && wantUV && !o.uv && o.map && o.uvMaps) o.uv = printMaterial(o.map, o.uvMaps[0], o.uvMaps[1], true);
+      const mat = o.hasUV && wantUV && o.uv ? o.uv : o.base!;
+      if (o.mesh.material !== mat) o.mesh.material = mat;
       o.mesh.position.set(r.left + r.width / 2, -(r.top + r.height / 2), 0);
       o.mesh.scale.set(r.width, r.height, 1);
       o.mesh.visible = o.ready && r.top < H && r.top + r.height > 0;

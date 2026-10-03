@@ -3,7 +3,8 @@
 import { create } from 'zustand';
 import type { Lamp } from './types';
 
-const HOUSE_LIGHTS_KEY = 'vm:houseLights';
+/** v2: the pre-paint script in app/layout.tsx reads the same key. */
+export const HOUSE_LIGHTS_KEY = 'vm:houseLights:v2';
 
 type BoothState = {
   lamp: Lamp;
@@ -12,11 +13,17 @@ type BoothState = {
   activeSlug: string | null;
   houseLights: boolean;
   sound: boolean;
+  /** The visitor has picked a lamp themselves. Until then proof-strip photos stay D50-faithful. */
+  lampPicked: boolean;
+  /** Mobile portrait crop: the sample the cabinet is panned to (swipe between samples). */
+  focusSlug: string | null;
   setLamp: (lamp: Lamp) => void;
   setStrikeProgress: (p: number) => void;
   setActiveSlug: (slug: string | null) => void;
   setHouseLights: (on: boolean) => void;
   setSound: (on: boolean) => void;
+  setLampPicked: () => void;
+  setFocusSlug: (slug: string | null) => void;
 };
 
 export const useBooth = create<BoothState>((set) => ({
@@ -25,6 +32,8 @@ export const useBooth = create<BoothState>((set) => ({
   activeSlug: null,
   houseLights: false,
   sound: false,
+  lampPicked: false,
+  focusSlug: null,
   setLamp: (lamp) => set({ lamp }),
   setStrikeProgress: (strikeProgress) => set({ strikeProgress }),
   setActiveSlug: (activeSlug) => set({ activeSlug }),
@@ -35,6 +44,8 @@ export const useBooth = create<BoothState>((set) => ({
     set({ houseLights });
   },
   setSound: (sound) => set({ sound }),
+  setLampPicked: () => set({ lampPicked: true }),
+  setFocusSlug: (focusSlug) => set({ focusSlug }),
 }));
 
 export function readHouseLightsPreference(): boolean {

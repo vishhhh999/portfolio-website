@@ -1,5 +1,6 @@
 'use client';
 
+import { isMobileTier } from '@/lib/perfTier';
 import { RoundedBox } from '@react-three/drei';
 import { useLayoutEffect, useMemo, useRef, type ReactNode } from 'react';
 import {
@@ -66,18 +67,19 @@ function Screen({ w, h, region, ink }: { w: number; h: number; region: ScreenReg
     return { geometry, material };
   }, [w, h, region, ink]);
 
+  const mobile = isMobileTier();
   useLayoutEffect(() => {
-    if (!lightRef.current) return;
-    const entry = { material, light: lightRef.current, region, colour: new Color(0.3, 0.3, 0.4) };
+    if (!mobile && !lightRef.current) return;
+    const entry = { material, light: mobile ? null : lightRef.current, region, colour: new Color(0.3, 0.3, 0.4) };
     screens.add(entry);
     return () => void screens.delete(entry);
-  }, [material, region]);
+  }, [material, region, mobile]);
 
   return (
     <group>
       <mesh geometry={geometry} material={material} />
       {/* RectAreaLight emits along its local -Z; flip it to face out of the screen. */}
-      <rectAreaLight ref={lightRef} width={w} height={h} intensity={0} rotation={[0, Math.PI, 0]} position={[0, 0, 0.001]} />
+      {!mobile && <rectAreaLight ref={lightRef} width={w} height={h} intensity={0} rotation={[0, Math.PI, 0]} position={[0, 0, 0.001]} />}
     </group>
   );
 }
@@ -110,9 +112,10 @@ function TabletOnEasel({ inkTex }: { inkTex: Texture }) {
         <boxGeometry args={[0.2, 0.016, 0.022]} />
         <BoothMat color="#2B2A28" roughness={0.6} />
       </mesh>
+      {/* easel legs meet the tablet's back face; any further forward and they poke through the screen */}
       {[-0.07, 0.07].map((x) => (
-        <mesh key={x} position={[x, 0.05, -0.035]} rotation={[0.55, 0, 0]} castShadow>
-          <boxGeometry args={[0.012, 0.12, 0.008]} />
+        <mesh key={x} position={[x, 0.05, -0.045]} rotation={[0.55, 0, 0]} castShadow>
+          <boxGeometry args={[0.012, 0.11, 0.008]} />
           <BoothMat color="#2B2A28" roughness={0.6} />
         </mesh>
       ))}

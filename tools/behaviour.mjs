@@ -75,14 +75,14 @@ for (const [label, w, h] of [['1568', 1568, 980], ['1366', 1366, 768]]) {
   if (!(await q.$('.booth-stage'))) failures.push(`${label}: first visit to / has no booth stage`);
   // visiting the page by link does not store a preference
   await q.goto(BASE + '/house-lights', { waitUntil: 'networkidle' });
-  if ((await q.evaluate(() => localStorage.getItem('vm:houseLights'))) === '1') failures.push(`${label}: visiting /house-lights stored a preference`);
+  if ((await q.evaluate(() => localStorage.getItem('vm:houseLights:v2'))) === '1') failures.push(`${label}: visiting /house-lights stored a preference`);
   const rows = await rowArea(q);
   if (rows.length !== 9) failures.push(`${label}: expected 9 rows, found ${rows.length}`);
   for (const r of rows) if (!(r.area > 0)) failures.push(`${label}: row "${r.title}" has zero visible area`);
   if (!(await q.$eval('h1', (e) => e.textContent.includes('House lights')))) failures.push(`${label}: /house-lights rendered the wrong page`);
   // toggle from the booth with the rocker, then a fresh load honours that choice
   await q.goto(BASE + '/', { waitUntil: 'networkidle' });
-  await q.evaluate(() => localStorage.removeItem('vm:houseLights'));
+  await q.evaluate(() => localStorage.removeItem('vm:houseLights:v2'));
   await q.click('.rocker');
   await q.waitForURL('**/house-lights', { timeout: 10000 }).catch(() => failures.push(`${label}: rocker did not open house lights`));
   for (const r of await rowArea(q)) if (!(r.area > 0)) failures.push(`${label}: after rocker, row "${r.title}" has zero visible area`);

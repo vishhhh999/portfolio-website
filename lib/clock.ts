@@ -2,6 +2,7 @@
 
 import gsap from 'gsap';
 import type Lenis from 'lenis';
+import { useBooth } from './store';
 import { anyVideoVisible, anyViewVisible, getScroll, setScroll, viewCount } from './views';
 
 /**
@@ -18,6 +19,14 @@ let pending = 2;
 let continuous = false;
 let lastScroll = -1;
 let wasVisible = false;
+/** Idle after 2s without scroll, pointer, key or lamp change: continuous lamps fall back to on-demand. */
+const IDLE_MS = 2000;
+let lastActivity = 0;
+let lastVideoFrame = 0;
+const markActivity = () => {
+  lastActivity = performance.now();
+  pending = Math.max(pending, 1);
+};
 
 /** Lenis is created asynchronously by ReactLenis, so the clock resolves it every tick. */
 export function attachLenis(get: () => Lenis | null | undefined) {
@@ -45,12 +54,19 @@ function tick(time: number) {
   getLenis()?.raf(time * 1000);
   const y = window.scrollY;
   setScroll(y);
-  if (!render) return;
+  if (!render || document.hidden) return; // hidden tab: nothing renders
+  const now = performance.now();
   const visible = viewCount() > 0 && anyViewVisible();
   const scrolled = y !== lastScroll;
   lastScroll = y;
+  if (scrolled) lastActivity = now;
+  const idle = now - lastActivity > IDLE_MS;
+  // visible video keeps playing; while idle it is drawn at 30fps
+  let video = visible && anyVideoVisible();
+  if (video && idle && now - lastVideoFrame < 33) video = false;
   // When the last view leaves the screen, draw once more so the canvas clears.
-  const needs = visible ? pending > 0 || continuous || scrolled || anyVideoVisible() : wasVisible || pending > 0;
+  const needs = visible ? pending > 0 || (continuous && !idle) || scrolled || video : wasVisible || pending > 0;
+  if (needs && video) lastVideoFrame = now;
   wasVisible = visible;
   if (!needs) return;
   pending = Math.max(0, pending - 1);
@@ -63,6 +79,15 @@ export function startClock() {
   started = true;
   gsap.ticker.lagSmoothing(0);
   gsap.ticker.add(tick);
+  lastActivity = performance.now();
+  for (const ev of ['pointermove', 'pointerdown', 'wheel', 'touchstart', 'touchmove', 'keydown'] as const) {
+    window.addEventListener(ev, markActivity, { passive: true });
+  }
+  useBooth.subscribe((s, prev) => {
+    if (s.lamp !== prev.lamp || s.activeSlug !== prev.activeSlug || s.focusSlug !== prev.focusSlug) markActivity();
+  });
+  // back from a hidden tab: draw straight away
+  document.addEventListener('visibilitychange', () => !document.hidden && markActivity());
 }
 
 export const currentScroll = () => getScroll();

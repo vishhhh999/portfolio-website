@@ -44,7 +44,7 @@ export type Work = {
   glb: string;
   /** Pre-rendered still per lamp (Phase 6). */
   fallbacks: Record<Lamp, string>;
-  /** 3 to 6. */
+  /** Approved proofer's notes only (shown under UV). Empty until Vishesh approves them. */
   uvNotes: UvNote[];
   /** Six is the target; when the live site has fewer, the real ones are shown rather than padded with placeholders. */
   deliverables: Deliverable[];

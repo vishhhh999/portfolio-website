@@ -181,6 +181,39 @@ function archiveFromModules(html) {
   return [];
 }
 
+/** Cached source file, named by its Framer file id so re-runs never mix up positions. */
+const sourceFile = (dir, url) => path.join(dir, path.basename(url));
+
+/**
+ * Framer ships one video per breakpoint (a 2400px desktop file and a 1080px mobile file of the
+ * same footage), as separate <video> elements. Same duration and aspect = the same piece:
+ * keep the first position, with the larger file.
+ */
+function dedupeBreakpointVideos(items) {
+  const probe = (f) => {
+    const [w, h, dur] = run('ffprobe', ['-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=width,height:format=duration', '-of', 'csv=p=0:s=,', f])
+      .trim()
+      .split(/[\n,]+/)
+      .map(Number);
+    return { w, h, dur };
+  };
+  const out = [];
+  for (const it of items) {
+    if (it.type !== 'video') {
+      out.push(it);
+      continue;
+    }
+    const p = probe(it.file);
+    const twin = out.find((o) => o.type === 'video' && Math.abs(o.probe.dur - p.dur) < 0.1 && Math.abs(o.probe.w / o.probe.h - p.w / p.h) < 0.01);
+    if (!twin) {
+      out.push({ ...it, probe: p });
+      continue;
+    }
+    if (p.w > twin.probe.w) Object.assign(twin, { file: it.file, src: it.src, probe: p });
+  }
+  return out;
+}
+
 const ext = (u, type) => path.extname(u).toLowerCase() || (type === 'video' ? '.mp4' : '.jpg');
 const run = (cmd, args) => execFileSync(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 16 * 1024 * 1024 }).toString();
 const fresh = (out, src) => existsSync(out) && statSync(out).mtimeMs >= statSync(src).mtimeMs;
@@ -267,21 +300,24 @@ if (isMain && !process.argv.includes('--selftest')) {
     const webDir = path.join(ROOT, 'public/work', slug);
     mkdirSync(srcDir, { recursive: true });
     mkdirSync(webDir, { recursive: true });
-    const deliverables = page.media.map((m, i) => {
+    let media = page.media.map((m) => ({ ...m, file: sourceFile(srcDir, m.src) }));
+    if (!DRY) {
+      for (const m of media) if (!existsSync(m.file)) curl(m.src, m.file);
+      media = dedupeBreakpointVideos(media);
+    }
+    const deliverables = media.map((m, i) => {
       const n = String(i + 1).padStart(2, '0');
       const d = { type: m.type, src: '', alt: m.alt || 'TBC', source: m.src, width: m.width, height: m.height };
       if (m.alt) altUse.set(m.alt, [...(altUse.get(m.alt) || []), `${slug}/${n}`]);
       if (DRY) return d;
-      const source = path.join(srcDir, `${n}${ext(m.src, m.type)}`);
-      if (!existsSync(source)) curl(m.src, source);
-      const e = encode(source, path.join(webDir, n), m.type);
+      const e = encode(m.file, path.join(webDir, n), m.type);
       d.src = `/work/${slug}/${path.basename(e.file)}`;
       if (e.poster) d.poster = `/work/${slug}/${path.basename(e.poster)}`;
       d.width = e.width;
       d.height = e.height;
       return d;
     });
-    const { media, ...copy } = page;
+    const { media: _media, ...copy } = page;
     writeFileSync(path.join(ROOT, 'tools/import/raw', `${slug}.json`), JSON.stringify({ url, ...copy, deliverables }, null, 2));
     overlay[slug] = {
       title: page.title,
@@ -331,7 +367,7 @@ if (isMain && !process.argv.includes('--selftest')) {
         mkdirSync(webDir, { recursive: true });
         parsed.media = parsed.media.map((m, i) => {
           const n = String(i + 1).padStart(2, '0');
-          const source = path.join(srcDir, `${n}${ext(m.src, m.type)}`);
+          const source = sourceFile(srcDir, m.src);
           if (!existsSync(source)) curl(m.src, source);
           const e = encode(source, path.join(webDir, n), m.type, 1600); // canvas tiles: 1600px is plenty
           return { ...m, source: m.src, src: `/archive/${path.basename(e.file)}`, ...(e.poster ? { poster: `/archive/${path.basename(e.poster)}` } : {}), width: e.width, height: e.height, alt: m.alt || 'TBC' };

@@ -18,7 +18,8 @@ export const REGIONS = {
   phone: [0.75, 1] as ScreenRegion,
 };
 
-type ScreenEntry = { material: MeshBasicMaterial; light: RectAreaLight; region: ScreenRegion; colour: Color };
+/** `light` is null on the mobile tier: one combined spill light in the lamp rig stands in for all screens. */
+type ScreenEntry = { material: MeshBasicMaterial; light: RectAreaLight | null; region: ScreenRegion; colour: Color };
 export const screens = new Set<ScreenEntry>();
 
 let poster: Texture | null = null;

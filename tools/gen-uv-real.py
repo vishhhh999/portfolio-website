@@ -4,8 +4,7 @@ UV masks for real deliverables (Too Yumm 01/02), derived from the photographs th
   NN-fluor.webp  fluorescence colour per pixel. Only white ink (optical brightener: the wordmark,
                  icons, nutrition panel) glows, bluish and subtle. The cream sweep and the
                  printed colours stay dark: never a wash.
-  NN-uvink.webp  a proofer's marks in technical pen (Geist Mono): dimension lines over the
-                 pack group, a shelf line, a centre cross and short callouts to the white ink.
+  No ink layer: proofer's notes appear only once Vishesh has approved them (content/uv-notes-draft.md).
 
   python3 tools/gen-uv-real.py        (after tools/import-framer.mjs)
 """
@@ -15,7 +14,7 @@ from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 ROOT = os.path.join(os.path.dirname(__file__), '..')
 GMONO = os.path.join(ROOT, 'node_modules/geist/dist/fonts/geist-mono/GeistMono-Medium.ttf')
-JOBS = [('too-yumm', 1, '2 × 140 MM', 'H 220 MM'), ('too-yumm', 2, '3 × 140 MM', 'H 220 MM')]
+JOBS = [('too-yumm', 1), ('too-yumm', 2)]
 
 
 def masks(rgb):
@@ -66,7 +65,7 @@ def callout(d, px, py, tx, ty, label, f, w, left):
     d.text((min(tx, end) + 12, ty - 34), label, font=f, fill=255)
 
 
-for slug, i, wlabel, hlabel in JOBS:
+for slug, i in JOBS:
     base = os.path.join(ROOT, 'public/work', slug)
     rgb = np.array(Image.open(os.path.join(base, f'{i:02d}.webp')).convert('RGB'))
     H, W = rgb.shape[:2]
@@ -83,28 +82,4 @@ for slug, i, wlabel, hlabel in JOBS:
     glow = (k * np.array([140, 150, 200], np.float32)).astype(np.uint8)
     Image.fromarray(glow).save(os.path.join(base, f'{i:02d}-fluor.webp'), 'WEBP', quality=88)
 
-    # proofer's marks
-    ink = Image.new('L', (W, H), 0)
-    d = ImageDraw.Draw(ink)
-    s = W / 1600
-    f = ImageFont.truetype(GMONO, int(26 * s))
-    lw = max(2, int(2 * s))
-    dim_h(d, x0, x1, max(int(30 * s), y0 - int(44 * s)), wlabel, f, lw)
-    dim_v(d, min(W - int(200 * s), x1 + int(40 * s)), y0, y1, hlabel, f, lw)
-    sy = min(y1 + int(14 * s), H - int(70 * s))
-    d.line([x0 - int(60 * s), sy, x1 + int(60 * s), sy], fill=255, width=lw)
-    d.text((x1 - int(150 * s), sy + int(10 * s)), 'SHELF LINE', font=f, fill=255)
-    cx, cy = (x0 + x1) // 2, (y0 + y1) // 2
-    c = int(16 * s)
-    d.line([cx - c, cy, cx + c, cy], fill=255, width=lw)
-    d.line([cx, cy - c, cx, cy + c], fill=255, width=lw)
-    # callout to the densest white-ink patch in the upper half (the wordmark)
-    ys, xs = np.nonzero(white[: H // 2])
-    if len(xs):
-        hist, xe, ye = np.histogram2d(xs, ys, bins=(12, 6))
-        bx, by = np.unravel_index(hist.argmax(), hist.shape)
-        px, py = int((xe[bx] + xe[bx + 1]) / 2), int((ye[by] + ye[by + 1]) / 2)
-        # label out in the sweep, beside the pack group, so it never sits on the artwork
-        callout(d, px, py, x0 - int(40 * s), py, 'WHITE INK · OBA', f, lw, True)
-    ink.save(os.path.join(base, f'{i:02d}-uvink.webp'), 'WEBP', quality=88)
     print(slug, i, 'white ink %.1f%%' % (white.mean() * 100))

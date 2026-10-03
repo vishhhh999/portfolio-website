@@ -14,11 +14,8 @@ const work: Work = {
   glb: '',
   object: 'Laptop',
   fallbacks: placeholderFallbacks('indo-thai'),
-  uvNotes: [
-    { text: 'Layout grid: 12 col, content max 1200px', anchor: [0, 0.12, -0.08] },
-    { text: '3D scene sits on the grid, not over it', anchor: [0, 0.16, -0.08] },
-    { text: 'Hero render lit to match the page palette', anchor: [0.1, 0.08, -0.08] },
-  ],
+  // UV notes: none until approved by Vishesh (drafts in content/uv-notes-draft.md)
+  uvNotes: [],
   deliverables: placeholderDeliverables('indo-thai', 'Indo Thai'),
 };
 

@@ -126,17 +126,8 @@ export const imported: Record<string, unknown> = {
         "poster": "/work/mitooshi/03-poster.webp"
       },
       {
-        "type": "video",
-        "src": "/work/mitooshi/04.mp4",
-        "alt": "TBC",
-        "source": "https://framerusercontent.com/assets/mfsxI5Ms61CajefwgV58SZWMQI.mp4",
-        "width": 1080,
-        "height": 676,
-        "poster": "/work/mitooshi/04-poster.webp"
-      },
-      {
         "type": "image",
-        "src": "/work/mitooshi/05.webp",
+        "src": "/work/mitooshi/04.webp",
         "alt": "Dithered dot pattern globe in white on a bright blue square, part of the Mitooshi ASCII style visuals.",
         "source": "https://framerusercontent.com/images/sHXbDiPMzn5FgbSifh9I6U4XvOg.jpg",
         "width": 1080,
@@ -144,25 +135,16 @@ export const imported: Record<string, unknown> = {
       },
       {
         "type": "video",
-        "src": "/work/mitooshi/06.mp4",
+        "src": "/work/mitooshi/05.mp4",
         "alt": "TBC",
         "source": "https://framerusercontent.com/assets/jbMdS64t3KY0rHlruevvZQbj43s.mp4",
         "width": 1920,
         "height": 1920,
-        "poster": "/work/mitooshi/06-poster.webp"
-      },
-      {
-        "type": "video",
-        "src": "/work/mitooshi/07.mp4",
-        "alt": "TBC",
-        "source": "https://framerusercontent.com/assets/0OgynTJIhpZXqhCu2izoVADICc.mp4",
-        "width": 1080,
-        "height": 1080,
-        "poster": "/work/mitooshi/07-poster.webp"
+        "poster": "/work/mitooshi/05-poster.webp"
       },
       {
         "type": "image",
-        "src": "/work/mitooshi/08.webp",
+        "src": "/work/mitooshi/06.webp",
         "alt": "Scattered white dot pattern shapes on a bright blue square, an ASCII style graphic from the Mitooshi visuals.",
         "source": "https://framerusercontent.com/images/Hy1jBizPfzMOK5Zbcm2dDAV9N2w.jpg",
         "width": 1080,
@@ -170,21 +152,12 @@ export const imported: Record<string, unknown> = {
       },
       {
         "type": "video",
-        "src": "/work/mitooshi/09.mp4",
+        "src": "/work/mitooshi/07.mp4",
         "alt": "TBC",
         "source": "https://framerusercontent.com/assets/NL3wgtGIFpCop1GyVdZmmk9lU4.mp4",
         "width": 1920,
         "height": 1920,
-        "poster": "/work/mitooshi/09-poster.webp"
-      },
-      {
-        "type": "video",
-        "src": "/work/mitooshi/10.mp4",
-        "alt": "TBC",
-        "source": "https://framerusercontent.com/assets/fRqq1nNqrxRkSxk1hv42bVAu0c.mp4",
-        "width": 1080,
-        "height": 1080,
-        "poster": "/work/mitooshi/10-poster.webp"
+        "poster": "/work/mitooshi/07-poster.webp"
       }
     ]
   },
@@ -297,17 +270,8 @@ export const imported: Record<string, unknown> = {
         "poster": "/work/house-of-hex/01-poster.webp"
       },
       {
-        "type": "video",
-        "src": "/work/house-of-hex/02.mp4",
-        "alt": "TBC",
-        "source": "https://framerusercontent.com/assets/A2i4iyqXZ4PKkY7FY4BXHfkz2Y.mp4",
-        "width": 1080,
-        "height": 676,
-        "poster": "/work/house-of-hex/02-poster.webp"
-      },
-      {
         "type": "image",
-        "src": "/work/house-of-hex/03.webp",
+        "src": "/work/house-of-hex/02.webp",
         "alt": "House of Hex website contact page open on a laptop on a ridged dark surface with an orange backdrop.",
         "source": "https://framerusercontent.com/images/vxZ1bnzbipXjTZhUWXd9mE4nnQc.png",
         "width": 2385,
@@ -315,7 +279,7 @@ export const imported: Record<string, unknown> = {
       },
       {
         "type": "image",
-        "src": "/work/house-of-hex/04.webp",
+        "src": "/work/house-of-hex/03.webp",
         "alt": "Two phones showing the House of Hex mobile site, an FAQ page and a services page, lying on a dark ridged surface.",
         "source": "https://framerusercontent.com/images/KsAEEFmhLS8aydMcj2hAg0sLik.png",
         "width": 2385,
@@ -323,7 +287,7 @@ export const imported: Record<string, unknown> = {
       },
       {
         "type": "image",
-        "src": "/work/house-of-hex/05.webp",
+        "src": "/work/house-of-hex/04.webp",
         "alt": "House of Hex design system sheet showing typography, colour palette, buttons, components and spacing.",
         "source": "https://framerusercontent.com/images/IdLhTusjoQcGMDY0xgo8dOpGA.png",
         "width": 2400,
@@ -440,17 +404,8 @@ export const imported: Record<string, unknown> = {
         "poster": "/work/indo-thai/01-poster.webp"
       },
       {
-        "type": "video",
-        "src": "/work/indo-thai/02.mp4",
-        "alt": "TBC",
-        "source": "https://framerusercontent.com/assets/a99gjEKDLF2f5yf8HD9tMXypk.mp4",
-        "width": 1080,
-        "height": 676,
-        "poster": "/work/indo-thai/02-poster.webp"
-      },
-      {
         "type": "image",
-        "src": "/work/indo-thai/03.webp",
+        "src": "/work/indo-thai/02.webp",
         "alt": "Two phones showing the Indo Thai website, with the contact page open, on lilac ridged steps.",
         "source": "https://framerusercontent.com/images/sNvRbmvFbx3bXWaRgQZXV1bOiec.png",
         "width": 2385,
@@ -458,7 +413,7 @@ export const imported: Record<string, unknown> = {
       },
       {
         "type": "image",
-        "src": "/work/indo-thai/04.webp",
+        "src": "/work/indo-thai/03.webp",
         "alt": "Two phones showing Indo Thai website pages for airlines and services, lying on lilac ridged steps.",
         "source": "https://framerusercontent.com/images/fS1KTKmQfXbXyGMlOHJBx4j8R2M.png",
         "width": 2385,
@@ -466,7 +421,7 @@ export const imported: Record<string, unknown> = {
       },
       {
         "type": "image",
-        "src": "/work/indo-thai/05.webp",
+        "src": "/work/indo-thai/04.webp",
         "alt": "Indo Thai design system sheet showing typography, colour palette, buttons, components and spacing.",
         "source": "https://framerusercontent.com/images/xZa5WFm41uOg3T7XFDmKkGO4xaM.png",
         "width": 2400,

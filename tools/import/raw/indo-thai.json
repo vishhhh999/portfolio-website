@@ -37,17 +37,8 @@
       "poster": "/work/indo-thai/01-poster.webp"
     },
     {
-      "type": "video",
-      "src": "/work/indo-thai/02.mp4",
-      "alt": "TBC",
-      "source": "https://framerusercontent.com/assets/a99gjEKDLF2f5yf8HD9tMXypk.mp4",
-      "width": 1080,
-      "height": 676,
-      "poster": "/work/indo-thai/02-poster.webp"
-    },
-    {
       "type": "image",
-      "src": "/work/indo-thai/03.webp",
+      "src": "/work/indo-thai/02.webp",
       "alt": "Two phones showing the Indo Thai website, with the contact page open, on lilac ridged steps.",
       "source": "https://framerusercontent.com/images/sNvRbmvFbx3bXWaRgQZXV1bOiec.png",
       "width": 2385,
@@ -55,7 +46,7 @@
     },
     {
       "type": "image",
-      "src": "/work/indo-thai/04.webp",
+      "src": "/work/indo-thai/03.webp",
       "alt": "Two phones showing Indo Thai website pages for airlines and services, lying on lilac ridged steps.",
       "source": "https://framerusercontent.com/images/fS1KTKmQfXbXyGMlOHJBx4j8R2M.png",
       "width": 2385,
@@ -63,7 +54,7 @@
     },
     {
       "type": "image",
-      "src": "/work/indo-thai/05.webp",
+      "src": "/work/indo-thai/04.webp",
       "alt": "Indo Thai design system sheet showing typography, colour palette, buttons, components and spacing.",
       "source": "https://framerusercontent.com/images/xZa5WFm41uOg3T7XFDmKkGO4xaM.png",
       "width": 2400,

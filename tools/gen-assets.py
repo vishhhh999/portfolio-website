@@ -123,11 +123,11 @@ def card():
     ud.line([x0s, y0s - 34, x1s, y0s - 34], fill=255, width=2)
     for x in (x0s, x1s):
         ud.line([x, y0s - 46, x, y0s - 22], fill=255, width=2)
-    label((x0s + x1s) / 2 - 60, y0s - 48, '138 MM STRIP')
+    label((x0s + x1s) / 2 - 70, y0s - 48, 'SWATCH STRIP')
     # centre cross on the headline block and a baseline rule
     ud.line([590, 300, 630, 300], fill=255, width=2); ud.line([610, 280, 610, 320], fill=255, width=2)
     ud.line([150, 455, 760, 455], fill=200, width=1)
-    label(770, 442, 'BASELINE 12 PT')
+    label(770, 442, 'BASELINE')
     # callouts: the neon patch, the magenta, the K patch
     def callout(px, py, tx, ty, text):
         ud.ellipse([px - 5, py - 5, px + 5, py + 5], fill=255)

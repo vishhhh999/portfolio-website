@@ -11,7 +11,7 @@ import { useReducedMotion } from '@/lib/useReducedMotion';
 import { ContactBlob } from './BoothRoom';
 import { BoothMat, INK_ASPECT, PLACEHOLDERS } from './placeholders';
 import { PLINTH_CHAMFER, PLINTH_GREY, RECEDE_DZ, STAGING, TRAY } from './staging';
-import { createInkTexture } from './uvMaterial';
+import { blankInk, createInkTexture } from './uvMaterial';
 import { stageRect } from '@/lib/views';
 import { Vector3, type Camera, type Object3D } from 'three';
 
@@ -22,6 +22,13 @@ function stagePosition(el: Object3D, camera: Camera): [number, number] {
   _v.setFromMatrixPosition(el.matrixWorld).project(camera);
   return [r.left + ((_v.x + 1) / 2) * r.width, r.top + ((1 - _v.y) / 2) * r.height];
 }
+
+/** The clipped, fixed layer the spec chips render into (see .booth-canvas in globals.css). */
+const htmlLayer = {
+  get current() {
+    return (typeof document !== 'undefined' ? document.querySelector<HTMLElement>('.booth-canvas') : null) as HTMLElement;
+  },
+};
 
 /** How dark the lineup gets while another sample is on the tray. */
 const RECEDE_DIM = 0.9;
@@ -46,7 +53,8 @@ export function ObjectSlot({ work }: { work: Work }) {
   const receded = activeSlug !== null && !active;
 
   const inkTex = useMemo(
-    () => createInkTexture(work.uvNotes.map((n) => n.text), INK_ASPECT[work.slug] ?? 1, work.slug.length, STAGING[work.slug].object.w * 1000),
+    // no approved notes → no ink at all under UV (only physical fluorescence)
+    () => (work.uvNotes.length ? createInkTexture(work.uvNotes.map((n) => n.text), INK_ASPECT[work.slug] ?? 1, work.slug.length) : blankInk()),
     [work],
   );
 
@@ -124,6 +132,7 @@ export function ObjectSlot({ work }: { work: Work }) {
       position={[x, 0, z]}
       onClick={(e) => {
         e.stopPropagation();
+        if (e.delta > 12) return; // a swipe across the cabinet, not a tap on this sample
         if (!active) router.push(`/work/${work.slug}`, { scroll: false });
       }}
       onPointerOver={(e) => {
@@ -149,8 +158,9 @@ export function ObjectSlot({ work }: { work: Work }) {
       <ContactBlob w={plinth.w} d={plinth.d} spread={1.25} />
       <group ref={objRef} position={[0, plinth.h, 0]}>
         <ContactBlob w={object.w} d={Math.min(object.d, plinth.d * 0.8)} spread={1.2} />
-        {PLACEHOLDERS[work.slug]?.(inkTex)}
-        <Html position={[0, object.h + 0.025, 0]} center zIndexRange={[5, 0]} calculatePosition={stagePosition} style={{ pointerEvents: 'none' }}>
+        <group scale={STAGING[work.slug]?.scale ?? 1}>{PLACEHOLDERS[work.slug]?.(inkTex)}</group>
+        {/* portalled into the fixed, clipped canvas layer: drei defaults to the event source (body), where chips widen the page */}
+        <Html portal={htmlLayer} position={[0, object.h + 0.025, 0]} center zIndexRange={[5, 0]} calculatePosition={stagePosition} style={{ pointerEvents: 'none' }}>
           <div className="specchip" data-visible={showPlate}>
             <span className="specchip__title">{work.title}</span>
             <span className="specchip__meta">

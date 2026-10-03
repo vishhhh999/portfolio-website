@@ -31,14 +31,20 @@ const aspectOf = (d: Deliverable) => (d.width && d.height ? d.width / d.height :
  * opener starts with a 2-up instead. Each frame's width is proportional to its
  * image's real aspect ratio, so every row shares one height and nothing is cropped.
  */
-function rows(list: Deliverable[]): number[][] {
+function rows(list: Deliverable[], part: StripPart): number[][] {
   const idx = list.map((_, i) => i);
-  const pattern = aspectOf(list[0]) >= 1.2 ? [1, 2, 3] : [2, 2, 2];
+  const heroCount = aspectOf(list[0]) >= 1.2 ? 1 : Math.min(2, list.length);
+  if (part === 'hero') return [idx.slice(0, heroCount)];
+  const rest = part === 'rest' ? idx.slice(heroCount) : idx;
+  const pattern = part === 'rest' ? [2, 3] : heroCount === 1 ? [1, 2, 3] : [2, 2, 2];
   const out: number[][] = [];
   let p = 0;
-  while (idx.length) out.push(idx.splice(0, pattern[p++ % pattern.length]));
+  while (rest.length) out.push(rest.splice(0, pattern[p++ % pattern.length]));
   return out;
 }
+
+/** 'hero' = the opening frame (work first, straight under the title); 'rest' = everything after it. */
+type StripPart = 'all' | 'hero' | 'rest';
 
 function ProofFrame({ d, index, serial, onPlay }: { d: Deliverable; index: number; serial: number; onPlay: (d: Deliverable) => void }) {
   const ref = useRef<HTMLImageElement & HTMLVideoElement>(null);
@@ -52,7 +58,16 @@ function ProofFrame({ d, index, serial, onPlay }: { d: Deliverable; index: numbe
     const v = el as HTMLVideoElement;
     v.muted = true;
     v.defaultMuted = true;
-    void v.play().catch(() => {});
+    // decode only near the screen: play within one viewport, pause beyond it (battery, GPU upload)
+    const io = new IntersectionObserver(
+      ([e]) => {
+        if (e.isIntersecting) void v.play().catch(() => {});
+        else v.pause();
+      },
+      { rootMargin: '100% 0px' },
+    );
+    io.observe(v);
+    return () => io.disconnect();
   }, [d]);
 
   useEffect(() => {
@@ -109,8 +124,8 @@ function ProofFrame({ d, index, serial, onPlay }: { d: Deliverable; index: numbe
   );
 }
 
-/** Exactly 6 deliverables as a proof strip; video frames open a player with sound. */
-export function ProofStrip({ deliverables, serialBase }: { deliverables: Deliverable[]; serialBase: number }) {
+/** Up to 6 deliverables as a proof strip; video frames open a player with sound. */
+export function ProofStrip({ deliverables, serialBase, part = 'all' }: { deliverables: Deliverable[]; serialBase: number; part?: StripPart }) {
   const [playing, setPlaying] = useState<Deliverable | null>(null);
   const dialog = useRef<HTMLDialogElement>(null);
 
@@ -123,8 +138,8 @@ export function ProofStrip({ deliverables, serialBase }: { deliverables: Deliver
 
   return (
     <>
-      <div className="proofstrip" role="list" aria-label="Deliverables">
-        {rows(deliverables.slice(0, 6)).map((row) => (
+      <div className="proofstrip" data-part={part} role="list" aria-label={part === 'rest' ? 'More deliverables' : 'Deliverables'}>
+        {rows(deliverables.slice(0, 6), part).map((row) => (
           <div key={row.join('-')} className="proofrow" data-count={row.length}>
             {row.map((i) => {
               const d = deliverables[i];

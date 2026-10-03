@@ -14,11 +14,8 @@ const work: Work = {
   glb: '',
   object: 'Phone on a small stand',
   fallbacks: placeholderFallbacks('house-of-hex'),
-  uvNotes: [
-    { text: 'Spacing tokens: 4 / 8 / 12 / 16 / 24 / 32', anchor: [0, 0.1, 0.01] },
-    { text: '4-col mobile grid, 16px margins', anchor: [0, 0.06, 0.01] },
-    { text: 'Tap targets ≥ 44px', anchor: [0, 0.03, 0.01] },
-  ],
+  // UV notes: none until approved by Vishesh (drafts in content/uv-notes-draft.md)
+  uvNotes: [],
   deliverables: placeholderDeliverables('house-of-hex', 'House of Hex'),
 };
 

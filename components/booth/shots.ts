@@ -44,13 +44,27 @@ export type FramedShot = Shot & { offset: [number, number] };
  * keeps the interior perspective symmetric, and a view offset (shifted lens, no
  * tilt) moves it into place.
  */
-export function cabinetShot(stage: { width: number; height: number }, box: { left: number; top: number; width: number; height: number }): FramedShot {
+export function cabinetShot(
+  stage: { width: number; height: number },
+  box: { left: number; top: number; width: number; height: number },
+  focus?: { x: number; z: number } | null,
+): FramedShot {
   const { w: Wc, h: Hc, bottom } = CABINET_FACE;
-  const s = Math.min(box.width / Wc, box.height / Hc); // px per metre at the face plane
+  // Landscape box: the whole cabinet fills the column's width. Portrait box (phones): the cabinet
+  // fills the height and is cropped left/right, panned to the focused sample (swipe between them).
+  const portrait = box.width / box.height < 1;
+  const s = portrait ? box.height / Hc : box.width / Wc; // px per metre at the face plane
   const dist = stage.height / (2 * s * tanV);
   const cy = bottom + Hc / 2;
   const z = BOOTH.frontZ + CABINET.proud;
-  const centreX = box.left + (Wc * s) / 2;
+  let centreX = box.left + box.width / 2;
+  if (portrait && focus) {
+    // lens shift is a 2D pan: a sample deeper in the booth moves by its perspective-scaled x
+    const k = dist / (dist + (z - focus.z));
+    centreX -= focus.x * s * k;
+    const half = (Wc * s) / 2;
+    centreX = Math.min(box.left + half, Math.max(box.left + box.width - half, centreX));
+  }
   const centreY = box.top + box.height - (Hc * s) / 2;
   return {
     target: [0, cy, z],

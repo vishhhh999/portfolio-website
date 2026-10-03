@@ -14,11 +14,8 @@ const work: Work = {
   glb: '',
   object: 'Laptop with ASCII art on screen',
   fallbacks: placeholderFallbacks('mitooshi'),
-  uvNotes: [
-    { text: 'Layout grid: 12 col, 24px gutter', anchor: [0, 0.12, -0.08] },
-    { text: 'ASCII system: one glyph ramp drives every illustration', anchor: [0, 0.16, -0.08] },
-    { text: 'Type scale: 1.25 ratio, mono for data', anchor: [-0.1, 0.08, -0.08] },
-  ],
+  // UV notes: none until approved by Vishesh (drafts in content/uv-notes-draft.md)
+  uvNotes: [],
   deliverables: (() => {
     const d = placeholderDeliverables('mitooshi', 'Mitooshi');
     // placeholder video deliverable: plays muted as a lit video texture, click opens a player with sound

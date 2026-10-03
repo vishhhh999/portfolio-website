@@ -14,11 +14,8 @@ const work: Work = {
   glb: '',
   object: 'Tablet with the product UI',
   fallbacks: placeholderFallbacks('sonde'),
-  uvNotes: [
-    { text: 'Component logic: one card, five states', anchor: [0, 0.1, 0.01] },
-    { text: 'Violet only marks where Sonde is looking', anchor: [0, 0.06, 0.01] },
-    { text: '8pt grid, 12-col dashboard layout', anchor: [-0.08, 0.12, 0.01] },
-  ],
+  // UV notes: none until approved by Vishesh (drafts in content/uv-notes-draft.md)
+  uvNotes: [],
   deliverables: placeholderDeliverables('sonde', 'Sonde'),
 };
 

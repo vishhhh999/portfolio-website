@@ -7,7 +7,7 @@ import { useBooth } from '@/lib/store';
 import { useReducedMotion } from '@/lib/useReducedMotion';
 import { frameRect, stageRect } from '@/lib/views';
 import { cabinetShot, lineupShot, trayShot } from './shots';
-import { FOV } from './staging';
+import { FOV, STAGING } from './staging';
 
 const PARALLAX_YAW = MathUtils.degToRad(1.2);
 const PARALLAX_PITCH = MathUtils.degToRad(0.5);
@@ -51,7 +51,8 @@ export function CameraRig() {
     return () => window.removeEventListener('pointermove', onMove);
   }, [reduced, invalidate]);
 
-  useEffect(() => invalidate(), [activeSlug, size.width, size.height, invalidate]);
+  const focusSlug = useBooth((s) => s.focusSlug);
+  useEffect(() => invalidate(), [activeSlug, focusSlug, size.width, size.height, invalidate]);
 
   useFrame((_, dt) => {
     // The booth renders into the stage rect, so its aspect is the stage's, not the canvas's.
@@ -61,7 +62,11 @@ export function CameraRig() {
     let goal: { target: [number, number, number]; dist: number; offset: [number, number] };
     const f = frameRect();
     if (activeSlug) goal = { ...trayShot(activeSlug, aspect), offset: [0, 0] };
-    else if (f) goal = cabinetShot(r, { left: f.left - r.left, top: f.top - r.top, width: f.width, height: f.height });
+    else if (f) {
+      const fs = useBooth.getState().focusSlug;
+      const st = fs ? STAGING[fs] : null;
+      goal = cabinetShot(r, { left: f.left - r.left, top: f.top - r.top, width: f.width, height: f.height }, st ? { x: st.x, z: st.z + st.object.d / 2 } : null);
+    }
     else goal = { ...lineupShot(aspect), offset: [0, 0] };
     goalTarget.current.set(...goal.target);
 

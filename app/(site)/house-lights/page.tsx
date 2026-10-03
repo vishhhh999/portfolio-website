@@ -5,6 +5,7 @@ import { lineup, works } from '@/content/work';
 export const metadata: Metadata = {
   title: 'Index',
   description: 'Every project by Vishesh Mahendru, house lights on.',
+  alternates: { canonical: '/house-lights' },
 };
 
 /** House lights: flat, fast, no WebGL. */

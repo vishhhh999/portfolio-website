@@ -1,4 +1,4 @@
-import { CanvasTexture, Color, Vector4, type Material, type Texture } from 'three';
+import { CanvasTexture, Color, DataTexture, Vector4, type Material, type Texture } from 'three';
 
 /**
  * UV (blacklight) material system. One set of shared uniforms drives every
@@ -110,7 +110,17 @@ function monoFamily() {
  * cross, and short callouts (dot + leader + small mono label). No boxes, no
  * script fonts: it should read as technical-pen ink on the object.
  */
-export function createInkTexture(notes: string[], aspect: number, seed = 1, widthMm?: number) {
+let blank: DataTexture | null = null;
+/** Black ink: contributes nothing under UV. Used until a project's notes are approved. */
+export function blankInk(): Texture {
+  if (!blank) {
+    blank = new DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1);
+    blank.needsUpdate = true;
+  }
+  return blank;
+}
+
+export function createInkTexture(notes: string[], aspect: number, seed = 1) {
   const W = 1024;
   const H = Math.round(W / aspect);
   const c = document.createElement('canvas');
@@ -129,7 +139,7 @@ export function createInkTexture(notes: string[], aspect: number, seed = 1, widt
     g.fillStyle = '#fff';
     g.lineCap = 'butt';
 
-    // dimension line across the top, with end ticks and the measure
+    // dimension line across the top, with end ticks (never a number: only approved notes carry figures)
     const y0 = H * 0.08;
     g.lineWidth = Math.max(1.5, u * 0.22);
     g.beginPath();
@@ -153,7 +163,6 @@ export function createInkTexture(notes: string[], aspect: number, seed = 1, widt
       g.fillText(t, x, y);
     };
     const small = Math.max(16, Math.min(30, u * 3.4));
-    if (widthMm) label(`W ${Math.round(widthMm)} MM`, W / 2, y0, small, 'center');
 
     // centre cross + a faint baseline rule at the lower third
     g.lineWidth = Math.max(1, u * 0.15);

@@ -12,7 +12,14 @@ export type Size3 = { w: number; h: number; d: number };
  * where that riser stands. Two rows, like a proofing lineup: wide, tall
  * samples at the back; small ones forward so they hold their size in frame.
  */
-export type Staging = { object: Size3; plinth: Size3; x: number; z: number };
+export type Staging = { object: Size3; plinth: Size3; x: number; z: number; scale?: number };
+
+/**
+ * Display scale for small samples so the smallest still reads at ≥ 12% of the cabinet width
+ * (tools/check-sizes.mjs). The placeholder model is drawn at real size and scaled by this;
+ * `object` below is already the scaled size.
+ */
+const sized = (o: Size3, s: number): Size3 => ({ w: o.w * s, h: o.h * s, d: o.d * s });
 
 const BACK_Z = -0.4;
 const FRONT_Z = 0.76;
@@ -21,10 +28,10 @@ export const STAGING: Record<string, Staging> = {
   // back row, left → right: the three large samples, raised so they read over the front row
   'jsw-sports': { object: { w: 0.37, h: 0.17, d: 0.2 }, plinth: { w: 0.42, d: 0.28, h: 0.13 }, x: -0.47, z: BACK_Z },
   mitooshi: { object: { w: 0.3, h: 0.21, d: 0.24 }, plinth: { w: 0.36, d: 0.3, h: 0.15 }, x: 0.0, z: BACK_Z },
-  sonde: { object: { w: 0.25, h: 0.19, d: 0.15 }, plinth: { w: 0.31, d: 0.24, h: 0.17 }, x: 0.45, z: BACK_Z },
+  sonde: { object: sized({ w: 0.25, h: 0.19, d: 0.15 }, 1.12), plinth: { w: 0.34, d: 0.26, h: 0.17 }, x: 0.45, z: BACK_Z, scale: 1.12 },
   // front row: packaging on the flanks, the small brand + product pieces centre, in front of the back-row gaps
-  'too-yumm': { object: { w: 0.16, h: 0.24, d: 0.07 }, plinth: { w: 0.21, d: 0.15, h: 0.02 }, x: -0.52, z: FRONT_Z },
-  'house-of-hex': { object: { w: 0.13, h: 0.17, d: 0.09 }, plinth: { w: 0.18, d: 0.14, h: 0.06 }, x: -0.18, z: FRONT_Z },
+  'too-yumm': { object: sized({ w: 0.16, h: 0.24, d: 0.07 }, 1.3), plinth: { w: 0.26, d: 0.17, h: 0.02 }, x: -0.52, z: FRONT_Z, scale: 1.3 },
+  'house-of-hex': { object: sized({ w: 0.13, h: 0.17, d: 0.09 }, 1.6), plinth: { w: 0.26, d: 0.19, h: 0.06 }, x: -0.18, z: FRONT_Z, scale: 1.6 },
   'bengal-t20': { object: { w: 0.22, h: 0.07, d: 0.15 }, plinth: { w: 0.27, d: 0.19, h: 0.05 }, x: 0.17, z: FRONT_Z },
   sook: { object: { w: 0.24, h: 0.13, d: 0.07 }, plinth: { w: 0.29, d: 0.16, h: 0.03 }, x: 0.52, z: FRONT_Z },
   // archive-only: never staged in the lineup; sizes kept for the tray and archive viewer

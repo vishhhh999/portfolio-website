@@ -1,4 +1,4 @@
-import { Color, Texture, Vector2, Vector4 } from 'three';
+import { Color, Matrix3, Texture, Vector2, Vector4 } from 'three';
 
 /**
  * Shared lighting uniforms for every proof-strip plane, written by the lamp
@@ -15,4 +15,13 @@ export const proofUniforms = {
   uCookie: { value: null as Texture | null },
   uUseCookie: { value: 0 },
   uBuffer: { value: new Vector2(1, 1) },
+  /** Minimum luminance of the print light (relative to D50 = 1) so work stays readable under dark lamps. */
+  uFloor: { value: 0 },
+  /** UV glow on prints: 0 until the visitor picks UV themselves. */
+  uProofUV: { value: 0 },
+  /** Cancels the post colour matrix while the photos stay D50-faithful (identity once a lamp is picked). */
+  uNeutralize: { value: new Matrix3() },
 };
+
+/** Readability floors per lamp, once the visitor has picked it. */
+export const PRINT_FLOORS: Partial<Record<string, number>> = { SCREEN: 0.3, UV: 0.15, AFTERDARK: 0.1 };

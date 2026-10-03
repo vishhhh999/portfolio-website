@@ -37,17 +37,8 @@
       "poster": "/work/house-of-hex/01-poster.webp"
     },
     {
-      "type": "video",
-      "src": "/work/house-of-hex/02.mp4",
-      "alt": "TBC",
-      "source": "https://framerusercontent.com/assets/A2i4iyqXZ4PKkY7FY4BXHfkz2Y.mp4",
-      "width": 1080,
-      "height": 676,
-      "poster": "/work/house-of-hex/02-poster.webp"
-    },
-    {
       "type": "image",
-      "src": "/work/house-of-hex/03.webp",
+      "src": "/work/house-of-hex/02.webp",
       "alt": "House of Hex website contact page open on a laptop on a ridged dark surface with an orange backdrop.",
       "source": "https://framerusercontent.com/images/vxZ1bnzbipXjTZhUWXd9mE4nnQc.png",
       "width": 2385,
@@ -55,7 +46,7 @@
     },
     {
       "type": "image",
-      "src": "/work/house-of-hex/04.webp",
+      "src": "/work/house-of-hex/03.webp",
       "alt": "Two phones showing the House of Hex mobile site, an FAQ page and a services page, lying on a dark ridged surface.",
       "source": "https://framerusercontent.com/images/KsAEEFmhLS8aydMcj2hAg0sLik.png",
       "width": 2385,
@@ -63,7 +54,7 @@
     },
     {
       "type": "image",
-      "src": "/work/house-of-hex/05.webp",
+      "src": "/work/house-of-hex/04.webp",
       "alt": "House of Hex design system sheet showing typography, colour palette, buttons, components and spacing.",
       "source": "https://framerusercontent.com/images/IdLhTusjoQcGMDY0xgo8dOpGA.png",
       "width": 2400,

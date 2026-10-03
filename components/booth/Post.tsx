@@ -7,7 +7,6 @@ import {
   Effect,
   EffectComposer,
   EffectPass,
-  NoiseEffect,
   Pass,
   ShaderPass,
   ToneMappingEffect,
@@ -15,17 +14,23 @@ import {
 } from 'postprocessing';
 import { useEffect, useMemo } from 'react';
 import {
+  DataTexture,
   HalfFloatType,
+  LinearFilter,
+  RedFormat,
+  RepeatWrapping,
   Matrix3,
   NoToneMapping,
   ShaderMaterial,
   Uniform,
+  Vector2,
   WebGLRenderTarget,
   type Camera,
   type Scene,
   type WebGLRenderer,
 } from 'three';
 import { planeEntries, stageRect } from '@/lib/views';
+import { isMobileTier } from '@/lib/perfTier';
 
 /** Written by the lamp rig every frame, read here. */
 export const postState = {
@@ -156,6 +161,56 @@ class ViewMaskEffect extends Effect {
 }
 
 /**
+ * Film grain from a precomputed tiling noise texture (no per-pixel hashing): one 256² tile,
+ * offset each frame so the grain moves. Same look as before: premultiplied, soft-light blended.
+ */
+function grainTexture() {
+  const N = 256;
+  const data = new Uint8Array(N * N);
+  let s = 1234567;
+  for (let i = 0; i < data.length; i++) {
+    s = (s * 1103515245 + 12345) & 0x7fffffff;
+    data[i] = (s >> 16) & 0xff;
+  }
+  const t = new DataTexture(data, N, N, RedFormat);
+  t.wrapS = t.wrapT = RepeatWrapping;
+  t.magFilter = t.minFilter = LinearFilter;
+  t.needsUpdate = true;
+  return t;
+}
+
+class GrainEffect extends Effect {
+  constructor() {
+    super(
+      'GrainEffect',
+      /* glsl */ `
+      uniform sampler2D grainMap;
+      uniform vec2 grainScale;
+      uniform vec2 grainOffset;
+      void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor) {
+        float n = texture2D(grainMap, uv * grainScale + grainOffset).r;
+        outputColor = vec4(inputColor.rgb * n, inputColor.a);
+      }`,
+      {
+        blendFunction: BlendFunction.SOFT_LIGHT,
+        uniforms: new Map<string, Uniform>([
+          ['grainMap', new Uniform(grainTexture())],
+          ['grainScale', new Uniform(new Vector2(1, 1))],
+          ['grainOffset', new Uniform(new Vector2())],
+        ]),
+      },
+    );
+  }
+  setSize(width: number, height: number) {
+    // one texel per output pixel
+    (this.uniforms.get('grainScale')!.value as Vector2).set(width / 256, height / 256);
+  }
+  update() {
+    (this.uniforms.get('grainOffset')!.value as Vector2).set(Math.random(), Math.random());
+  }
+}
+
+/**
  * Scrubs NaN / Inf and clamps runaway HDR values before bloom. A single bad
  * pixel (a GPU-specific shader edge case) otherwise spreads through the bloom
  * mip chain and turns the entire frame black.
@@ -189,11 +244,15 @@ export function Post() {
   const camera = useThree((s) => s.camera);
   const size = useThree((s) => s.size);
 
-  const composer = useMemo(() => new EffectComposer(gl, { frameBufferType: HalfFloatType, multisampling: 4 }), [gl]);
+  // mobile tier: 2× MSAA and half-resolution bloom
+  const mobile = isMobileTier();
+  // ?nobloom: A/B test a lamp's look without bloom
+  const noBloom = typeof window !== 'undefined' && window.location.search.includes('nobloom');
+  const composer = useMemo(() => new EffectComposer(gl, { frameBufferType: HalfFloatType, multisampling: mobile ? 2 : 4 }), [gl, mobile]);
   const fx = useMemo(() => {
-    const noise = new NoiseEffect({ premultiply: true, blendFunction: BlendFunction.SOFT_LIGHT });
+    const noise = new GrainEffect();
     noise.blendMode.opacity.value = 0;
-    const bloom = new BloomEffect({ mipmapBlur: true, intensity: 0, luminanceThreshold: 1, luminanceSmoothing: 0.2, radius: 0.7 });
+    const bloom = new BloomEffect({ mipmapBlur: true, intensity: 0, luminanceThreshold: 1, luminanceSmoothing: 0.2, radius: 0.7, resolutionScale: mobile ? 0.5 : 1 });
     const coverage = new CoveragePass();
     const update = bloom.update.bind(bloom);
     bloom.update = (renderer, inputBuffer, deltaTime) => {
@@ -208,7 +267,7 @@ export function Post() {
       coverage,
       mask: new ViewMaskEffect(coverage.target),
     };
-  }, []);
+  }, [mobile]);
 
   useEffect(() => {
     const prev = gl.toneMapping;
@@ -230,7 +289,7 @@ export function Post() {
   useEffect(() => () => composer.dispose(), [composer]);
 
   useFrame((_, dt) => {
-    fx.bloom.intensity = postState.bloomIntensity;
+    fx.bloom.intensity = noBloom ? 0 : postState.bloomIntensity;
     fx.bloom.luminanceMaterial.threshold = postState.bloomThreshold;
     fx.noise.blendMode.opacity.value = postState.grain;
     (fx.matrix.uniforms.get('matrix')!.value as Matrix3).copy(postState.matrix);

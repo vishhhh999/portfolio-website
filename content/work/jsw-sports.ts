@@ -14,11 +14,8 @@ const work: Work = {
   glb: '',
   object: 'Coffee table book, standing open',
   fallbacks: placeholderFallbacks('jsw-sports'),
-  uvNotes: [
-    { text: 'Cover type spec: cap height locked to 1/12 of trim', anchor: [-0.1, 0.22, 0.05] },
-    { text: 'Colour build: CMYK + Pantone spot for the cover field', anchor: [-0.1, 0.12, 0.05] },
-    { text: 'Page grid: 8 col, baseline 12pt', anchor: [0.1, 0.15, 0.05] },
-  ],
+  // UV notes: none until approved by Vishesh (drafts in content/uv-notes-draft.md)
+  uvNotes: [],
   deliverables: placeholderDeliverables('jsw-sports', 'JSW Sports'),
 };
 

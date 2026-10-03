@@ -35,7 +35,11 @@ import { postState } from './Post';
 import { onScreenFrame, sampleScreens, screens, screenSource } from './screens';
 import { BOOTH, TRAY } from './staging';
 import { uvUniforms } from './uvMaterial';
-import { proofUniforms } from './proofUniforms';
+import { PRINT_FLOORS, proofUniforms } from './proofUniforms';
+import { isMobileTier } from '@/lib/perfTier';
+
+const D50_PRINT = lampById('D50').print;
+const tmpSpill = new Color();
 
 const UP = new Vector3(0, 1, 0);
 
@@ -92,6 +96,9 @@ function hazeMaterial() {
  */
 export function LampRig() {
   const panel = useRef<RectAreaLight>(null);
+  /** Mobile tier: one spill light for all screens (instead of one area light per screen). */
+  const spill = useRef<RectAreaLight>(null);
+  const mobile = isMobileTier();
   const key = useRef<SpotLight>(null);
   const fill = useRef<HemisphereLight>(null);
   const front = useRef<DirectionalLight>(null);
@@ -120,6 +127,9 @@ export function LampRig() {
   const plane = useMemo(() => new Plane(new Vector3(0, 0, 1), 0), []);
   const tmp = useMemo(() => ({ v: new Vector3(), dir: new Vector3() }), []);
   const lastLamp = useRef<string | null>(null);
+  const shadowKey = useRef<{ lamp: string | null; slug: string | null }>({ lamp: null, slug: null });
+  const shadowUntil = useRef(0);
+  const handWasMoving = useRef(false);
   const lastHandLamp = useRef<string | null>(null);
   // pointer in whole-page NDC (for the hand lamp over the proof strip)
   const ndcPage = useRef(new Vector2(0, 0));
@@ -174,8 +184,17 @@ export function LampRig() {
     k.decay = K.decay;
     k.shadow.radius = K.shadowRadius;
     k.shadow.intensity = K.shadowIntensity;
-    k.shadow.autoUpdate = k.intensity > 0;
-    if (k.intensity > 0) k.shadow.needsUpdate = true;
+    // The booth is static: the shadow map (VSM: a depth pass + two blur passes) re-renders only
+    // when something changes it: a lamp strike or switch, samples moving to/from the tray, or the
+    // hand lamp moving. Never under D50 (shadow intensity 0). The measured top per-frame cost otherwise.
+    const nowMs = performance.now();
+    if (lamp !== shadowKey.current.lamp || activeSlug !== shadowKey.current.slug) {
+      shadowKey.current = { lamp, slug: activeSlug };
+      shadowUntil.current = nowMs + 2500;
+    }
+    k.shadow.autoUpdate = false;
+    const shadowsMatter = k.intensity > 0 && K.shadowIntensity > 0;
+    if (shadowsMatter && (strikeProgress < 1 || nowMs < shadowUntil.current || handWasMoving.current)) k.shadow.needsUpdate = true;
 
     let handMoving = false;
     const handJustOn = lamp === 'AFTERDARK' && lastHandLamp.current !== 'AFTERDARK';
@@ -239,27 +258,45 @@ export function LampRig() {
     // ── screens: always on; live video + spill only in SCREEN ──
     const src = screenSource(P.screens.live);
     if (P.screens.live) sampleScreens();
+    let spillSum = 0;
+    const spillColour = tmpSpill.setRGB(0, 0, 0);
     for (const s of screens) {
       const keep = 1 - ((s.material.userData.dim as number | undefined) ?? 0);
       if (s.material.map !== src) s.material.map = src;
       s.material.color.setScalar(P.screens.gain * (0.35 + 0.65 * env) * keep);
-      s.light.intensity = P.screens.spill * env * keep;
-      s.light.color.copy(s.colour);
+      if (s.light) {
+        s.light.intensity = P.screens.spill * env * keep;
+        s.light.color.copy(s.colour);
+      }
+      spillSum += keep;
+      spillColour.add(s.colour);
+    }
+    if (spill.current) {
+      // the three screens' area together, from one light across the back row
+      spill.current.intensity = screens.size ? (P.screens.spill * env * spillSum * 0.45) : 0;
+      spill.current.color.copy(screens.size ? spillColour.multiplyScalar(1 / screens.size) : spillColour);
     }
 
     // ── proof-strip photos: the same lamp, as a print light model ──
-    const pr = P.print;
+    // Until the visitor picks a lamp themselves (a project's native lamp is set for them), the
+    // photos stay D50-faithful: neutral white, true colour. After a pick they follow the lamp,
+    // with readability floors under the dark lamps.
+    const picked = useBooth.getState().lampPicked;
+    const pr = picked ? P.print : D50_PRINT;
+    const penv = picked ? env : 1;
     const dpr = gl.getPixelRatio();
-    const level = pr.level * env;
-    if (ramp) proofUniforms.uColour.value.setRGB(...kelvinToAdapted(ramp)).multiplyScalar(level);
+    const level = pr.level * penv;
+    if (ramp && picked) proofUniforms.uColour.value.setRGB(...kelvinToAdapted(ramp)).multiplyScalar(level);
     else proofUniforms.uColour.value.setRGB(...pr.colour).multiplyScalar(level);
-    proofUniforms.uAmbient.value = pr.ambient * env;
+    proofUniforms.uAmbient.value = pr.ambient * penv;
+    proofUniforms.uFloor.value = picked ? (PRINT_FLOORS[lamp] ?? 0) : 0;
+    proofUniforms.uProofUV.value = picked ? P.uv * env : 0;
     proofUniforms.uGrad.value.set(pr.grad[0], pr.grad[1], pr.grad[2], 0);
     if (pr.spot) {
       const W = window.innerWidth * dpr;
       const H = window.innerHeight * dpr;
       const r = pr.spot.r * Math.min(W, H);
-      if (lamp === 'AFTERDARK') {
+      if (picked && lamp === 'AFTERDARK') {
         // the hand lamp follows the pointer over the photos too (same critically damped lag)
         printHand.goal.set(((ndcPage.current.x + 1) / 2) * W, ((ndcPage.current.y + 1) / 2) * H);
         if (handJustOn) {
@@ -288,10 +325,13 @@ export function LampRig() {
 
     // ── fluorescence + post ─────────────────────────
     uvUniforms.uUV.value = P.uv * env;
-    postState.bloomIntensity = P.bloom.intensity * env;
+    // mobile: bloom under UV makes no visible difference (A/B: 0.06% of pixels change), so it is off there
+    postState.bloomIntensity = mobile && lamp === 'UV' ? 0 : P.bloom.intensity * env;
     postState.bloomThreshold = P.bloom.threshold;
     postState.grain = P.grain;
     postState.matrix.fromArray(P.matrix).transpose(); // fromArray is column-major; presets are row-major
+    if (useBooth.getState().lampPicked) proofUniforms.uNeutralize.value.identity();
+    else proofUniforms.uNeutralize.value.copy(postState.matrix).invert();
 
     // Diagnostics: log the rig once each time FLOOD (or any lamp, with ?lampdebug) settles.
     if (strikeProgress >= 1 && lastLamp.current !== lamp) {
@@ -319,18 +359,20 @@ export function LampRig() {
       }
     }
 
+    handWasMoving.current = handMoving;
     if (strikeProgress < 1 || handMoving) invalidate();
   });
 
   return (
     <>
       <rectAreaLight ref={panel} rotation={[-Math.PI / 2, 0, 0]} />
+      {mobile && <rectAreaLight ref={spill} width={0.9} height={0.18} position={[0.1, 0.32, -0.2]} rotation={[0, Math.PI, 0]} intensity={0} />}
       <primitive object={keyTarget} />
       <spotLight
         ref={key}
         target={keyTarget}
         castShadow
-        shadow-mapSize={[2048, 2048]}
+        shadow-mapSize={mobile ? [1024, 1024] : [2048, 2048]}
         shadow-bias={-0.0006}
         shadow-normalBias={0.02}
         shadow-blurSamples={16}

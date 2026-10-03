@@ -13,12 +13,16 @@ import { CameraRig } from './CameraRig';
 import { LampRig } from './LampRig';
 import { ObjectSlot } from './ObjectSlot';
 import { PerfProbe } from './PerfProbe';
+import { perfInfo } from '@/lib/perfTier';
 import { Post } from './Post';
 import { ProofLayer } from './ProofLayer';
 import { lineupShot, trayShot } from './shots';
-import { BOOTH, FOCAL_MM, FOV, PLINTH_CHAMFER, PROPS, SENSOR_HEIGHT_MM, STAGING, TRAY, lineupLayout } from './staging';
+import { BOOTH, CABINET, CABINET_FACE, FOCAL_MM, FOV, PLINTH_CHAMFER, PROPS, SENSOR_HEIGHT_MM, STAGING, TRAY, lineupLayout } from './staging';
 
 declare global {
+  interface Window {
+    __boothBench?: (n?: number) => { p50: number; p95: number };
+  }
   interface Window {
     /** Projected width of every sample (object only, no plinth) as % of the viewport width, from the live camera. */
     __boothSizes?: () => Record<string, number>;
@@ -55,7 +59,11 @@ function SizeProbe() {
   const camera = useThree((s) => s.camera);
   useEffect(() => {
     window.__boothSizes = () => {
-      const r = stageRect() ?? { left: 0, top: 0, width: innerWidth, height: innerHeight };
+      // % of the cabinet's projected width (the cabinet face, at the opening)
+      const fz = BOOTH.frontZ + CABINET.proud;
+      const ca = new Vector3(-CABINET_FACE.w / 2, BOOTH.height / 2, fz).project(camera);
+      const cb = new Vector3(CABINET_FACE.w / 2, BOOTH.height / 2, fz).project(camera);
+      const cab = cb.x - ca.x;
       const out: Record<string, number> = {};
       for (const w of lineup) {
         const st = STAGING[w.slug];
@@ -63,7 +71,7 @@ function SizeProbe() {
         const z = st.z + st.object.d / 2;
         const a = new Vector3(st.x - st.object.w / 2, y, z).project(camera);
         const b = new Vector3(st.x + st.object.w / 2, y, z).project(camera);
-        out[w.slug] = +((((b.x - a.x) / 2) * r.width) / innerWidth * 100).toFixed(1);
+        out[w.slug] = +(((b.x - a.x) / cab) * 100).toFixed(1);
       }
       return out;
     };
@@ -81,6 +89,27 @@ function ClockBridge({ onReady }: { onReady: () => void }) {
     set({ invalidate: (n?: number) => requestFrames(n ?? 1) });
     attachRenderer((t) => advance(t, true, get()));
     const off = onViewsChanged(() => requestFrames(2));
+    // ?perf: render N frames synchronously, each closed with a 1px readback, and time them. A
+    // like-for-like cost per lamp / per tier, independent of the display's refresh cadence.
+    if (window.location.search.includes('perf')) {
+      window.__boothBench = (n = 30) => {
+        const ctx = get().gl.getContext();
+        const px = new Uint8Array(4);
+        const frame = () => {
+          advance(performance.now() / 1000, true, get());
+          ctx.readPixels(0, 0, 1, 1, ctx.RGBA, ctx.UNSIGNED_BYTE, px); // a real sync point (finish() may not block)
+        };
+        for (let i = 0; i < 4; i++) frame(); // warm-up: shader compiles, texture uploads
+        const ms: number[] = [];
+        for (let i = 0; i < n; i++) {
+          const t0 = performance.now();
+          frame();
+          ms.push(performance.now() - t0);
+        }
+        ms.sort((a, b) => a - b);
+        return { p50: +ms[Math.floor(n * 0.5)].toFixed(1), p95: +ms[Math.min(n - 1, Math.floor(n * 0.95))].toFixed(1) };
+      };
+    }
     return () => {
       attachRenderer(null);
       off();
@@ -125,13 +154,13 @@ export default function BoothCanvas({ onReady }: { onReady: () => void }) {
     });
   }, []);
 
-  const coarse = typeof window !== 'undefined' && matchMedia('(pointer: coarse)').matches;
+  const perf = perfInfo();
 
   return (
     <Canvas
       frameloop="never"
       shadows="variance"
-      dpr={[1, coarse ? 1.5 : 1.75]}
+      dpr={typeof window !== 'undefined' ? Math.min(window.devicePixelRatio || 1, perf.dprCap) : 1}
       gl={{ antialias: false, alpha: true, premultipliedAlpha: true, powerPreference: 'high-performance', stencil: false }}
       camera={{ fov: FOV, position: [0, 0.4, 5] }}
       events={stageEvents}
@@ -151,7 +180,7 @@ export default function BoothCanvas({ onReady }: { onReady: () => void }) {
       </Suspense>
       <ProofLayer />
       <Post />
-      {typeof window !== 'undefined' && window.location.search.includes('perf') && <PerfProbe />}
+      <PerfProbe readout={typeof window !== 'undefined' && window.location.search.includes('perf')} />
     </Canvas>
   );
 }

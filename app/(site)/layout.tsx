@@ -3,10 +3,12 @@ import { CONTACT_EMAIL, CONTACT_MAILTO } from '@/lib/site';
 import { BoothHost } from '@/components/booth/BoothHost';
 import { Providers } from '@/components/ui/Providers';
 import { SwitchPanel } from '@/components/ui/SwitchPanel';
+import { JsonLd, personLd } from '@/lib/jsonld';
 
 export default function SiteLayout({ children }: { children: React.ReactNode }) {
   return (
     <Providers>
+      <JsonLd data={personLd} />
       <BoothHost />
       <header className="masthead">
         <Link href="/" className="wordmark">Vishesh Mahendru</Link>

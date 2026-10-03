@@ -14,11 +14,8 @@ const work: Work = {
   glb: '',
   object: 'Tea box trio',
   fallbacks: placeholderFallbacks('sook'),
-  uvNotes: [
-    { text: 'Colour system: one hue per blend, shared neutral base', anchor: [0, 0.1, 0.036] },
-    { text: 'Die-line: tuck-end, 70 × 70 × 130mm', anchor: [-0.08, 0.06, 0.036] },
-    { text: 'Front panel grid shared across all three SKUs', anchor: [0.08, 0.1, 0.036] },
-  ],
+  // UV notes: none until approved by Vishesh (drafts in content/uv-notes-draft.md)
+  uvNotes: [],
   deliverables: placeholderDeliverables('sook', 'SOOK'),
 };
 

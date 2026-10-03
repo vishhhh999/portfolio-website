@@ -1,5 +1,6 @@
 import type { Deliverable, Work } from '@/lib/types';
 import { imported } from './imported';
+import { ALT } from '../alt';
 import tooYumm from './too-yumm';
 import sook from './sook';
 import shunya from './shunya';
@@ -17,7 +18,10 @@ import sonde from './sonde';
 function withImport(w: Work): Work {
   const o = imported[w.slug] as (Omit<Partial<Work>, 'deliverables'> & { deliverables?: (Deliverable & { source?: string })[] }) | undefined;
   if (!o) return w;
-  const d = o.deliverables?.filter((x) => x.src).slice(0, 6).map(({ source: _source, ...x }) => x);
+  const d = o.deliverables
+    ?.filter((x) => x.src)
+    .map(({ source: _source, ...x }, i) => (ALT[w.slug]?.[i + 1] ? { ...x, alt: ALT[w.slug][i + 1] } : x))
+    .slice(0, 6);
   return {
     ...w,
     // the live site sets titles in caps; keep the authored casing unless the name itself differs
