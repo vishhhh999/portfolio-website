@@ -28,6 +28,8 @@ export type PlaneSpec = {
 type Entry = { el: HTMLElement; rect: DocRect };
 
 let stage: Entry | null = null;
+/** Where the booth cabinet should sit on the page (home): the camera frames the cabinet into this box. */
+let frame: Entry | null = null;
 const planes = new Map<number, PlaneSpec & { rect: DocRect }>();
 let nextId = 1;
 let scrollY = 0;
@@ -42,6 +44,7 @@ const docRect = (el: HTMLElement): DocRect => {
 /** Re-measure every registered element (cheap: a handful of rects). */
 export function measure() {
   if (stage) stage.rect = docRect(stage.el);
+  if (frame) frame.rect = docRect(frame.el);
   for (const p of planes.values()) p.rect = docRect(p.el);
   scrollY = window.scrollY;
   changed();
@@ -72,6 +75,21 @@ export function registerStage(el: HTMLElement) {
     if (stage?.el === el) stage = null;
     changed();
   };
+}
+
+export function registerFrame(el: HTMLElement) {
+  ensureObserver();
+  frame = { el, rect: docRect(el) };
+  changed();
+  return () => {
+    if (frame?.el === el) frame = null;
+    changed();
+  };
+}
+
+/** Cabinet frame box in viewport CSS px, or null (project pages frame the tray instead). */
+export function frameRect() {
+  return frame ? toViewport(frame.rect) : null;
 }
 
 export function registerPlane(spec: PlaneSpec) {

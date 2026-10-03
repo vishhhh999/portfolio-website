@@ -24,6 +24,22 @@ function RegTarget({ className }: { className: string }) {
  * lit WebGL plane and is visually hidden once the plane has drawn, so the
  * active lamp relights the photograph itself.
  */
+const aspectOf = (d: Deliverable) => (d.width && d.height ? d.width / d.height : 4 / 3);
+
+/**
+ * Contact-sheet rhythm: a hero frame, then a 2-up and a 3-up row. A portrait
+ * opener starts with a 2-up instead. Each frame's width is proportional to its
+ * image's real aspect ratio, so every row shares one height and nothing is cropped.
+ */
+function rows(list: Deliverable[]): number[][] {
+  const idx = list.map((_, i) => i);
+  const pattern = aspectOf(list[0]) >= 1.2 ? [1, 2, 3] : [2, 2, 2];
+  const out: number[][] = [];
+  let p = 0;
+  while (idx.length) out.push(idx.splice(0, pattern[p++ % pattern.length]));
+  return out;
+}
+
 function ProofFrame({ d, index, serial, onPlay }: { d: Deliverable; index: number; serial: number; onPlay: (d: Deliverable) => void }) {
   const ref = useRef<HTMLImageElement & HTMLVideoElement>(null);
   const [lit, setLit] = useState(false);
@@ -71,7 +87,7 @@ function ProofFrame({ d, index, serial, onPlay }: { d: Deliverable; index: numbe
         <div className="proof__image">
           {d.type === 'video' ? (
             <>
-              <video ref={ref} poster={d.poster} muted loop playsInline autoPlay preload="metadata" aria-label={d.alt} data-lit={lit}>
+              <video ref={ref} poster={d.poster} muted loop playsInline autoPlay preload="metadata" aria-label={d.alt} data-lit={lit} style={{ aspectRatio: `${aspectOf(d)}` }}>
                 {d.sources?.map((s) => <source key={s.src} src={s.src} type={s.type} />)}
                 <source src={d.src} type="video/mp4" />
               </video>
@@ -81,7 +97,7 @@ function ProofFrame({ d, index, serial, onPlay }: { d: Deliverable; index: numbe
             </>
           ) : (
             // eslint-disable-next-line @next/next/no-img-element
-            <img ref={ref} src={d.src} alt={d.alt} width={1600} height={1200} loading={index < 2 ? 'eager' : 'lazy'} decoding="async" data-lit={lit} />
+            <img ref={ref} src={d.src} alt={d.alt} width={d.width ?? 1600} height={d.height ?? 1200} loading={index < 3 ? 'eager' : 'lazy'} decoding="async" data-lit={lit} style={{ aspectRatio: `${aspectOf(d)}` }} />
           )}
         </div>
       </div>
@@ -107,13 +123,21 @@ export function ProofStrip({ deliverables, serialBase }: { deliverables: Deliver
 
   return (
     <>
-      <ol className="proofstrip" aria-label="Deliverables">
-        {deliverables.slice(0, 6).map((d, i) => (
-          <li key={d.src}>
-            <ProofFrame d={d} index={i} serial={serialBase + i} onPlay={setPlaying} />
-          </li>
+      <div className="proofstrip" role="list" aria-label="Deliverables">
+        {rows(deliverables.slice(0, 6)).map((row) => (
+          <div key={row.join('-')} className="proofrow" data-count={row.length}>
+            {row.map((i) => {
+              const d = deliverables[i];
+              const a = aspectOf(d);
+              return (
+                <div key={d.src} role="listitem" className="proofrow__item" style={{ flexGrow: a, flexBasis: 0, ['--aspect' as string]: a }}>
+                  <ProofFrame d={d} index={i} serial={serialBase + i} onPlay={setPlaying} />
+                </div>
+              );
+            })}
+          </div>
         ))}
-      </ol>
+      </div>
       <dialog ref={dialog} className="player" onClose={() => setPlaying(null)} aria-label={playing?.alt ?? 'Video'}>
         {playing && (
           <video controls autoPlay playsInline>

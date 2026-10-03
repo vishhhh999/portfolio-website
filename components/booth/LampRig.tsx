@@ -3,7 +3,10 @@
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
 import {
-  AdditiveBlending,
+  AddEquation,
+  CustomBlending,
+  OneFactor,
+  ZeroFactor,
   Color,
   ConeGeometry,
   DataTexture,
@@ -69,7 +72,13 @@ function hazeMaterial() {
       }`,
     transparent: true,
     depthWrite: false,
-    blending: AdditiveBlending,
+    // additive light, but alpha untouched: haze must never change the coverage mask (it would print on the page)
+    blending: CustomBlending,
+    blendEquation: AddEquation,
+    blendSrc: OneFactor,
+    blendDst: OneFactor,
+    blendSrcAlpha: ZeroFactor,
+    blendDstAlpha: OneFactor,
     side: DoubleSide,
   });
 }
@@ -102,7 +111,6 @@ export function LampRig() {
   const keyTarget = useMemo(() => new Object3D(), []);
   const hazeMat = useMemo(hazeMaterial, []);
   const hazeGeo = useMemo(() => new ConeGeometry(1, 1, 48, 1, true).translate(0, -0.5, 0), []);
-  const bg = useMemo(() => new Color(0, 0, 0), []);
   const tmpColour = useMemo(() => new Color(), []);
 
   // hand lamp: critically damped follow of the pointer
@@ -118,10 +126,10 @@ export function LampRig() {
   const printHand = useMemo(() => ({ pos: new Vector2(), vel: new Vector2(), goal: new Vector2() }), []);
   const tmp2 = useMemo(() => new Vector2(), []);
 
+  // No scene background: around the cabinet the canvas is transparent and the page (paper) shows.
   useEffect(() => {
-    scene.background = bg;
-    return () => void (scene.background = null);
-  }, [scene, bg]);
+    scene.background = null;
+  }, [scene]);
   useEffect(() => useBooth.subscribe(() => invalidate()), [invalidate]);
   useEffect(() => onScreenFrame(() => invalidate()), [invalidate]);
 
@@ -165,6 +173,7 @@ export function LampRig() {
     k.penumbra = K.penumbra;
     k.decay = K.decay;
     k.shadow.radius = K.shadowRadius;
+    k.shadow.intensity = K.shadowIntensity;
     k.shadow.autoUpdate = k.intensity > 0;
     if (k.intensity > 0) k.shadow.needsUpdate = true;
 
@@ -209,7 +218,6 @@ export function LampRig() {
     const fr = front.current!;
     fr.intensity = P.front * env;
     fr.color.setRGB(...P.fill.sky);
-    bg.setRGB(...P.room).multiplyScalar(0.15 + 0.85 * env);
     getBlobMaterial().opacity = P.contact * (0.3 + 0.7 * env);
 
     // ── haze cone along the key light ───────────────
@@ -323,11 +331,11 @@ export function LampRig() {
         target={keyTarget}
         castShadow
         shadow-mapSize={[2048, 2048]}
-        shadow-bias={-0.0004}
-        shadow-normalBias={0.006}
+        shadow-bias={-0.0006}
+        shadow-normalBias={0.02}
         shadow-blurSamples={16}
-        shadow-camera-near={0.05}
-        shadow-camera-far={6}
+        shadow-camera-near={0.25}
+        shadow-camera-far={3.5}
         map={white}
       />
       <hemisphereLight ref={fill} />

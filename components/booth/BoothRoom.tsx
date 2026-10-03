@@ -13,7 +13,7 @@ import {
 } from 'three';
 import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLightUniformsLib.js';
 import { useBooth } from '@/lib/store';
-import { BOOTH, DIFFUSER, LIP, PLINTH_CHAMFER, PLINTH_GREY, PROPS, TRAY } from './staging';
+import { BOOTH, CABINET, CABINET_FACE, DIFFUSER, LIP, PLINTH_CHAMFER, PLINTH_GREY, PROPS, TRAY } from './staging';
 import { applyUV } from './uvMaterial';
 
 RectAreaLightUniformsLib.init();
@@ -22,7 +22,8 @@ RectAreaLightUniformsLib.init();
 export const BOOTH_GREY = '#A8A8A6';
 const FLOOR_GREY = '#9C9C9A';
 const CEILING_GREY = '#B3B3B1';
-const CABINET_GREY = '#7E7E7C';
+/** The housing: dark charcoal, so the lit opening reads as the booth's face. */
+const HOUSING = '#2F2F2D';
 const LIP_GREY = '#9E9E9C';
 
 /**
@@ -103,9 +104,9 @@ function plateTexture() {
   return t;
 }
 
-function Surface(props: { position: [number, number, number]; rotation: [number, number, number]; size: [number, number]; color: string }) {
+function Surface(props: { position: [number, number, number]; rotation: [number, number, number]; size: [number, number]; color: string; shadows?: boolean }) {
   return (
-    <mesh position={props.position} rotation={props.rotation} receiveShadow>
+    <mesh position={props.position} rotation={props.rotation} receiveShadow={props.shadows ?? false}>
       <planeGeometry args={props.size} />
       <meshStandardMaterial color={props.color} roughness={0.95} />
     </mesh>
@@ -118,14 +119,14 @@ function Surface(props: { position: [number, number, number]; rotation: [number,
  * around the opening, and a thin front lip with the maker's plate.
  */
 export function BoothRoom() {
-  const { width: w, height: h, backZ, frontZ, wall } = BOOTH;
+  const { width: w, height: h, backZ, frontZ } = BOOTH;
   const depth = frontZ - backZ;
   const cz = (backZ + frontZ) / 2;
   const plate = useMemo(plateTexture, []);
   return (
     <group>
       {/* interior */}
-      <Surface position={[0, 0, cz]} rotation={[-Math.PI / 2, 0, 0]} size={[w, depth]} color={FLOOR_GREY} />
+      <Surface position={[0, 0, cz]} rotation={[-Math.PI / 2, 0, 0]} size={[w, depth]} color={FLOOR_GREY} shadows />
       <Surface position={[0, h / 2, backZ]} rotation={[0, 0, 0]} size={[w, h]} color={BOOTH_GREY} />
       <Surface position={[-w / 2, h / 2, cz]} rotation={[0, Math.PI / 2, 0]} size={[depth, h]} color={BOOTH_GREY} />
       <Surface position={[w / 2, h / 2, cz]} rotation={[0, -Math.PI / 2, 0]} size={[depth, h]} color={BOOTH_GREY} />
@@ -148,32 +149,53 @@ export function BoothRoom() {
         </mesh>
       ))}
 
-      {/* cabinet shell around the box (seen on narrow screens); offset 2mm out so it never z-fights the interior */}
+      {/* cabinet housing: shell around the box (offset 2mm so it never z-fights the interior) */}
       <group>
-        <mesh position={[0, h + wall / 2 + 0.002, cz - wall / 2]}>
-          <boxGeometry args={[w + 2 * wall, wall, depth + wall]} />
-          <meshStandardMaterial color={CABINET_GREY} roughness={0.8} />
+        <mesh position={[0, h + CABINET.header / 2 + 0.002, cz]}>
+          <boxGeometry args={[CABINET_FACE.w, CABINET.header, depth]} />
+          <meshStandardMaterial color={HOUSING} roughness={0.62} />
         </mesh>
         {[-1, 1].map((s) => (
-          <mesh key={s} position={[s * (w / 2 + wall / 2 + 0.002), h / 2, cz - wall / 2]}>
-            <boxGeometry args={[wall, h + 2 * wall, depth + wall]} />
-            <meshStandardMaterial color={CABINET_GREY} roughness={0.8} />
+          <mesh key={s} position={[s * (w / 2 + CABINET.post / 2 + 0.002), (CABINET_FACE.bottom + h + CABINET.header) / 2, cz]}>
+            <boxGeometry args={[CABINET.post, CABINET_FACE.h, depth]} />
+            <meshStandardMaterial color={HOUSING} roughness={0.62} />
           </mesh>
         ))}
-        <mesh position={[0, -wall / 2 - 0.002, cz - wall / 2]}>
-          <boxGeometry args={[w + 2 * wall, wall, depth + wall]} />
-          <meshStandardMaterial color={CABINET_GREY} roughness={0.8} />
+        <mesh position={[0, CABINET_FACE.bottom / 2 - 0.002, cz]}>
+          <boxGeometry args={[CABINET_FACE.w, -CABINET_FACE.bottom, depth]} />
+          <meshStandardMaterial color={HOUSING} roughness={0.62} />
         </mesh>
       </group>
 
-      {/* front lip + maker's plate */}
+      {/* front face of the housing: a dark frame standing proud of the box, the iconic booth silhouette */}
+      <group position={[0, 0, frontZ + CABINET.proud / 2]}>
+        <RoundedBox args={[CABINET_FACE.w, CABINET.header, CABINET.proud]} radius={0.006} smoothness={2} position={[0, h + CABINET.header / 2, 0]}>
+          <meshStandardMaterial color={HOUSING} roughness={0.55} />
+        </RoundedBox>
+        {[-1, 1].map((s) => (
+          <RoundedBox key={s} args={[CABINET.post, CABINET_FACE.h, CABINET.proud]} radius={0.006} smoothness={2} position={[s * (w / 2 + CABINET.post / 2), (CABINET_FACE.bottom + h + CABINET.header) / 2, 0]}>
+            <meshStandardMaterial color={HOUSING} roughness={0.55} />
+          </RoundedBox>
+        ))}
+        <RoundedBox args={[CABINET_FACE.w, -CABINET_FACE.bottom, CABINET.proud]} radius={0.006} smoothness={2} position={[0, CABINET_FACE.bottom / 2, 0]}>
+          <meshStandardMaterial color={HOUSING} roughness={0.55} />
+        </RoundedBox>
+        {/* maker's plate on the sill */}
+        <mesh position={[0.5, -CABINET.sill / 2, CABINET.proud / 2 + 0.0006]}>
+          <planeGeometry args={[0.24, 0.03]} />
+          <meshStandardMaterial map={plate} metalness={0.75} roughness={0.38} />
+        </mesh>
+      </group>
+
+      {/* soft shadow of the cabinet on the page */}
+      <group position={[0, CABINET_FACE.bottom - 0.001, frontZ - depth * 0.25]}>
+        <ContactBlob w={CABINET_FACE.w} d={depth * 0.8} spread={1.12} />
+      </group>
+
+      {/* inner lip on the booth floor at the opening */}
       <mesh position={[0, LIP.h / 2, frontZ - LIP.d / 2]} castShadow receiveShadow>
-        <boxGeometry args={[w + 2 * wall, LIP.h, LIP.d]} />
+        <boxGeometry args={[w, LIP.h, LIP.d]} />
         <meshStandardMaterial color={LIP_GREY} roughness={0.7} />
-      </mesh>
-      <mesh position={[0.48, LIP.h / 2, frontZ + 0.0006]}>
-        <planeGeometry args={[0.2, 0.025]} />
-        <meshStandardMaterial map={plate} metalness={0.75} roughness={0.38} />
       </mesh>
 
       <Tray />

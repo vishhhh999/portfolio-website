@@ -46,7 +46,7 @@ export function ObjectSlot({ work }: { work: Work }) {
   const receded = activeSlug !== null && !active;
 
   const inkTex = useMemo(
-    () => createInkTexture(work.uvNotes.map((n) => n.text), INK_ASPECT[work.slug] ?? 1, work.slug.length),
+    () => createInkTexture(work.uvNotes.map((n) => n.text), INK_ASPECT[work.slug] ?? 1, work.slug.length, STAGING[work.slug].object.w * 1000),
     [work],
   );
 
@@ -99,6 +99,14 @@ export function ObjectSlot({ work }: { work: Work }) {
     for (const { mat, base } of objMats.current) mat.color.copy(base).multiplyScalar(1 - d.obj);
     for (const { mat, base } of plinthMats.current) mat.color.copy(base).multiplyScalar(1 - d.plinth);
     for (const m of screenMats.current) m.userData.dim = d.obj;
+
+    // Tray shot: the front row would sit between the camera and the tray. Once dimmed (mid-move),
+    // front-row neighbours and every front-row plinth drop out; only the dimmed back row stays as context.
+    if (z > 0) {
+      const hidePlinth = activeSlug !== null && d.plinth > 0.35;
+      for (const c of slot.children) if (c !== obj) c.visible = !hidePlinth;
+      obj.visible = !(receded && d.obj > 0.45);
+    }
 
     const moving =
       Math.abs(slotZ - slot.position.z) > 1e-4 ||

@@ -65,22 +65,54 @@ for s_i, slug in enumerate(SLUGS):
         im = caption(block(sweep(s_i * 10 + i), s_i * 10 + i), slug, i)
         im.save(path, 'WEBP', quality=72, method=6)
 
-# UV test masks for Too Yumm 01 + 02
+# UV test masks for Too Yumm 01 + 02 (the photo layout: block centred, colour bar bottom-right)
+GMONO = os.path.join(os.path.dirname(__file__), '..', 'node_modules', 'geist', 'dist', 'fonts', 'geist-mono', 'GeistMono-Medium.ttf')
+
+def bar_rect(k):
+    x1 = W - 48 - (len(BAR) - k - 1) * 54 - 6
+    return (W - 48 - (len(BAR) - k) * 54, H - 92, x1, H - 50)
+
+def dim_h(d, x0, x1, y, label, f):
+    d.line([x0, y, x1, y], fill=255, width=3)
+    for x in (x0, x1):
+        d.line([x, y - 14, x, y + 14], fill=255, width=3)
+    tw = d.textlength(label, font=f)
+    d.rectangle([(x0 + x1) / 2 - tw / 2 - 10, y - 16, (x0 + x1) / 2 + tw / 2 + 10, y + 16], fill=0)
+    d.text(((x0 + x1) / 2 - tw / 2, y - 12), label, font=f, fill=255)
+
+def callout(d, px, py, tx, ty, label, f, left=True):
+    d.ellipse([px - 6, py - 6, px + 6, py + 6], fill=255)
+    d.line([px, py, tx, ty], fill=255, width=3)
+    tw = d.textlength(label, font=f)
+    end = tx - tw - 24 if left else tx + tw + 24
+    d.line([tx, ty, end, ty], fill=255, width=3)
+    d.text((min(tx, end) + 12, ty - 34), label, font=f, fill=255)
+
 for i in (1, 2):
     base = os.path.join(ROOT, 'too-yumm')
+    # fluorMask: only the paper-white patch and one fluorescent (magenta) ink fluoresce, subtly; never a wash
     fl = Image.new('RGB', (W, H), (0, 0, 0))
     fd = ImageDraw.Draw(fl)
-    fd.rectangle([0, 0, W, int(H * 0.62)], fill=(150, 150, 170))   # the paper sweep's optical brighteners
-    fd.rectangle([W // 2 - 120, int(H * 0.30), W // 2 + 120, int(H * 0.40)], fill=(255, 90, 200))  # one fluorescent ink patch
-    fl.filter(ImageFilter.GaussianBlur(3)).save(os.path.join(base, f'{i:02d}-fluor.webp'), 'WEBP', quality=80)
+    fd.rectangle(bar_rect(8), fill=(150, 150, 185))
+    fd.rectangle(bar_rect(1), fill=(170, 50, 130))
+    fl.filter(ImageFilter.GaussianBlur(1.5)).save(os.path.join(base, f'{i:02d}-fluor.webp'), 'WEBP', quality=85)
+    # uvInk: a proofer's marks in technical pen: dimension lines, centre cross, rules, short mono callouts
     ink = Image.new('L', (W, H), 0)
-    idr = ImageDraw.Draw(ink)
-    for x in range(100, W, 100):
-        idr.line([x, 80, x, H - 80], fill=60, width=2)
-    hand = ImageFont.truetype(HAND, 54)
-    idr.text((140, 160), 'window reads at 2m', font=hand, fill=255)
-    idr.text((980, 260), 'cap height = 1/12 trim', font=hand, fill=255)
-    idr.ellipse([W // 2 - 190, int(H * 0.26), W // 2 + 190, int(H * 0.44)], outline=255, width=6)
-    idr.line([300, 230, W // 2 - 190, int(H * 0.33)], fill=255, width=5)
-    ink.save(os.path.join(base, f'{i:02d}-uvink.webp'), 'WEBP', quality=80)
+    d = ImageDraw.Draw(ink)
+    f = ImageFont.truetype(GMONO, 28)
+    rnd = random.Random(i * 10 + 1)
+    # block geometry as generated in block(): reproduce its size/position for this seed
+    rnd2 = random.Random(i)
+    bw, bh = rnd2.randint(320, 560), rnd2.randint(380, 640)
+    cx = W // 2 + rnd2.randint(-160, 160)
+    basey = int(H * 0.74)
+    dim_h(d, cx - bw // 2, cx + bw // 2, basey - bh - 60, f'W {int(bw * 0.3)} MM', f)
+    d.line([cx - bw // 2 - 70, basey, cx + bw // 2 + 70, basey], fill=255, width=2)
+    d.text((cx + bw // 2 + 80, basey - 16), 'SHELF LINE', font=f, fill=255)
+    d.line([cx - 22, basey - bh // 2, cx + 22, basey - bh // 2], fill=255, width=3)
+    d.line([cx, basey - bh // 2 - 22, cx, basey - bh // 2 + 22], fill=255, width=3)
+    callout(d, cx - bw // 2 + 30, basey - bh + 60, cx - bw // 2 - 90, basey - bh + 20, 'READS AT 2 M', f, left=True)
+    mx0, my0, mx1, my1 = bar_rect(1)
+    callout(d, (mx0 + mx1) // 2, my0, (mx0 + mx1) // 2 - 60, my0 - 90, 'M 100 · FLUORESCES', f, left=True)
+    ink.save(os.path.join(base, f'{i:02d}-uvink.webp'), 'WEBP', quality=85)
 print('ok')

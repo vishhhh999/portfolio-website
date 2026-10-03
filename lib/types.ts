@@ -16,6 +16,9 @@ export type Deliverable = {
   uvInk?: string;
   /** Still frame for video deliverables (shown until the video plays). */
   poster?: string;
+  /** Intrinsic pixel size (sets the frame's real aspect ratio in the proof strip). */
+  width?: number;
+  height?: number;
   /** Extra encodings for video deliverables, tried before `src` (e.g. WebM VP9, then the MP4 in src). */
   sources?: { src: string; type: string }[];
 };
@@ -25,6 +28,10 @@ export type Work = {
   title: string;
   /** Case copy, paragraph by paragraph, imported as written. */
   description?: string[];
+  /** Headed case sections that follow the intro, imported as written. */
+  sections?: { heading: string; body: string[] }[];
+  /** The shipped site, for web projects. */
+  live?: string;
   client?: string;
   clientType?: string;
   credits?: string;
@@ -39,8 +46,8 @@ export type Work = {
   fallbacks: Record<Lamp, string>;
   /** 3 to 6. */
   uvNotes: UvNote[];
-  /** Exactly 6. */
-  deliverables: [Deliverable, Deliverable, Deliverable, Deliverable, Deliverable, Deliverable];
+  /** Six is the target; when the live site has fewer, the real ones are shown rather than padded with placeholders. */
+  deliverables: Deliverable[];
   behance?: string;
   /** false = archive only: not on the booth floor, listed in /archive and /house-lights. */
   inLineup: boolean;

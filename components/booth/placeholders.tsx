@@ -133,8 +133,9 @@ function PhoneInStand({ inkTex }: { inkTex: Texture }) {
   const w = 0.072, h = 0.15;
   return (
     <group>
+      {/* desk cradle: a wide, low wedge base */}
       <mesh position={[0, 0.015, -0.005]} castShadow receiveShadow>
-        <boxGeometry args={[0.09, 0.03, 0.075]} />
+        <boxGeometry args={[0.13, 0.03, 0.085]} />
         <BoothMat color="#3A3936" roughness={0.45} metalness={0.2} />
       </mesh>
       <group position={[0, 0.022, 0.012]} rotation={[-0.3, 0, 0]}>

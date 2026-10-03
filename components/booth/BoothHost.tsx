@@ -61,7 +61,8 @@ export function BoothHost() {
   useEffect(() => {
     const root = document.documentElement;
     root.dataset.lamp = lamp;
-    root.dataset.dark = String(ready && mode !== 'off' && lampById(lamp).dark);
+    // home: the headline sits on paper, never over the booth; only the project-page tray view sits under text
+    root.dataset.dark = String(ready && mode === 'header' && lampById(lamp).dark);
   }, [lamp, mode, ready]);
 
   // Load the 3D after first paint, as soon as there is anything for it to draw.

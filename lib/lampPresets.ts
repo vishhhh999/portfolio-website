@@ -34,6 +34,8 @@ export type LampPreset = {
     decay: number;
     /** VSM shadow blur radius: ~1 = hard edge, 8+ = soft. */
     shadowRadius: number;
+    /** How dark the key's cast shadows are (0 = none: D50 grounds objects with contact shadows only). */
+    shadowIntensity: number;
   };
   /** Bounce off the booth's N7 walls (hemisphere). */
   fill: { intensity: number; sky: RGB; ground: RGB };
@@ -79,7 +81,7 @@ export type LampPreset = {
 
 const I3 = [1, 0, 0, 0, 1, 0, 0, 0, 1];
 const BLACK: RGB = [0, 0, 0];
-const OFF_KEY = { intensity: 0, colour: BLACK, position: [0, 0.92, 0.6] as Vec3, target: [0, 0, 0] as Vec3, angle: 0.8, penumbra: 1, decay: 2, shadowRadius: 4 };
+const OFF_KEY = { intensity: 0, colour: BLACK, position: [0, 0.82, 0.6] as Vec3, target: [0, 0, 0] as Vec3, angle: 0.8, penumbra: 1, decay: 2, shadowRadius: 4, shadowIntensity: 0 };
 const SCREENS_ON = { gain: 0.85, spill: 0, live: false };
 
 /** Partial chromatic adaptation: the eye half-adjusts to a lamp left on, so off-D50 lamps read tinted, not monochrome. */
@@ -95,17 +97,17 @@ const FLOOD = kelvinToAdapted(5700);
 const UV_VIOLET: RGB = [0.32, 0.1, 1];
 
 /*
- * Booth interior: 1.75 wide × 0.95 high, back wall z −0.75, opening z +1.0.
- * Back row z −0.42, front row z +0.62. Light intensities are physical
+ * Booth interior: 1.5 wide × 0.84 high, back wall z −0.75, opening z +1.0.
+ * Back row z −0.4, front row z +0.7. Light intensities are physical
  * (candela for the key, nits for the panel) at these distances.
  */
 export const LAMPS: LampPreset[] = [
   {
     id: 'D50', label: 'D50 · Daylight', ariaLabel: 'Daylight, D50', readout: '5000K', spec: 'D50 · 5000K · CRI 98', key: '1', indicator: '#F4F3EE',
     // The full diffuser: even, near-shadowless light, broad soft speculars, a soft gradient down the back wall.
-    panel: { intensity: 2.1, colour: D50, w: 1.5, d: 1.25, z: -0.05 },
-    diffuser: 1.15,
-    keyLight: { intensity: 1.6, colour: D50, position: [0.1, 0.93, 1.25], target: [0, 0.05, -0.2], angle: 1.35, penumbra: 1, decay: 2, shadowRadius: 9 },
+    panel: { intensity: 2.1, colour: D50, w: 1.28, d: 1.25, z: -0.05 },
+    diffuser: 0.78,
+    keyLight: { intensity: 1.6, colour: D50, position: [0.1, 0.82, 0.92], target: [0, 0.05, -0.2], angle: 1.4, penumbra: 1, decay: 2, shadowRadius: 9, shadowIntensity: 0 },
     fill: { intensity: 0.55, sky: D50, ground: [0.55, 0.55, 0.54] },
     front: 0.35,
     contact: 0.55, haze: 0,
@@ -119,9 +121,9 @@ export const LAMPS: LampPreset[] = [
     id: 'TL84', label: 'TL84 · Store', ariaLabel: 'Store light, TL84', readout: 'TL84', spec: 'TL84 · 4000K · TRIBAND', key: '2', indicator: '#E6F2DC',
     // A tube bank set back over the row: top-light, front faces fall off, crisp shadows thrown
     // forward, narrow specular streaks on gloss. Floor stays within a stop (booth lamp).
-    panel: { intensity: 2.9, colour: TL84, w: 1.5, d: 0.8, z: -0.1 },
-    diffuser: 1.05,
-    keyLight: { intensity: 1.5, colour: TL84, position: [0, 0.93, -0.62], target: [0, 0, 0.4], angle: 1.3, penumbra: 0.35, decay: 2, shadowRadius: 2.5 },
+    panel: { intensity: 2.9, colour: TL84, w: 1.28, d: 0.8, z: -0.1 },
+    diffuser: 0.74,
+    keyLight: { intensity: 1.5, colour: TL84, position: [0, 0.82, -0.62], target: [0, 0, 0.4], angle: 1.3, penumbra: 0.35, decay: 2, shadowRadius: 2.5, shadowIntensity: 0.55 },
     fill: { intensity: 0.42, sky: TL84, ground: [0.42, 0.45, 0.42] },
     front: 0.45,
     contact: 0.6, haze: 0,
@@ -138,7 +140,7 @@ export const LAMPS: LampPreset[] = [
     // One low lamp at the front right: long soft shadows raking left and back, strong falloff across the row.
     panel: { intensity: 0, colour: TUNGSTEN, w: 1, d: 1, z: 0 },
     diffuser: 0,
-    keyLight: { intensity: 9, colour: TUNGSTEN, position: [0.8, 0.36, 0.95], target: [-0.35, 0.1, -0.4], angle: 0.95, penumbra: 0.85, decay: 2, shadowRadius: 7 },
+    keyLight: { intensity: 9.5, colour: TUNGSTEN, position: [0.66, 0.5, 0.9], target: [-0.3, 0.08, -0.4], angle: 0.95, penumbra: 0.85, decay: 2, shadowRadius: 6, shadowIntensity: 0.8 },
     fill: { intensity: 0.13, sky: TUNGSTEN, ground: [0.3, 0.22, 0.15] },
     front: 0.04,
     contact: 0.45, haze: 0,
@@ -146,7 +148,7 @@ export const LAMPS: LampPreset[] = [
     bloom: { intensity: 0, threshold: 1 }, grain: 0,
     // Tungsten has almost no blue: blues go dull and dark, reds and ambers bloom.
     matrix: [1.0, 0.02, -0.02, 0.03, 0.97, 0.0, 0.06, 0.06, 0.8],
-    print: { level: 0.95, colour: TUNGSTEN, ambient: 0.05, grad: [0.92, 0.3, 0.62] },
+    print: { level: 0.95, colour: TUNGSTEN, ambient: 0.05, grad: [0.82, 0.3, 0.62] },
     room: [0.08, 0.055, 0.035],
     strike: { duration: 0.6, curve: 'tungsten' }, dark: true, continuous: false,
   },
@@ -154,7 +156,7 @@ export const LAMPS: LampPreset[] = [
     id: 'UV', label: 'UV · Blacklight', ariaLabel: 'Blacklight, UV', readout: 'UV-A', spec: 'UV-A · 365NM · FLUORESCENCE', key: '4', indicator: '#8B5CFF',
     // Visible light drops to a few percent, violet; paper whites and the hidden ink fluoresce.
     // A little violet ambient keeps every silhouette readable.
-    panel: { intensity: 0.22, colour: UV_VIOLET, w: 1.5, d: 0.55, z: -0.3 },
+    panel: { intensity: 0.22, colour: UV_VIOLET, w: 1.28, d: 0.55, z: -0.3 },
     diffuser: 0.16,
     keyLight: { ...OFF_KEY },
     fill: { intensity: 0.13, sky: UV_VIOLET, ground: [0.08, 0.03, 0.16] },
@@ -171,7 +173,7 @@ export const LAMPS: LampPreset[] = [
     // One hard, high, cold key: crisp short shadows, a pool of light with dark edges, haze in the beam.
     panel: { intensity: 0, colour: FLOOD, w: 1, d: 1, z: 0 },
     diffuser: 0,
-    keyLight: { intensity: 4.2, colour: FLOOD, position: [0.12, 0.93, 0.66], target: [0, 0.04, -0.3], angle: 0.78, penumbra: 0.2, decay: 2, shadowRadius: 1.2 },
+    keyLight: { intensity: 4.6, colour: FLOOD, position: [0.06, 0.82, 0.9], target: [0, 0.06, 0.25], angle: 1.02, penumbra: 0.4, decay: 2, shadowRadius: 1.5, shadowIntensity: 0.85 },
     fill: { intensity: 0.06, sky: FLOOD, ground: [0.1, 0.1, 0.11] },
     front: 0.02,
     contact: 0.7, haze: 1,
@@ -202,11 +204,12 @@ export const LAMPS: LampPreset[] = [
     // Total black. The key light becomes a hand lamp that follows the pointer (position set live by the rig).
     panel: { intensity: 0, colour: BLACK, w: 1, d: 1, z: 0 },
     diffuser: 0,
-    keyLight: { intensity: 95, colour: kelvinToAdapted(3600), position: [0, 0.75, 2.6], target: [0, 0.15, 0], angle: 0.14, penumbra: 0.55, decay: 2, shadowRadius: 2 },
+    keyLight: { intensity: 95, colour: kelvinToAdapted(3600), position: [0, 0.75, 2.6], target: [0, 0.15, 0], angle: 0.14, penumbra: 0.55, decay: 2, shadowRadius: 2, shadowIntensity: 0.8 },
     fill: { intensity: 0, sky: BLACK, ground: BLACK },
     front: 0.0,
     contact: 0, haze: 0,
-    screens: { gain: 0, spill: 0, live: false }, uv: 0,
+    // devices stay dimly on: small glowing screens in the dark, the hand lamp reveals the rest
+    screens: { gain: 0.32, spill: 0.5, live: false }, uv: 0,
     bloom: { intensity: 0, threshold: 1 }, grain: 0.3, matrix: I3,
     print: { level: 1.3, colour: kelvinToAdapted(3600), ambient: 0, grad: [0, 1, 0], spot: { x: 0.5, y: 0.5, r: 0.2, soft: 0.55, outside: 0 } },
     room: BLACK,

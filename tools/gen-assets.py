@@ -27,7 +27,7 @@ def font(name, size):
     return ImageFont.load_default()
 
 MONO = 'DejaVuSansMono.ttf'
-HAND = 'FreeSansOblique.ttf'
+GMONO = os.path.join(os.path.dirname(__file__), '..', 'node_modules', 'geist', 'dist', 'fonts', 'geist-mono', 'GeistMono-Medium.ttf')
 
 # ── 24-patch checker ──────────────────────────────────────────────
 # sRGB values of the classic 24-patch chart as published (X-Rite / BabelColor, D65 sRGB).
@@ -109,34 +109,37 @@ def card():
     fl = fl.filter(ImageFilter.GaussianBlur(0.8))
     fl.save(os.path.join(TEX, 'card_fluor.png'), optimize=True)
 
-    # uvInk: proofer's hidden marks. Black = nothing, white = fluorescent ink.
+    # uvInk: a proofer's hidden marks in technical pen: thin rules, dimension line, callouts, short mono labels.
     uv = Image.new('L', (CW, CH), 0)
     ud = ImageDraw.Draw(uv)
-    for x in range(60, CW - 59, 60):
-        ud.line([x, 40, x, CH - 40], fill=70, width=1)
-    for y in range(40, CH - 39, 60):
-        ud.line([60, y, CW - 60, y], fill=70, width=1)
-    hand = font(HAND, 34)
-
-    def jitter_line(pts, w=4):
-        out = []
-        for (x, y) in pts:
-            out.append((x + random.uniform(-1.5, 1.5), y + random.uniform(-1.5, 1.5)))
-        ud.line(out, fill=255, width=w, joint='curve')
-
-    # circle the neon patch
-    cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
-    pts = [(cx + 62 * math.cos(t) * (1 + 0.04 * math.sin(3 * t)), cy + 92 * math.sin(t)) for t in np.linspace(0.2, 2 * math.pi + 0.5, 60)]
-    jitter_line(pts)
-    ud.text((x0 - 300, y0 - 70), 'fluoresces: keep off\npaper-white areas', font=hand, fill=255)
-    jitter_line([(x0 - 60, y0 - 20), (x0 - 10, y0 + 30)])
-    # tick the K patch, note on magenta
+    gm = ImageFont.truetype(GMONO, 22)
+    def label(x, y, t):
+        tw = ud.textlength(t, font=gm)
+        ud.rectangle([x - 6, y - 4, x + tw + 6, y + 26], fill=0)
+        ud.text((x, y), t, font=gm, fill=255)
+    # dimension line over the swatch strip
+    x0s, y0s, _, _ = swatch_rects()[0]
+    _, _, x1s, y1s = swatch_rects()[-1]
+    ud.line([x0s, y0s - 34, x1s, y0s - 34], fill=255, width=2)
+    for x in (x0s, x1s):
+        ud.line([x, y0s - 46, x, y0s - 22], fill=255, width=2)
+    label((x0s + x1s) / 2 - 60, y0s - 48, '138 MM STRIP')
+    # centre cross on the headline block and a baseline rule
+    ud.line([590, 300, 630, 300], fill=255, width=2); ud.line([610, 280, 610, 320], fill=255, width=2)
+    ud.line([150, 455, 760, 455], fill=200, width=1)
+    label(770, 442, 'BASELINE 12 PT')
+    # callouts: the neon patch, the magenta, the K patch
+    def callout(px, py, tx, ty, text):
+        ud.ellipse([px - 5, py - 5, px + 5, py + 5], fill=255)
+        ud.line([px, py, tx, ty], fill=255, width=2)
+        ud.line([tx, ty, tx + (-180 if tx < px else 180), ty], fill=255, width=2)
+        label(tx + (-176 if tx < px else 12), ty - 30, text)
+    nx0, ny0, nx1, ny1 = swatch_rects()[NEON_INDEX]
+    callout((nx0 + nx1) / 2, ny0 + 30, nx0 - 40, ny0 - 110, 'FLUORESCENT INK')
+    mx0, my0, mx1, _ = swatch_rects()[1]
+    callout((mx0 + mx1) / 2, my0 + 40, mx1 + 90, my0 - 120, 'M · CHECK UNDER TL84')
     kx0, ky0, kx1, ky1 = swatch_rects()[3]
-    jitter_line([(kx0 + 10, ky0 + 80), (kx0 + 30, ky0 + 110), (kx1 - 5, ky0 + 40)], 5)
-    mx0, my0, _, _ = swatch_rects()[1]
-    ud.text((mx0 - 40, my0 - 112), 'check M\nunder TL84', font=hand, fill=255)
-    ud.text((720, 300), 'OBA ✓   dE < 2', font=font(HAND, 44), fill=255)
-    jitter_line([(700, 360), (1100, 356)], 3)
+    callout((kx0 + kx1) / 2, ky1 - 30, kx1 + 60, ky1 + 70, 'K 100 · OK')
     uv.save(os.path.join(TEX, 'card_uvink.png'), optimize=True)
 
 # ── gobo ──────────────────────────────────────────────────────────
@@ -216,7 +219,11 @@ def sounds():
     write_wav('buzz_uv.wav', buzz * 0.5)
 
 if __name__ == '__main__':
-    checker(); card(); gobo(); sounds(); video()
+    import sys
+    if '--card' in sys.argv:
+        card()
+    else:
+        checker(); card(); gobo(); sounds(); video()
     for d in ['textures', 'sounds', 'media']:
         for f in sorted(os.listdir(os.path.join(ROOT, d))):
             print(f'{d}/{f}', os.path.getsize(os.path.join(ROOT, d, f)) // 1024, 'KB')

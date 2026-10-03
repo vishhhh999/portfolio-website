@@ -4,18 +4,19 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useRef } from 'react';
 import { MathUtils, Vector3, type PerspectiveCamera } from 'three';
 import { useBooth } from '@/lib/store';
-import { stageRect } from '@/lib/views';
 import { useReducedMotion } from '@/lib/useReducedMotion';
-import { lineupShot, trayShot } from './shots';
+import { frameRect, stageRect } from '@/lib/views';
+import { cabinetShot, lineupShot, trayShot } from './shots';
 import { FOV } from './staging';
 
-const PARALLAX_YAW = MathUtils.degToRad(1.5);
-const PARALLAX_PITCH = MathUtils.degToRad(0.6);
+const PARALLAX_YAW = MathUtils.degToRad(1.2);
+const PARALLAX_PITCH = MathUtils.degToRad(0.5);
 
 /**
  * Locked long-lens camera. Level horizon, flat front, no orbit.
- * Two shots (lineup, tray), moved between on rails: critically damped, no
- * overshoot. Pointer parallax ≤1.5°.
+ * Home: the cabinet framed as an object on the page (box set by the layout).
+ * Project pages: the tray shot inside the booth. Moves between them on rails
+ * (critically damped, no overshoot), lens shift included. Pointer parallax ≤1.2°.
  */
 export function CameraRig() {
   const camera = useThree((s) => s.camera) as PerspectiveCamera;
@@ -26,12 +27,12 @@ export function CameraRig() {
 
   const pointer = useRef({ x: 0, y: 0 });
   const smooth = useRef({ x: 0, y: 0 });
-  const current = useRef<{ target: Vector3; dist: number } | null>(null);
+  const current = useRef<{ target: Vector3; dist: number; ox: number; oy: number } | null>(null);
   const goalTarget = useRef(new Vector3());
 
   useEffect(() => {
     camera.fov = FOV;
-    camera.near = 0.1;
+    camera.near = 0.05;
     camera.far = 60;
     camera.updateProjectionMatrix();
   }, [camera]);
@@ -54,20 +55,23 @@ export function CameraRig() {
 
   useFrame((_, dt) => {
     // The booth renders into the stage rect, so its aspect is the stage's, not the canvas's.
-    const r = stageRect();
-    const aspect = r && r.height > 0 ? r.width / r.height : size.width / size.height;
-    if (Math.abs(camera.aspect - aspect) > 1e-4) {
-      camera.aspect = aspect;
-      camera.updateProjectionMatrix();
-    }
-    const goal = activeSlug ? trayShot(activeSlug, aspect) : lineupShot(aspect);
+    const r = stageRect() ?? { left: 0, top: 0, width: size.width, height: size.height };
+    const aspect = r.height > 0 ? r.width / r.height : size.width / size.height;
+
+    let goal: { target: [number, number, number]; dist: number; offset: [number, number] };
+    const f = frameRect();
+    if (activeSlug) goal = { ...trayShot(activeSlug, aspect), offset: [0, 0] };
+    else if (f) goal = cabinetShot(r, { left: f.left - r.left, top: f.top - r.top, width: f.width, height: f.height });
+    else goal = { ...lineupShot(aspect), offset: [0, 0] };
     goalTarget.current.set(...goal.target);
 
     const k = reduced || !current.current ? 1 : 1 - Math.exp(-dt * 3.2);
-    if (!current.current) current.current = { target: goalTarget.current.clone(), dist: goal.dist };
+    if (!current.current) current.current = { target: goalTarget.current.clone(), dist: goal.dist, ox: goal.offset[0], oy: goal.offset[1] };
     const c = current.current;
     c.target.lerp(goalTarget.current, k);
     c.dist += (goal.dist - c.dist) * k;
+    c.ox += (goal.offset[0] - c.ox) * k;
+    c.oy += (goal.offset[1] - c.oy) * k;
 
     const kp = reduced ? 1 : 1 - Math.exp(-dt * 4);
     smooth.current.x += (pointer.current.x - smooth.current.x) * kp;
@@ -81,10 +85,15 @@ export function CameraRig() {
       c.target.z + Math.cos(yaw) * c.dist,
     );
     camera.lookAt(c.target);
+    camera.aspect = aspect;
+    if (Math.abs(c.ox) > 0.25 || Math.abs(c.oy) > 0.25) camera.setViewOffset(r.width, r.height, c.ox, c.oy, r.width, r.height);
+    else camera.clearViewOffset();
+    camera.updateProjectionMatrix();
 
     const moving =
       c.target.distanceTo(goalTarget.current) > 1e-4 ||
       Math.abs(c.dist - goal.dist) > 1e-3 ||
+      Math.abs(c.ox - goal.offset[0]) + Math.abs(c.oy - goal.offset[1]) > 0.3 ||
       Math.abs(pointer.current.x - smooth.current.x) > 1e-3 ||
       Math.abs(pointer.current.y - smooth.current.y) > 1e-3;
     if (moving) invalidate();

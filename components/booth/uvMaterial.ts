@@ -22,8 +22,8 @@ export const uvUniforms = {
   uFluorColor: { value: new Color(0.55, 0.48, 1.0) },
   /** Pale cyan: fluorescent ink. */
   uInkColor: { value: new Color(0.62, 1.0, 0.9) },
-  uFluorGain: { value: 1.25 },
-  uInkGain: { value: 1.35 },
+  uFluorGain: { value: 0.7 },
+  uInkGain: { value: 1.05 },
 };
 
 export type InkProjection = {
@@ -98,81 +98,103 @@ export function applyUV(material: Material, opts: UVOptions = {}) {
   material.needsUpdate = true;
 }
 
+/** The site's mono (Geist Mono via next/font), read from its CSS variable so canvas text matches the page. */
+function monoFamily() {
+  const v = typeof document !== 'undefined' ? getComputedStyle(document.documentElement).getPropertyValue('--font-geist-mono').trim() : '';
+  return v || 'ui-monospace, monospace';
+}
+
 /**
- * A work's uvNotes as a proofer's hidden marks: sparse construction lines,
- * corner ticks and short handwritten-style notes. Deliberately not a framed
- * HUD panel: it should read as ink on the object.
+ * A work's uvNotes as a proofer's hidden marks, the way a pre-press checker
+ * writes on a proof: thin rules, a dimension line with end ticks, a centre
+ * cross, and short callouts (dot + leader + small mono label). No boxes, no
+ * script fonts: it should read as technical-pen ink on the object.
  */
-export function createInkTexture(notes: string[], aspect: number, seed = 1) {
+export function createInkTexture(notes: string[], aspect: number, seed = 1, widthMm?: number) {
   const W = 1024;
   const H = Math.round(W / aspect);
   const c = document.createElement('canvas');
   c.width = W;
   c.height = H;
-  const g = c.getContext('2d')!;
-  g.fillStyle = '#000';
-  g.fillRect(0, 0, W, H);
-  let r = seed * 9301;
-  const rand = () => (r = (r * 9301 + 49297) % 233280) / 233280;
+  const tex = new CanvasTexture(c);
+  const draw = () => {
+    const g = c.getContext('2d')!;
+    let r = seed * 9301;
+    const rand = () => (r = (r * 9301 + 49297) % 233280) / 233280;
+    const mono = monoFamily();
+    const u = Math.min(W, H) / 100; // 1% of the short side
+    g.fillStyle = '#000';
+    g.fillRect(0, 0, W, H);
+    g.strokeStyle = '#fff';
+    g.fillStyle = '#fff';
+    g.lineCap = 'butt';
 
-  // construction: a centre line, a thirds line and corner ticks, faint
-  g.strokeStyle = 'rgba(255,255,255,0.45)';
-  g.lineWidth = 2;
-  g.setLineDash([14, 10]);
-  g.beginPath();
-  g.moveTo(W / 2, H * 0.04);
-  g.lineTo(W / 2, H * 0.96);
-  g.moveTo(W * 0.04, H / 3);
-  g.lineTo(W * 0.96, H / 3);
-  g.stroke();
-  g.setLineDash([]);
-  g.strokeStyle = 'rgba(255,255,255,0.75)';
-  g.lineWidth = 3;
-  const t = Math.min(W, H) * 0.06;
-  for (const [x, y, sx, sy] of [
-    [W * 0.08, H * 0.08, 1, 1],
-    [W * 0.92, H * 0.08, -1, 1],
-    [W * 0.08, H * 0.92, 1, -1],
-    [W * 0.92, H * 0.92, -1, -1],
-  ] as const) {
+    // dimension line across the top, with end ticks and the measure
+    const y0 = H * 0.08;
+    g.lineWidth = Math.max(1.5, u * 0.22);
     g.beginPath();
-    g.moveTo(x + sx * t, y);
-    g.lineTo(x, y);
-    g.lineTo(x, y + sy * t);
+    g.moveTo(W * 0.08, y0);
+    g.lineTo(W * 0.92, y0);
+    for (const x of [W * 0.08, W * 0.92]) {
+      g.moveTo(x, y0 - u * 1.6);
+      g.lineTo(x, y0 + u * 1.6);
+    }
     g.stroke();
-  }
+    const label = (t: string, x: number, y: number, size: number, align: CanvasTextAlign = 'left') => {
+      g.font = `500 ${size}px ${mono}`;
+      g.textAlign = align;
+      g.textBaseline = 'middle';
+      const pad = size * 0.35;
+      const w = g.measureText(t).width;
+      const lx = align === 'center' ? x - w / 2 : x;
+      g.fillStyle = '#000';
+      g.fillRect(lx - pad, y - size * 0.6, w + pad * 2, size * 1.2);
+      g.fillStyle = '#fff';
+      g.fillText(t, x, y);
+    };
+    const small = Math.max(16, Math.min(30, u * 3.4));
+    if (widthMm) label(`W ${Math.round(widthMm)} MM`, W / 2, y0, small, 'center');
 
-  // notes: handwritten-ish, small, slightly rotated, each with a leader mark
-  const size = Math.max(26, Math.min(44, H / (notes.length * 3.2)));
-  g.fillStyle = '#fff';
-  g.strokeStyle = '#fff';
-  g.lineWidth = 3;
-  g.font = `italic 500 ${size}px "Segoe Print", "Bradley Hand", "Comic Sans MS", cursive, sans-serif`;
-  notes.forEach((n, i) => {
-    const y = H * 0.2 + i * ((H * 0.64) / Math.max(1, notes.length));
-    g.save();
-    g.translate(W * 0.13, y);
-    g.rotate((rand() - 0.5) * 0.07);
+    // centre cross + a faint baseline rule at the lower third
+    g.lineWidth = Math.max(1, u * 0.15);
+    g.globalAlpha = 0.6;
     g.beginPath();
-    g.arc(-size * 0.55, -size * 0.3, size * 0.12, 0, Math.PI * 2);
-    g.fill();
-    wrap(g, n, W * 0.74, size * 1.15);
-    g.restore();
-  });
-  return new CanvasTexture(c);
-}
+    g.moveTo(W / 2 - u * 3, H / 2);
+    g.lineTo(W / 2 + u * 3, H / 2);
+    g.moveTo(W / 2, H / 2 - u * 3);
+    g.lineTo(W / 2, H / 2 + u * 3);
+    g.setLineDash([u * 1.2, u * 1.2]);
+    g.moveTo(W * 0.06, H * 0.67);
+    g.lineTo(W * 0.94, H * 0.67);
+    g.stroke();
+    g.setLineDash([]);
+    g.globalAlpha = 1;
 
-function wrap(g: CanvasRenderingContext2D, text: string, maxW: number, lh: number) {
-  const words = text.split(' ');
-  let line = '';
-  let y = 0;
-  for (const w of words) {
-    const test = line ? `${line} ${w}` : w;
-    if (g.measureText(test).width > maxW && line) {
-      g.fillText(line, 0, y);
-      line = w;
-      y += lh;
-    } else line = test;
-  }
-  g.fillText(line, 0, y);
+    // callouts: a dot on the object, a leader, a short uppercase mono label
+    const n = Math.max(1, notes.length);
+    notes.forEach((note, i) => {
+      const ty = H * (0.22 + (0.62 * (i + 0.5)) / n);
+      const left = i % 2 === 0;
+      const px = W * (left ? 0.3 + rand() * 0.12 : 0.58 + rand() * 0.12);
+      const py = ty + (rand() - 0.5) * H * 0.05;
+      const lx = left ? W * 0.07 : W * 0.93;
+      g.lineWidth = Math.max(1.5, u * 0.2);
+      g.beginPath();
+      g.arc(px, py, u * 0.7, 0, Math.PI * 2);
+      g.fill();
+      g.beginPath();
+      g.moveTo(px, py);
+      g.lineTo(left ? px - W * 0.06 : px + W * 0.06, ty);
+      g.lineTo(lx + (left ? W * 0.01 : -W * 0.01), ty);
+      g.stroke();
+      const text = note.toUpperCase();
+      const size = Math.max(14, Math.min(26, (W * 0.42) / Math.max(12, text.length * 0.62)));
+      label(text.length > 46 ? text.slice(0, 44) + '…' : text, left ? lx : lx, ty - size * 0.95, size, left ? 'left' : 'right');
+    });
+    tex.needsUpdate = true;
+  };
+  draw();
+  // redraw once the mono webfont is ready, so the marks use the site's typeface
+  if (typeof document !== 'undefined' && document.fonts) void document.fonts.ready.then(draw);
+  return tex;
 }

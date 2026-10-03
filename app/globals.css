@@ -55,12 +55,13 @@ kbd {
   position: absolute; left: 0; right: 0; top: 0; height: 100svh; z-index: 1; pointer-events: none;
   background: var(--booth); transition: background-color 500ms linear;
 }
+.booth-stage[data-mode='full'] { background: transparent; }
 .booth-stage[data-mode='header'] { height: 70svh; }
 .booth-stage[data-ready='true'] { background-color: transparent; }
 .booth-poster img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 100%; transition: opacity 500ms linear; }
 .booth-stage[data-ready='true'] .booth-poster img { opacity: 0; }
-/* Paper grain over the booth only: print, not pixels. */
-.booth-stage::after {
+/* Paper grain over the booth interior (project pages): print, not pixels. */
+.booth-stage[data-mode='header']::after {
   content: ''; position: absolute; inset: 0; pointer-events: none; opacity: 0.09; mix-blend-mode: multiply;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 1 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
@@ -94,10 +95,16 @@ main, .footer { position: relative; z-index: 2; }
 main { pointer-events: none; }
 main a, .work__body, .houselights, .page { pointer-events: auto; }
 
-.hero { padding: 0 var(--gutter); max-width: 900px; min-height: calc(100svh - var(--masthead-h)); pointer-events: none; }
+.hero {
+  padding: 0 var(--gutter) 14px; min-height: calc(100svh - var(--masthead-h)); pointer-events: none;
+  display: flex; flex-direction: column;
+}
+.hero__copy { max-width: 1100px; padding-right: calc(var(--panel-w) + var(--gutter)); }
+/* where the booth cabinet sits: left of the switch panel, under the headline */
+.booth-frame { flex: 1; min-height: 240px; margin-top: clamp(14px, 2.2vh, 28px); margin-right: calc(var(--panel-w) + var(--gutter)); }
 .hero a { pointer-events: auto; }
-.hero h1 { font-size: clamp(44px, 7.4vw, 120px); }
-.hero p { margin: 18px 0 0; max-width: 34ch; font-size: clamp(16px, 1.3vw, 19px); }
+.hero h1 { font-size: clamp(38px, 4.8vw, 78px); }
+.hero p { margin: 10px 0 0; max-width: 52ch; font-size: clamp(16px, 1.25vw, 19px); }
 
 /* ── Switch panel ─────────────────────────────────────────────── */
 .panel {
@@ -155,6 +162,8 @@ html[data-lamp='AFTERDARK'] main a { cursor: pointer; }
 .work__body h1 { font-size: clamp(40px, 6vw, 96px); margin: 12px 0 32px; }
 .work__intro { display: grid; grid-template-columns: minmax(280px, 420px) minmax(0, 1fr); gap: calc(var(--gutter) * 2); align-items: start; margin-bottom: 56px; }
 .work__copy p { margin: 0 0 1em; max-width: 62ch; font-size: 17px; line-height: 1.55; }
+.work__section { margin-top: 2em; }
+.work__section h2 { margin: 0 0 0.7em; font-family: var(--mono); font-size: 12px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; }
 .work__tbc { opacity: 0.55; font-family: var(--mono); font-size: 12px !important; letter-spacing: 0.06em; text-transform: uppercase; }
 
 /* Spec plate: a booth calibration label */
@@ -169,11 +178,20 @@ html[data-lamp='AFTERDARK'] main a { cursor: pointer; }
 .calib__stamp { border: 1.5px solid #b3261e; color: #b3261e; padding: 2px 8px; transform: rotate(-4deg); font-weight: 600; letter-spacing: 0.14em; }
 
 /* Proof strip: 6 frames, each a printed proof with crop marks, registration targets and a colour bar */
-.proofstrip { list-style: none; padding: 0; margin: 0 0 48px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: calc(var(--gutter) * 1.5) var(--gutter); }
+.proofstrip { margin: 0 calc(var(--panel-w) + var(--gutter)) 48px 0; display: flex; flex-direction: column; gap: calc(var(--gutter) * 1.2); }
+.proofrow { display: flex; gap: var(--gutter); align-items: flex-start; }
+.proofrow__item { min-width: 0; }
+/* hero frame: full width, but never taller than ~74% of the viewport */
+.proofrow[data-count='1'] { justify-content: center; }
+.proofrow[data-count='1'] .proofrow__item { flex-grow: 0 !important; flex-basis: auto !important; width: min(100%, calc(74svh * var(--aspect))); }
+.proofrow[data-count='3'] .proof__sheet { padding: 18px 26px 18px 18px; }
+.proofrow[data-count='3'] .proof__bar { right: 6px; width: 9px; top: 18px; bottom: 18px; }
+.proofrow[data-count='3'] .proof__caption { padding: 0 18px; }
+.proofrow[data-count='3'] .proof__crop--tr, .proofrow[data-count='3'] .proof__crop--br { right: 8px; }
 .proof { margin: 0; }
 .proof__sheet { position: relative; padding: 26px 34px 26px 26px; color: var(--ink); }
 .proof__image { position: relative; background: #e9e7e0; }
-.proof__image img, .proof__image video { display: block; width: 100%; height: auto; aspect-ratio: 4 / 3; object-fit: cover; transition: opacity 0ms linear 40ms; }
+.proof__image img, .proof__image video { display: block; width: 100%; height: auto; object-fit: contain; transition: opacity 0ms linear 40ms; }
 .proof__image [data-lit='true'] { opacity: 0; }
 /* once the lit plane draws, the frame must let the canvas (behind the page) show through */
 .proof__image:has([data-lit='true']) { background: transparent; }
@@ -200,9 +218,10 @@ html[data-lamp='AFTERDARK'] main a { cursor: pointer; }
 .player::backdrop { background: rgba(10, 10, 10, 0.86); }
 .player video { display: block; width: 100%; height: auto; max-height: 82vh; background: #000; }
 .player__close { position: absolute; top: 10px; right: 10px; border: 0; background: var(--paper); padding: 8px 12px; cursor: pointer; font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; }
-.work__links { display: flex; justify-content: space-between; align-items: baseline; gap: 24px; flex-wrap: wrap; border-top: 1px solid var(--ink); padding-top: 24px; }
+.work__links { display: flex; justify-content: flex-start; align-items: baseline; gap: 24px; flex-wrap: wrap; border-top: 1px solid var(--ink); padding-top: 24px; }
 .proofset { font-family: var(--mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
 .proofset--tbc { opacity: 0.5; }
+.work__links > :last-child { margin-left: auto; }
 .next { display: inline-flex; gap: 12px; align-items: baseline; font-size: 24px; text-decoration: none; font-weight: 600; letter-spacing: -0.02em; }
 
 /* ── House lights ─────────────────────────────────────────────── */
@@ -251,9 +270,13 @@ html[data-lamp='AFTERDARK'] main a { cursor: pointer; }
   .switch__led { width: 14px; height: 14px; }
   .sound, .panel__status, .panel__foot { display: none; }
   .footer { padding-bottom: 90px; flex-direction: column; }
+  .hero { padding-bottom: 96px; }
+  .hero__copy { padding-right: 0; }
+  .booth-frame { margin-right: 0; }
   .index a { grid-template-columns: 32px 1fr 48px; }
   .work__intro { grid-template-columns: 1fr; }
-  .proofstrip { grid-template-columns: 1fr; }
+  .proofrow { flex-direction: column; }
+  .proofrow__item { width: 100% !important; }
   .index__tags, .index__object, .index__legend { display: none; }
 }
 

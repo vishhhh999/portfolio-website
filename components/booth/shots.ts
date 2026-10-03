@@ -1,4 +1,4 @@
-import { BOOTH, FOV, LIP, SHOT, STAGING, TRAY } from './staging';
+import { BOOTH, CABINET, CABINET_FACE, FOV, LIP, SHOT, STAGING, TRAY } from './staging';
 
 export type Shot = { target: [number, number, number]; position: [number, number, number]; dist: number };
 
@@ -33,4 +33,29 @@ export function trayShot(slug: string, aspect: number): Shot {
   const dist = Math.max(fitH / 2 / tanV, fitW / 2 / tanH);
   const y = TRAY.top + h * 0.5;
   return { target: [0, y, TRAY.z], position: [0, y, TRAY.z + dist], dist };
+}
+
+export type FramedShot = Shot & { offset: [number, number] };
+
+/**
+ * Cabinet shot (home): the whole booth cabinet as an object on the page, placed
+ * into `box` (CSS px, relative to the stage). Contain-fit the cabinet's front
+ * face, aligned to the box's left and bottom; a level camera on the face centre
+ * keeps the interior perspective symmetric, and a view offset (shifted lens, no
+ * tilt) moves it into place.
+ */
+export function cabinetShot(stage: { width: number; height: number }, box: { left: number; top: number; width: number; height: number }): FramedShot {
+  const { w: Wc, h: Hc, bottom } = CABINET_FACE;
+  const s = Math.min(box.width / Wc, box.height / Hc); // px per metre at the face plane
+  const dist = stage.height / (2 * s * tanV);
+  const cy = bottom + Hc / 2;
+  const z = BOOTH.frontZ + CABINET.proud;
+  const centreX = box.left + (Wc * s) / 2;
+  const centreY = box.top + box.height - (Hc * s) / 2;
+  return {
+    target: [0, cy, z],
+    position: [0, cy, z + dist],
+    dist,
+    offset: [stage.width / 2 - centreX, stage.height / 2 - centreY],
+  };
 }

@@ -6,3 +6,8 @@ out
 next-env.d.ts
 .env*.local
 .DS_Store
+
+# Review screenshots: generated locally, never committed
+tools/lamp-review/
+# Framer source backup (originals, not served)
+tools/import/source/

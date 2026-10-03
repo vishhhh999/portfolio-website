@@ -20,13 +20,12 @@ import {
   NoToneMapping,
   ShaderMaterial,
   Uniform,
-  Vector4,
+  WebGLRenderTarget,
   type Camera,
   type Scene,
   type WebGLRenderer,
-  type WebGLRenderTarget,
 } from 'three';
-import { planeEntries, planeRect, stageRect } from '@/lib/views';
+import { planeEntries, stageRect } from '@/lib/views';
 
 /** Written by the lamp rig every frame, read here. */
 export const postState = {
@@ -40,8 +39,6 @@ export const postState = {
 
 /** The proof-strip layer (screen-space planes), registered by ProofLayer when a page has deliverables. */
 export const proofLayer: { scene: Scene | null; camera: Camera | null } = { scene: null, camera: null };
-
-const MAX_RECTS = 16;
 
 /**
  * Renders every view into the composer's input buffer: the booth scene
@@ -91,6 +88,36 @@ class ViewsPass extends Pass {
 }
 
 /**
+ * Copies the views' coverage (alpha, straight after they render) into its own
+ * texture. Bloom and grain blend alpha with max(), so the mask can't trust the
+ * final alpha; this is the true silhouette of the cabinet, its shadow on the
+ * page, and the photo planes.
+ */
+class CoveragePass extends Pass {
+  readonly target = new WebGLRenderTarget(1, 1, { depthBuffer: false });
+  constructor() {
+    super('CoveragePass');
+    this.needsSwap = false;
+    this.fullscreenMaterial = new ShaderMaterial({
+      uniforms: { inputBuffer: { value: null } },
+      vertexShader: /* glsl */ `varying vec2 vUv; void main() { vUv = position.xy * 0.5 + 0.5; gl_Position = vec4(position.xy, 1.0, 1.0); }`,
+      fragmentShader: /* glsl */ `uniform sampler2D inputBuffer; varying vec2 vUv;
+        void main() { float a = texture2D(inputBuffer, vUv).a; gl_FragColor = vec4(isnan(a) ? 0.0 : clamp(a, 0.0, 1.0)); }`,
+      depthTest: false,
+      depthWrite: false,
+    });
+  }
+  render(renderer: WebGLRenderer, inputBuffer: WebGLRenderTarget) {
+    (this.fullscreenMaterial as ShaderMaterial).uniforms.inputBuffer.value = inputBuffer.texture;
+    renderer.setRenderTarget(this.target);
+    renderer.render(this.scene, this.camera);
+  }
+  setSize(width: number, height: number) {
+    this.target.setSize(width, height);
+  }
+}
+
+/**
  * 3×3 colour matrix in linear light, applied before tone mapping. Spectral
  * character only (a fluorescent's narrow bands, tungsten's missing blue).
  */
@@ -109,41 +136,22 @@ class ColorMatrixEffect extends Effect {
 }
 
 /**
- * Last effect: pixels inside a view keep their colour at alpha 1; everything
- * else becomes fully transparent (premultiplied zero), so the page shows
- * through. Doesn't rely on alpha surviving bloom/grain: the view rects are known.
+ * Last effect: every pixel takes the views' true coverage as alpha (premultiplied),
+ * so the cabinet sits on the page with its soft shadow and the photos are cut
+ * cleanly, while the page itself (paper) is never touched by any lamp or effect.
  */
 class ViewMaskEffect extends Effect {
-  constructor() {
-    const rects = Array.from({ length: MAX_RECTS }, () => new Vector4());
+  constructor(coverage: WebGLRenderTarget) {
     super(
       'ViewMaskEffect',
       /* glsl */ `
-      uniform vec4 rects[${MAX_RECTS}];
-      uniform int count;
+      uniform sampler2D coverageMap;
       void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor) {
-        float m = 0.0;
-        for (int i = 0; i < ${MAX_RECTS}; i++) {
-          if (i >= count) break;
-          vec4 r = rects[i];
-          m = max(m, step(r.x, uv.x) * step(uv.x, r.z) * step(r.y, uv.y) * step(uv.y, r.w));
-        }
-        outputColor = vec4(inputColor.rgb * m, m);
+        float a = texture2D(coverageMap, uv).r;
+        outputColor = vec4(inputColor.rgb * a, a);
       }`,
-      { uniforms: new Map<string, Uniform>([['rects', new Uniform(rects)], ['count', new Uniform(0)]]) },
+      { uniforms: new Map<string, Uniform>([['coverageMap', new Uniform(coverage.texture)]]) },
     );
-  }
-  setRects(list: { left: number; top: number; width: number; height: number }[]) {
-    const W = window.innerWidth;
-    const H = window.innerHeight;
-    const rects = this.uniforms.get('rects')!.value as Vector4[];
-    let n = 0;
-    for (const r of list) {
-      if (n >= MAX_RECTS) break;
-      if (r.top > H || r.top + r.height < 0) continue;
-      rects[n++].set(r.left / W, 1 - (r.top + r.height) / H, (r.left + r.width) / W, 1 - r.top / H);
-    }
-    this.uniforms.get('count')!.value = n;
   }
 }
 
@@ -186,6 +194,7 @@ export function Post() {
     const noise = new NoiseEffect({ premultiply: true, blendFunction: BlendFunction.SOFT_LIGHT });
     noise.blendMode.opacity.value = 0;
     const bloom = new BloomEffect({ mipmapBlur: true, intensity: 0, luminanceThreshold: 1, luminanceSmoothing: 0.2, radius: 0.7 });
+    const coverage = new CoveragePass();
     const update = bloom.update.bind(bloom);
     bloom.update = (renderer, inputBuffer, deltaTime) => {
       if (bloom.intensity > 0.001) update(renderer, inputBuffer, deltaTime);
@@ -196,7 +205,8 @@ export function Post() {
       matrix: new ColorMatrixEffect(),
       tone: new ToneMappingEffect({ mode: ToneMappingMode.NEUTRAL }),
       noise,
-      mask: new ViewMaskEffect(),
+      coverage,
+      mask: new ViewMaskEffect(coverage.target),
     };
   }, []);
 
@@ -204,6 +214,7 @@ export function Post() {
     const prev = gl.toneMapping;
     gl.toneMapping = NoToneMapping; // tone mapping happens in the effect pass
     composer.addPass(new ViewsPass(scene, camera));
+    composer.addPass(fx.coverage);
     composer.addPass(fx.sanitize);
     composer.addPass(new EffectPass(camera, fx.bloom, fx.matrix, fx.tone, fx.noise, fx.mask));
     return () => {
@@ -220,14 +231,6 @@ export function Post() {
     fx.bloom.luminanceMaterial.threshold = postState.bloomThreshold;
     fx.noise.blendMode.opacity.value = postState.grain;
     (fx.matrix.uniforms.get('matrix')!.value as Matrix3).copy(postState.matrix);
-    const rects = [];
-    const s = stageRect();
-    if (s) rects.push(s);
-    for (const id of planeEntries().keys()) {
-      const r = planeRect(id);
-      if (r) rects.push(r);
-    }
-    fx.mask.setRects(rects);
     composer.render(dt);
 
     if (postState.diagnose) {

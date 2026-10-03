@@ -1,20 +1,24 @@
 /**
- * Projected width of every sample in the lineup shot, as % of frame width,
- * from tools/camera.json (object footprint, plinth excluded). Fails under 5%.
- *   node tools/check-sizes.mjs
+ * Projected width of every sample in the home lineup (object only, plinth excluded) as % of the
+ * viewport width, measured through the live camera at common desktop sizes. Fails under 5%.
+ *   node tools/check-sizes.mjs   (against a running build)
  */
-import { readFileSync } from 'fs';
-const cam = JSON.parse(readFileSync(new URL('./camera.json', import.meta.url)));
-const tanV = Math.tan((cam.lens.fovVerticalDeg / 2) * Math.PI / 180);
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const pw = require(process.env.PLAYWRIGHT || 'playwright');
+const BASE = process.env.BASE || 'http://localhost:3100';
+const b = await pw.chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 let ok = true;
-for (const [key, aspect] of [['LINEUP_16x10 (1440x900)', 1.6], ['LINEUP_16x9 (1920x1080)', 16 / 9]]) {
-  const camZ = cam.shots[key].three.position[2];
-  console.log(key);
-  for (const p of cam.plinths) {
-    const d = camZ - (p.three.center[2] + p.objectFootprint.d / 2);
-    const pct = (p.objectFootprint.w / (2 * d * tanV * aspect)) * 100;
-    if (pct < 5) ok = false;
-    console.log(`  ${p.slug.padEnd(14)} ${pct.toFixed(1).padStart(5)}%${pct < 5 ? '  < 5% !' : ''}`);
-  }
+for (const [w, h] of [[1440, 900], [1568, 980], [1920, 1080], [1366, 768]]) {
+  const p = await b.newPage({ viewport: { width: w, height: h }, reducedMotion: 'reduce' });
+  await p.goto(BASE + '/', { waitUntil: 'networkidle' });
+  await p.waitForSelector('.booth-stage[data-ready="true"]', { timeout: 180000 });
+  await p.waitForTimeout(800);
+  const sizes = await p.evaluate(() => window.__boothSizes());
+  const min = Math.min(...Object.values(sizes));
+  if (min < 5) ok = false;
+  console.log(`${w}x${h}`, Object.entries(sizes).map(([k, v]) => `${k} ${v}%`).join('  '), min < 5 ? '  < 5% !' : '');
+  await p.close();
 }
+await b.close();
 process.exit(ok ? 0 : 1);

@@ -2,6 +2,7 @@
 
 import { advance, Canvas, events as createPointerEvents, useFrame, useThree, type RootState } from '@react-three/fiber';
 import { Suspense, useEffect, useRef } from 'react';
+import { Vector3 } from 'three';
 import { lineup } from '@/content/work';
 import { attachRenderer, requestFrames, setContinuous } from '@/lib/clock';
 import { lampById } from '@/lib/lampPresets';
@@ -19,6 +20,8 @@ import { BOOTH, FOCAL_MM, FOV, PLINTH_CHAMFER, PROPS, SENSOR_HEIGHT_MM, STAGING,
 
 declare global {
   interface Window {
+    /** Projected width of every sample (object only, no plinth) as % of the viewport width, from the live camera. */
+    __boothSizes?: () => Record<string, number>;
     __boothMounts?: number;
     /** Staging + camera data for tools/export-camera.mjs (Blender scene). */
     __boothExport?: (aspect: number) => unknown;
@@ -45,6 +48,27 @@ function stageEvents(store: Parameters<typeof createPointerEvents>[0]) {
       state.raycaster.setFromCamera(state.pointer, state.camera);
     },
   };
+}
+
+/** Exposes window.__boothSizes for tools/check-sizes.mjs (projects through the live camera, lens shift included). */
+function SizeProbe() {
+  const camera = useThree((s) => s.camera);
+  useEffect(() => {
+    window.__boothSizes = () => {
+      const r = stageRect() ?? { left: 0, top: 0, width: innerWidth, height: innerHeight };
+      const out: Record<string, number> = {};
+      for (const w of lineup) {
+        const st = STAGING[w.slug];
+        const y = st.plinth.h + st.object.h / 2;
+        const z = st.z + st.object.d / 2;
+        const a = new Vector3(st.x - st.object.w / 2, y, z).project(camera);
+        const b = new Vector3(st.x + st.object.w / 2, y, z).project(camera);
+        out[w.slug] = +((((b.x - a.x) / 2) * r.width) / innerWidth * 100).toFixed(1);
+      }
+      return out;
+    };
+  }, [camera]);
+  return null;
 }
 
 /** Hooks the canvas onto the page's single clock and reports the first lit frames. */
@@ -115,6 +139,7 @@ export default function BoothCanvas({ onReady }: { onReady: () => void }) {
       onPointerMissed={() => (document.body.style.cursor = '')}
     >
       <ClockBridge onReady={onReady} />
+      <SizeProbe />
       <CameraRig />
       <LampRig />
       <BoothRoom />
