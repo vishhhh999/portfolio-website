@@ -8,6 +8,9 @@ import { CONTACT_MAILTO } from '@/lib/site';
 import { enableSound, playClick } from '@/lib/sound';
 import { readHouseLightsPreference, useBooth } from '@/lib/store';
 
+/** The house-lights view. Never a route segment named "index": hosts normalise /index to the root page. */
+export const HOUSE_LIGHTS_PATH = '/house-lights';
+
 /** The remembered house-lights choice is honoured on a fresh load only, never on in-app navigation. */
 let preferenceChecked = false;
 
@@ -18,19 +21,18 @@ export function SwitchPanel() {
   const router = useRouter();
   const pathname = usePathname();
   const lamp = useBooth((s) => s.lamp);
-  const houseLights = useBooth((s) => s.houseLights);
   const setHouseLights = useBooth((s) => s.setHouseLights);
   const sound = useBooth((s) => s.sound);
 
-  const onIndex = pathname === '/index';
+  const onIndex = pathname === HOUSE_LIGHTS_PATH;
 
-  // Keep store in sync with the route, and honour a remembered house-lights choice.
+  // Honour a remembered house-lights choice on a fresh load of the home page. Only a choice the
+  // visitor made (the rocker or the I key) is ever stored; visiting the page by URL or link is not.
   useEffect(() => {
-    if (onIndex && !houseLights) setHouseLights(true);
     if (preferenceChecked) return;
     preferenceChecked = true;
-    if (pathname === '/' && readHouseLightsPreference()) router.replace('/index');
-  }, [onIndex, pathname, houseLights, setHouseLights, router]);
+    if (pathname === '/' && readHouseLightsPreference()) router.replace(HOUSE_LIGHTS_PATH);
+  }, [pathname, router]);
 
   const flip = (id: (typeof LAMPS)[number]['id']) => {
     playClick();
@@ -40,8 +42,8 @@ export function SwitchPanel() {
   const toggleHouseLights = () => {
     const next = !onIndex;
     playClick();
-    setHouseLights(next);
-    router.push(next ? '/index' : '/');
+    setHouseLights(next); // the visitor's own choice: remembered
+    router.push(next ? HOUSE_LIGHTS_PATH : '/');
   };
 
   useEffect(() => {

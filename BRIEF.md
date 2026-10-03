@@ -60,7 +60,7 @@ So the default view is the clean finished object (your principle), and the desig
 Two swatches that match perfectly under D50. The lamp strikes and flips to A, and the swatches split into two visibly different colours. Copy: "Same colour. Different light. That's the job." 1.5 seconds, skippable, only on first visit (sessionStorage). It teaches the visitor the concept before they see the site, in a way only a print nerd would design.
 
 ### 2.3 The recruiter escape hatch: HOUSE LIGHTS
-A separate switch, visually distinct (big rocker, top of panel): **HOUSE LIGHTS ON**. Kills the booth and drops a fast, flat, beautifully typeset index of every project (2D, images, tags, year). Also key `I`. Remember the choice in localStorage.
+A separate switch, visually distinct (big rocker, top of panel): **HOUSE LIGHTS ON**. Kills the booth and drops a fast, flat, beautifully typeset index of every project (2D, images, tags, year). Also key `I`. Remember the choice in localStorage, but only a choice the visitor made (rocker or `I`); a first-time visitor always starts with house lights off.
 
 This matters more than any effect. A recruiter with 40 tabs open must get to the work in under 3 seconds. The booth earns attention, the house lights respect time.
 
@@ -71,7 +71,8 @@ This matters more than any effect. A recruiter with 40 tabs open must get to the
 ```
 /                 The booth. All hero objects lined up on the booth floor.
 /work/[slug]      Booth becomes a sticky header with that object on the tray, under its native lamp. Case content below.
-/index            House-lights view (also reachable by switch / key I). SSR, no WebGL.
+/house-lights     House-lights view (also reachable by switch / key I). SSR, no WebGL.
+                  Never name a route segment "index": Vercel serves /index from the root page (tools/check-routes.mjs guards this).
 /about            The calibration certificate.
 /archive          Secondary. Contact-sheet view (see 3.4).
 contact           "Book a viewing" (mailto:work@visheshmahendru.com + email copy), lives in footer and panel.
@@ -142,7 +143,7 @@ Switch panel becomes a bottom rail of 7 round lamps. Objects become a horizontal
 - Lighthouse: Performance 85+ mobile, Accessibility 95+, SEO 100.
 
 ### 5.4 Fallback image set
-For every object, a Blender render per lamp (7 PNG/AVIF). Used for: low-end devices, OG images (one per project under its native lamp), the /index house-lights view, and as the LCP image before WebGL boots.
+For every object, a Blender render per lamp (7 PNG/AVIF). Used for: low-end devices, OG images (one per project under its native lamp), the /house-lights view, and as the LCP image before WebGL boots.
 
 ### 5.5 Accessibility + SEO
 - All content in the DOM. Canvas is `aria-hidden`, purely presentational.
@@ -155,7 +156,7 @@ For every object, a Blender render per lamp (7 PNG/AVIF). Used for: low-end devi
 app/(site)/layout.tsx        persistent <BoothCanvas/> + <SwitchPanel/>
 app/(site)/page.tsx          lineup
 app/(site)/work/[slug]/page.tsx
-app/(site)/index/page.tsx    house lights, no WebGL
+app/(site)/house-lights/page.tsx    house lights, no WebGL
 app/(site)/about/page.tsx
 app/(site)/archive/page.tsx
 components/booth/            BoothCanvas, BoothRoom, Tray, ObjectSlot, lamps/*.ts, UVMaterial, ScreenSpill, HandLamp
@@ -211,7 +212,7 @@ Order on the lineup follows your positioning: brand + web pieces centre-stage, p
 > **Git workflow.** Until launch, Claude Code commits straight to `main` with descriptive messages (one author, no review overhead). **Before the custom domain is pointed at Vercel (Phase 7), switch to branch → Vercel preview → merge**, so the live site only changes after a preview has been checked.
 
 - **Phase 0: Scaffold.** Next.js + R3F + Lenis + GSAP, persistent canvas in layout, routes, content types, 9 placeholder objects (simple primitives at the right scale), deploy preview on Vercel. Stop.
-- **Phase 1: The booth + D50 + house lights.** N7 room, rect top light, camera lock, lineup, hover spec plates, click to tray, routing without canvas remount, /index house-lights page. Stop.
+- **Phase 1: The booth + D50 + house lights.** N7 room, rect top light, camera lock, lineup, hover spec plates, click to tray, routing without canvas remount, /house-lights page. Stop.
 - **Phase 2: All seven lamps.** Lamp presets, Kelvin conversion, colour matrix post pass, strike timelines, switch panel with keyboard, sound toggle. Stop.
 - **Phase 3: UV + SCREEN + AFTER DARK.** UV material chunk with fluorMask/uvInk, bloom, screen spill lights, hand lamp with gobo. Stop.
 - **Phase 4: Real assets.** Swap placeholders for your GLBs one at a time, compress, tune each lamp per object. Stop.

@@ -11,7 +11,7 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
       <header className="masthead">
         <Link href="/" className="wordmark">Vishesh Mahendru</Link>
         <nav aria-label="Site" className="sitenav">
-          <Link href="/index">Index</Link>
+          <Link href="/house-lights">Index</Link>
           <Link href="/about">About</Link>
           <Link href="/archive">Archive</Link>
         </nav>

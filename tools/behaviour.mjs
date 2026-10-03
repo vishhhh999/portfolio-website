@@ -1,7 +1,8 @@
 /**
  * Behaviour checks against a running build (node tools/behaviour.mjs):
  * hover plate + click through the canvas, tray, next project, house lights,
- * /index visibility at small viewports after scrolled navigation, canvas
+ * house lights (rows must have visible area; first-time visitors start with house lights OFF;
+ * only the visitor's own toggle is remembered), /house-lights at small viewports, canvas
  * never remounted, console clean. Screenshots to tools/lamp-review/behaviour-*.png.
  */
 import { createRequire } from 'module';
@@ -53,6 +54,48 @@ await p.keyboard.press('i');
 await p.waitForTimeout(800);
 await ctx.close();
 
+// HOUSE LIGHTS: every project row must have visible area, whatever way you arrive. Fails the run otherwise.
+const failures = [];
+const rowArea = (q) =>
+  q.$$eval('.index a', (els) =>
+    els.map((e) => {
+      let el = e, visible = true;
+      for (; el; el = el.parentElement) { const cs = getComputedStyle(el); if (cs.visibility === 'hidden' || cs.display === 'none' || +cs.opacity === 0) visible = false; }
+      const r = e.getBoundingClientRect();
+      return { title: e.querySelector('.index__title')?.textContent?.trim(), area: visible ? r.width * r.height : 0 };
+    }),
+  );
+for (const [label, w, h] of [['1568', 1568, 980], ['1366', 1366, 768]]) {
+  const c = await browser.newContext({ viewport: { width: w, height: h } });
+  const q = await c.newPage();
+  // a first-time visitor starts with house lights OFF: the booth, not a redirect
+  await q.goto(BASE + '/', { waitUntil: 'networkidle' });
+  await q.waitForTimeout(800);
+  if (new URL(q.url()).pathname !== '/') failures.push(`${label}: first visit to / redirected to ${new URL(q.url()).pathname}`);
+  if (!(await q.$('.booth-stage'))) failures.push(`${label}: first visit to / has no booth stage`);
+  // visiting the page by link does not store a preference
+  await q.goto(BASE + '/house-lights', { waitUntil: 'networkidle' });
+  if ((await q.evaluate(() => localStorage.getItem('vm:houseLights'))) === '1') failures.push(`${label}: visiting /house-lights stored a preference`);
+  const rows = await rowArea(q);
+  if (rows.length !== 9) failures.push(`${label}: expected 9 rows, found ${rows.length}`);
+  for (const r of rows) if (!(r.area > 0)) failures.push(`${label}: row "${r.title}" has zero visible area`);
+  if (!(await q.$eval('h1', (e) => e.textContent.includes('House lights')))) failures.push(`${label}: /house-lights rendered the wrong page`);
+  // toggle from the booth with the rocker, then a fresh load honours that choice
+  await q.goto(BASE + '/', { waitUntil: 'networkidle' });
+  await q.evaluate(() => localStorage.removeItem('vm:houseLights'));
+  await q.click('.rocker');
+  await q.waitForURL('**/house-lights', { timeout: 10000 }).catch(() => failures.push(`${label}: rocker did not open house lights`));
+  for (const r of await rowArea(q)) if (!(r.area > 0)) failures.push(`${label}: after rocker, row "${r.title}" has zero visible area`);
+  await q.screenshot({ path: OUT + `behaviour-houselights-${label}.png` });
+  await q.goto(BASE + '/', { waitUntil: 'networkidle' });
+  await q.waitForURL('**/house-lights', { timeout: 10000 }).catch(() => failures.push(`${label}: remembered choice not honoured on reload`));
+  await q.click('.rocker');
+  await q.waitForURL((u) => new URL(u).pathname === '/', { timeout: 10000 }).catch(() => failures.push(`${label}: rocker did not switch house lights off`));
+  results[`houseLights ${label}`] = { rows: rows.length, minArea: Math.min(...rows.map((r) => r.area)) | 0 };
+  await c.close();
+}
+results.failures = failures;
+
 // /index at small laptop sizes, arriving from a scrolled project page
 for (const [w, h] of [[1366, 768], [1280, 720]]) {
   const c = await browser.newContext({ viewport: { width: w, height: h } });
@@ -60,7 +103,7 @@ for (const [w, h] of [[1366, 768], [1280, 720]]) {
   await q.goto(BASE + '/work/too-yumm', { waitUntil: 'networkidle' });
   await q.mouse.wheel(0, 3000);
   await q.waitForTimeout(1200);
-  await q.click('a[href="/index"]');
+  await q.click('a[href="/house-lights"]');
   await q.waitForTimeout(1500);
   results[`index ${w}x${h}`] = {
     scrollY: await q.evaluate(() => window.scrollY),
@@ -76,3 +119,7 @@ for (const [w, h] of [[1366, 768], [1280, 720]]) {
 console.log(JSON.stringify(results, null, 2));
 console.log('errors', errors.filter((e) => !e.includes('THREE.Clock')));
 await browser.close();
+if (failures.length) {
+  console.error('FAIL\n  ' + failures.join('\n  '));
+  process.exit(1);
+}
