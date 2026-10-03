@@ -53,6 +53,23 @@ kbd {
 .booth[data-mode='header'] { height: 70svh; }
 .booth[data-mode='off'] { display: none; }
 .booth canvas { display: block; }
+/* Paper grain over the booth: print, not pixels. */
+.booth::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none; opacity: 0.09; mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 1 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Hover spec plate, anchored above each object in the booth. */
+.specchip {
+  display: flex; flex-direction: column; gap: 2px; white-space: nowrap;
+  background: var(--paper); color: var(--ink); padding: 7px 10px 6px; border-radius: 2px;
+  box-shadow: 0 1px 0 rgba(0,0,0,0.12), 0 6px 18px rgba(0,0,0,0.12);
+  transform: translateY(calc(-50% - 6px)); opacity: 0;
+  transition: transform 220ms var(--ease-rail), opacity 160ms linear;
+}
+.specchip[data-visible='true'] { transform: translateY(-50%); opacity: 1; }
+.specchip__title { font-weight: 600; font-size: 14px; letter-spacing: -0.01em; }
+.specchip__meta { font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.65; }
 
 /* ── Chrome ───────────────────────────────────────────────────── */
 .masthead {
@@ -67,8 +84,12 @@ kbd {
 .sitenav a:hover { text-decoration: underline; }
 
 main, .footer { position: relative; z-index: 1; }
+/* main sits over the canvas: let pointer events through to the booth except on real content. */
+main { pointer-events: none; }
+main a, .work__body, .houselights, .page { pointer-events: auto; }
 
-.hero { padding: 0 var(--gutter); max-width: 900px; min-height: calc(100svh - var(--masthead-h)); }
+.hero { padding: 0 var(--gutter); max-width: 900px; min-height: calc(100svh - var(--masthead-h)); pointer-events: none; }
+.hero a { pointer-events: auto; }
 .hero h1 { font-size: clamp(44px, 7.4vw, 120px); }
 .hero p { margin: 18px 0 0; max-width: 34ch; font-size: clamp(16px, 1.3vw, 19px); }
 
@@ -107,7 +128,7 @@ main, .footer { position: relative; z-index: 1; }
 }
 
 /* ── Project page ─────────────────────────────────────────────── */
-.work__stage { height: calc(70svh - 72px); }
+.work__stage { height: calc(70svh - var(--masthead-h)); pointer-events: none; }
 .work__body { background: var(--paper); padding: var(--gutter); padding-top: 40px; min-height: 60svh; }
 .work__body h1 { font-size: clamp(40px, 6vw, 96px); margin: 12px 0 32px; }
 .specplate {
@@ -125,12 +146,20 @@ main, .footer { position: relative; z-index: 1; }
 /* ── House lights ─────────────────────────────────────────────── */
 .houselights, .page { padding: 40px var(--gutter) 80px; background: var(--paper); min-height: 80svh; }
 .houselights h1, .page h1 { font-size: clamp(40px, 6vw, 96px); margin: 12px 0 40px; }
+.houselights { padding-right: calc(var(--panel-w) + var(--gutter) * 2); }
 .index { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--ink); }
-.index a {
-  display: grid; grid-template-columns: 48px 1fr 1fr 60px; gap: 16px; align-items: baseline;
+.houselights__head { display: flex; justify-content: space-between; align-items: end; gap: 24px; flex-wrap: wrap; margin-bottom: 40px; }
+.houselights__head h1 { margin: 12px 0 0; }
+.houselights__head p { margin: 0; opacity: 0.6; }
+.index a, .index__legend {
+  display: grid; grid-template-columns: 48px minmax(0, 1.3fr) minmax(0, 1.2fr) minmax(0, 1fr) 60px; gap: 16px; align-items: baseline;
   padding: 16px 0; border-bottom: 1px solid var(--rule); text-decoration: none;
 }
-.index a:hover { background: rgba(17,17,17,0.04); }
+.index__legend { padding: 10px 0; opacity: 0.55; }
+.index a { transition: padding 180ms var(--ease-rail); }
+.index a:hover { padding-left: 12px; background: rgba(17,17,17,0.035); }
+.index__object { opacity: 0.7; font-size: 14px; }
+.index__legend span:last-child, .index a > span:last-child { text-align: right; }
 .index__title { font-size: clamp(20px, 2.2vw, 32px); font-weight: 600; letter-spacing: -0.02em; }
 .index__tags { opacity: 0.7; }
 
@@ -154,7 +183,7 @@ main, .footer { position: relative; z-index: 1; }
   .sound { display: none; }
   .footer { padding-bottom: 90px; flex-direction: column; }
   .index a { grid-template-columns: 32px 1fr 48px; }
-  .index__tags { display: none; }
+  .index__tags, .index__object, .index__legend { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

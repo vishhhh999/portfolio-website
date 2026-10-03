@@ -2,7 +2,7 @@
 
 import dynamic from 'next/dynamic';
 import { usePathname } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useBooth } from '@/lib/store';
 
 const BoothCanvas = dynamic(() => import('./BoothCanvas'), { ssr: false });
@@ -23,6 +23,17 @@ export function BoothHost() {
   const mode = boothMode(pathname);
   const setActiveSlug = useBooth((s) => s.setActiveSlug);
   const [mounted, setMounted] = useState(false);
+  const [inView, setInView] = useState(true);
+  const hostRef = useRef<HTMLDivElement>(null);
+
+  // Stop rendering once the booth has scrolled out of view (project pages).
+  useEffect(() => {
+    const el = hostRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(([entry]) => setInView(entry.isIntersecting));
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
 
   useEffect(() => {
     setActiveSlug(pathname.startsWith('/work/') ? pathname.split('/')[2] ?? null : null);
@@ -36,8 +47,8 @@ export function BoothHost() {
   }, [mode, mounted]);
 
   return (
-    <div className="booth" data-mode={mode} aria-hidden="true">
-      {mounted && <BoothCanvas active={mode !== 'off'} />}
+    <div ref={hostRef} className="booth" data-mode={mode} aria-hidden="true">
+      {mounted && <BoothCanvas active={mode !== 'off' && inView} />}
     </div>
   );
 }

@@ -7,7 +7,7 @@ import type { ReactNode } from 'react';
  * Phase 0 stand-ins at real-world scale (metres, origin at base centre).
  * Replaced one by one with Blender GLBs in Phase 4.
  */
-type Placeholder = { width: number; render: () => ReactNode };
+type Placeholder = { width: number; height: number; render: () => ReactNode };
 
 const paper = '#EDEBE4';
 const ink = '#1A1A1A';
@@ -63,6 +63,7 @@ function LeaningDevice({ w, h }: { w: number; h: number }) {
 export const PLACEHOLDERS: Record<string, Placeholder> = {
   'too-yumm': {
     width: 0.16,
+    height: 0.24,
     render: () => (
       <RoundedBox args={[0.16, 0.24, 0.07]} radius={0.01} position={[0, 0.12, 0]} castShadow receiveShadow>
         <Mat color="#E9C46A" rough={0.35} />
@@ -71,6 +72,7 @@ export const PLACEHOLDERS: Record<string, Placeholder> = {
   },
   sook: {
     width: 0.24,
+    height: 0.13,
     render: () => (
       <group>
         {[-0.08, 0, 0.08].map((x, i) => (
@@ -84,6 +86,7 @@ export const PLACEHOLDERS: Record<string, Placeholder> = {
   },
   shunya: {
     width: 0.2,
+    height: 0.09,
     render: () => (
       <group>
         <mesh position={[-0.05, 0.045, 0]} castShadow receiveShadow>
@@ -99,6 +102,7 @@ export const PLACEHOLDERS: Record<string, Placeholder> = {
   },
   'jsw-sports': {
     width: 0.4,
+    height: 0.3,
     render: () => (
       <group>
         {[-1, 1].map((s) => (
@@ -114,6 +118,7 @@ export const PLACEHOLDERS: Record<string, Placeholder> = {
   },
   'bengal-t20': {
     width: 0.22,
+    height: 0.055,
     render: () => (
       <group>
         <mesh position={[0, 0.02, 0]} castShadow receiveShadow>
@@ -131,8 +136,8 @@ export const PLACEHOLDERS: Record<string, Placeholder> = {
       </group>
     ),
   },
-  mitooshi: { width: 0.3, render: () => <Laptop /> },
-  'indo-thai': { width: 0.3, render: () => <Laptop /> },
-  'house-of-hex': { width: 0.1, render: () => <LeaningDevice w={0.072} h={0.15} /> },
-  sonde: { width: 0.25, render: () => <LeaningDevice w={0.25} h={0.18} /> },
+  mitooshi: { width: 0.3, height: 0.22, render: () => <Laptop /> },
+  'indo-thai': { width: 0.3, height: 0.22, render: () => <Laptop /> },
+  'house-of-hex': { width: 0.1, height: 0.15, render: () => <LeaningDevice w={0.072} h={0.15} /> },
+  sonde: { width: 0.25, height: 0.18, render: () => <LeaningDevice w={0.25} h={0.18} /> },
 };

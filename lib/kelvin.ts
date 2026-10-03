@@ -27,3 +27,16 @@ export function kelvinToLinear(kelvin: number): [number, number, number] {
   const max = Math.max(r, g, b);
   return [r / max, g / max, b / max];
 }
+
+/**
+ * Lamp colour as an eye adapted to the booth's reference white would see it.
+ * D50 is the booth's "truth" state, so it renders neutral; tungsten reads warm
+ * and floodlight reads cool relative to it, the way they do in a real booth.
+ */
+export function kelvinToAdapted(kelvin: number, reference = 5000): [number, number, number] {
+  const c = kelvinToLinear(kelvin);
+  const ref = kelvinToLinear(reference);
+  const r = c[0] / ref[0], g = c[1] / ref[1], b = c[2] / ref[2];
+  const max = Math.max(r, g, b);
+  return [r / max, g / max, b / max];
+}

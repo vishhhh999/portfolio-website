@@ -5,6 +5,9 @@ import { useEffect } from 'react';
 import { LAMPS } from '@/lib/lampPresets';
 import { readHouseLightsPreference, useBooth } from '@/lib/store';
 
+/** The remembered house-lights choice is honoured on a fresh load only, never on in-app navigation. */
+let preferenceChecked = false;
+
 /**
  * Hardware-style lamp switches. Real buttons, aria-pressed, keys 1–7, I for house lights.
  * Phase 0: switches drive store state only. Lamps physically relight the booth in Phase 2.
@@ -23,11 +26,10 @@ export function SwitchPanel() {
 
   // Keep store in sync with the route, and honour a remembered house-lights choice.
   useEffect(() => {
-    if (onIndex) {
-      if (!houseLights) setHouseLights(true);
-    } else if (pathname === '/' && readHouseLightsPreference()) {
-      router.replace('/index');
-    }
+    if (onIndex && !houseLights) setHouseLights(true);
+    if (preferenceChecked) return;
+    preferenceChecked = true;
+    if (pathname === '/' && readHouseLightsPreference()) router.replace('/index');
   }, [onIndex, pathname, houseLights, setHouseLights, router]);
 
   const toggleHouseLights = () => {

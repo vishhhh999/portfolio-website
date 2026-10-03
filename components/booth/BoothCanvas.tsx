@@ -4,7 +4,7 @@ import { Canvas } from '@react-three/fiber';
 import { useEffect } from 'react';
 import { NeutralToneMapping } from 'three';
 import { works } from '@/content/work';
-import { BoothRoom, BOOTH_GREY, PlaceholderLights } from './BoothRoom';
+import { BoothRoom, BOOTH_GREY, D50Rig } from './BoothRoom';
 import { CameraRig } from './CameraRig';
 import { FOV } from './layout';
 import { ObjectSlot } from './ObjectSlot';
@@ -27,7 +27,6 @@ export default function BoothCanvas({ active }: { active: boolean }) {
   return (
     <Canvas
       frameloop={active ? 'demand' : 'never'}
-      shadows="soft"
       dpr={[1, typeof window !== 'undefined' && matchMedia('(pointer: coarse)').matches ? 1.5 : 2]}
       gl={{ antialias: true, toneMapping: NeutralToneMapping, powerPreference: 'high-performance' }}
       camera={{ fov: FOV, position: [0, 0.4, 7] }}
@@ -35,7 +34,7 @@ export default function BoothCanvas({ active }: { active: boolean }) {
     >
       <color attach="background" args={[BOOTH_GREY]} />
       <CameraRig />
-      <PlaceholderLights />
+      <D50Rig />
       <BoothRoom />
       {works.map((w) => (
         <ObjectSlot key={w.slug} work={w} />

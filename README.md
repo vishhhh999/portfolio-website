@@ -22,4 +22,4 @@ npm run build      # production build (also typechecks)
 
 ## Status
 
-Phase 0 (scaffold) done. Next up: Phase 1, the booth + D50 + house lights.
+Phase 0 (scaffold) and Phase 1 (booth + D50 + house lights) done. Next up: Phase 2, all seven lamps.
