@@ -215,13 +215,27 @@ Order on the lineup follows your positioning: brand + web pieces centre-stage, p
 - **Phase 2: All seven lamps.** Lamp presets, Kelvin conversion, colour matrix post pass, strike timelines, switch panel with keyboard, sound toggle. Stop.
 - **Phase 3: UV + SCREEN + AFTER DARK.** UV material chunk with fluorMask/uvInk, bloom, screen spill lights, hand lamp with gobo. Stop.
 - **Phase 4: Real assets.** Swap placeholders for your GLBs one at a time, compress, tune each lamp per object. Stop.
-- **Phase 5: Pages.** Project page (spec plate, proof strip, crop marks, slug lines), About certificate, Archive contact sheet, metamerism loader. Stop.
-- **Phase 6: Mobile + fallbacks + perf.** Bottom rail, swipe tray, GPU tiering, image fallbacks, reduced motion, Lighthouse pass, OG images. Stop.
+- **Phase 5: Pages.** Project page (spec plate, **lit proof strip per rule 10.1**, crop marks, slug lines), About certificate, Archive contact sheet, metamerism loader. Stop.
+- **Phase 6: Mobile + fallbacks + perf.** Bottom rail, swipe tray, GPU tiering (low tier → plain DOM proof strip), image fallbacks, reduced motion, Lighthouse pass, OG images. Stop.
 - **Phase 7: Launch.** Sitemap, metadata, analytics (Vercel Analytics), R2 media domain, point www.visheshmahendru.com at Vercel, keep Framer live until DNS propagates.
 
 Instruction to Claude Code for every phase: open the preview in a browser, screenshot desktop and mobile, check it against this brief, fix what's off, then report.
 
 ---
+
+## 10. Locked rules (apply to every phase from Phase 3 on)
+
+### 10.1 Lit proof strip (built in Phase 5, project pages)
+- The 6 deliverables on each project page render as **WebGL planes inside the existing single persistent canvas**, mirrored to the positions of their DOM images.
+- The DOM `<img>` stays in the layout for SEO, accessibility and fallback, and is **visually hidden once its plane is ready**. It is never removed.
+- Planes read **the same Lenis scroll value every frame**, so they stay locked to the layout with zero drift. Lenis and the canvas run off **one RAF/ticker**, not two loops.
+- Every plane is **lit by the active lamp**: the same presets, strike curves and colour-matrix pass as the booth. Switching lamps relights the photographs, not just the 3D object.
+- Planes carry the **same UV slots** (`fluorMask`, `uvInk`), so UV annotations can appear on deliverables.
+- **Low GPU tier and `prefers-reduced-motion` fall back to plain DOM images.**
+
+### 10.2 No distortion
+- **No distortion, displacement, noise warping, RGB split or wobble anywhere on the site**, including hovers and page transitions.
+- **Light is the only thing that changes.** Lamps strike, falloff moves, shadows move, emission glows. Images and type are never bent, warped, split or shaken.
 
 ## 8. References (what to take from each)
 
