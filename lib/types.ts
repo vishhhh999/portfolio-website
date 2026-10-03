@@ -1,0 +1,31 @@
+export const LAMP_IDS = ['D50', 'TL84', 'A', 'UV', 'FLOOD', 'SCREEN', 'AFTERDARK'] as const;
+export type Lamp = (typeof LAMP_IDS)[number];
+
+export type UvNote = {
+  text: string;
+  /** Object-local position in metres, origin at base centre. */
+  anchor: [number, number, number];
+};
+
+export type Deliverable = { type: 'image' | 'video'; src: string; alt: string };
+
+export type Work = {
+  slug: string;
+  title: string;
+  disciplines: string[];
+  year: number;
+  role: string;
+  scope: string;
+  nativeLamp: Lamp;
+  /** R2 URL. Empty until the Blender asset lands (Phase 4). */
+  glb: string;
+  /** Pre-rendered still per lamp (Phase 6). */
+  fallbacks: Record<Lamp, string>;
+  /** 3 to 6. */
+  uvNotes: UvNote[];
+  /** Exactly 6. */
+  deliverables: [Deliverable, Deliverable, Deliverable, Deliverable, Deliverable, Deliverable];
+  behance?: string;
+  /** Hero object description, used for alt text and the house-lights index. */
+  object: string;
+};
