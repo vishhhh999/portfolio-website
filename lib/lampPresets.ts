@@ -140,7 +140,7 @@ export const LAMPS: LampPreset[] = [
     // One low lamp at the front right: long soft shadows raking left and back, strong falloff across the row.
     panel: { intensity: 0, colour: TUNGSTEN, w: 1, d: 1, z: 0 },
     diffuser: 0,
-    keyLight: { intensity: 9.5, colour: TUNGSTEN, position: [0.66, 0.5, 0.9], target: [-0.3, 0.08, -0.4], angle: 0.95, penumbra: 0.85, decay: 2, shadowRadius: 6, shadowIntensity: 0.8 },
+    keyLight: { intensity: 9.5, colour: TUNGSTEN, position: [0.52, 0.5, 0.9], target: [-0.3, 0.08, -0.4], angle: 1.15, penumbra: 0.9, decay: 2, shadowRadius: 6, shadowIntensity: 0.8 },
     fill: { intensity: 0.13, sky: TUNGSTEN, ground: [0.3, 0.22, 0.15] },
     front: 0.04,
     contact: 0.45, haze: 0,
@@ -164,7 +164,8 @@ export const LAMPS: LampPreset[] = [
     contact: 0.3, haze: 0,
     screens: { gain: 0.45, spill: 0.3, live: false }, uv: 1,
     bloom: { intensity: 0.32, threshold: 0.8 }, grain: 0.03, matrix: I3,
-    print: { level: 0.035, colour: UV_VIOLET, ambient: 0.02, grad: [0, 1, 0.2] },
+    // non-fluorescing print reads near-black: only white ink and the hidden marks show, never a violet wash
+    print: { level: 0.012, colour: UV_VIOLET, ambient: 0.004, grad: [0, 1, 0.2] },
     room: [0.02, 0.01, 0.05],
     strike: { duration: 0.3, curve: 'buzz' }, dark: true, continuous: false,
   },

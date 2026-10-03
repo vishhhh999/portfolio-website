@@ -216,7 +216,10 @@ export function Post() {
     composer.addPass(new ViewsPass(scene, camera));
     composer.addPass(fx.coverage);
     composer.addPass(fx.sanitize);
-    composer.addPass(new EffectPass(camera, fx.bloom, fx.matrix, fx.tone, fx.noise, fx.mask));
+    const finalPass = new EffectPass(camera, fx.bloom, fx.matrix, fx.tone, fx.noise, fx.mask);
+    // dark lamps (UV, AFTER DARK) live in the bottom few 8-bit codes: dither the output so gradients don't contour
+    finalPass.dithering = true;
+    composer.addPass(finalPass);
     return () => {
       composer.removeAllPasses();
       gl.toneMapping = prev;
