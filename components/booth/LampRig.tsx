@@ -1,6 +1,5 @@
 'use client';
 
-import { ContactShadows, useTexture } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
 import {
@@ -9,27 +8,28 @@ import {
   ConeGeometry,
   DataTexture,
   DoubleSide,
-  Group,
   Mesh,
-  MeshBasicMaterial,
   Object3D,
   Plane,
-  Quaternion,
   Raycaster,
   RGBAFormat,
   ShaderMaterial,
   SRGBColorSpace,
+  TextureLoader,
   Vector2,
   Vector3,
+  type DirectionalLight,
   type HemisphereLight,
   type RectAreaLight,
   type SpotLight,
+  type Texture,
 } from 'three';
 import { kelvinToAdapted } from '@/lib/kelvin';
 import { lampById, strikeEnvelope, strikeKelvin } from '@/lib/lampPresets';
 import { useBooth } from '@/lib/store';
+import { ceilingMaterial, diffuserMaterial, getBlobMaterial } from './BoothRoom';
 import { postState } from './Post';
-import { onScreenFrame, sampleScreens, screens, setScreensPlaying } from './screens';
+import { onScreenFrame, sampleScreens, screens, screenSource } from './screens';
 import { BOOTH, TRAY } from './staging';
 import { uvUniforms } from './uvMaterial';
 
@@ -42,6 +42,11 @@ function whiteCookie() {
   return t;
 }
 
+/**
+ * FLOOD's haze cone. Every term is clamped: under MSAA, varyings are
+ * extrapolated past triangle edges, and pow() of a slightly negative value is
+ * NaN on real GPUs; one NaN pixel fed into bloom blacks out the whole frame.
+ */
 function hazeMaterial() {
   return new ShaderMaterial({
     uniforms: { uOpacity: { value: 0 }, uColour: { value: new Color(1, 1, 1) } },
@@ -49,16 +54,17 @@ function hazeMaterial() {
       varying vec3 vN; varying vec3 vV; varying float vY;
       void main() {
         vec4 mv = modelViewMatrix * vec4(position, 1.0);
-        vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); vY = uv.y;
+        vN = normalMatrix * normal; vV = -mv.xyz; vY = uv.y;
         gl_Position = projectionMatrix * mv;
       }`,
     fragmentShader: /* glsl */ `
       uniform float uOpacity; uniform vec3 uColour;
       varying vec3 vN; varying vec3 vV; varying float vY;
       void main() {
-        float facing = pow(abs(dot(vN, vV)), 1.6);   // denser through the middle of the beam
-        float along = mix(0.25, 1.0, pow(vY, 1.4));  // brighter near the lamp
-        gl_FragColor = vec4(uColour * uOpacity * facing * along * 0.16, 1.0);
+        float facing = clamp(abs(dot(normalize(vN), normalize(vV))), 0.0, 1.0);
+        float along = mix(0.25, 1.0, pow(clamp(vY, 0.0, 1.0), 1.4));
+        vec3 c = uColour * uOpacity * facing * facing * along * 0.14;
+        gl_FragColor = vec4(clamp(c, 0.0, 4.0), 1.0);
       }`,
     transparent: true,
     depthWrite: false,
@@ -68,42 +74,54 @@ function hazeMaterial() {
 }
 
 /**
- * One rig, seven lamps. The booth has a fixed set of fixtures (ceiling panel,
- * one shadow-casting key, wall bounce, screen spill, haze); each lamp preset
- * reconfigures them: shape, position, cone, shadow hardness, colour, level.
- * The old lamp is off the instant the rocker flips; the new one strikes with
- * its own curve, read from the store's strikeProgress.
+ * One rig, seven lamps. The booth has a fixed set of fixtures (ceiling panel +
+ * visible diffuser, one shadow-casting key, wall bounce, screen spill, haze,
+ * contact shadows); each lamp preset reconfigures them: shape, position,
+ * cone, shadow softness, colour, level. The old lamp is off the instant the
+ * rocker flips; the new one strikes with its own curve (store.strikeProgress).
  */
 export function LampRig() {
   const panel = useRef<RectAreaLight>(null);
   const key = useRef<SpotLight>(null);
   const fill = useRef<HemisphereLight>(null);
-  const contact = useRef<Group>(null);
+  const front = useRef<DirectionalLight>(null);
   const haze = useRef<Mesh>(null);
   const invalidate = useThree((s) => s.invalidate);
   const camera = useThree((s) => s.camera);
   const gl = useThree((s) => s.gl);
+  const scene = useThree((s) => s.scene);
 
-  const gobo = useTexture('/textures/gobo_torch.png');
-  gobo.colorSpace = SRGBColorSpace;
+  // Loaded without Suspense: the lights must exist from the very first frame.
   const white = useMemo(whiteCookie, []);
+  const gobo = useMemo<Texture>(() => {
+    const t = new TextureLoader().load('/textures/gobo_torch.png', () => invalidate());
+    t.colorSpace = SRGBColorSpace;
+    return t;
+  }, [invalidate]);
   const keyTarget = useMemo(() => new Object3D(), []);
   const hazeMat = useMemo(hazeMaterial, []);
   const hazeGeo = useMemo(() => new ConeGeometry(1, 1, 48, 1, true).translate(0, -0.5, 0), []);
+  const bg = useMemo(() => new Color(0, 0, 0), []);
+  const tmpColour = useMemo(() => new Color(), []);
 
   // hand lamp: critically damped follow of the pointer
   const hand = useRef({ pos: new Vector3(0, 0.15, 0), vel: new Vector3(), goal: new Vector3(0, 0.15, 0) });
-  const ndc = useRef(new Vector2(0, -0.2));
+  const ndc = useRef(new Vector2(0, -0.3));
   const ray = useMemo(() => new Raycaster(), []);
   const plane = useMemo(() => new Plane(new Vector3(0, 0, 1), 0), []);
-  const tmp = useMemo(() => ({ v: new Vector3(), c: new Color(), q: new Quaternion(), dir: new Vector3() }), []);
+  const tmp = useMemo(() => ({ v: new Vector3(), dir: new Vector3() }), []);
+  const lastLamp = useRef<string | null>(null);
 
+  useEffect(() => {
+    scene.background = bg;
+    return () => void (scene.background = null);
+  }, [scene, bg]);
   useEffect(() => useBooth.subscribe(() => invalidate()), [invalidate]);
   useEffect(() => onScreenFrame(() => invalidate()), [invalidate]);
 
   useEffect(() => {
     const onMove = (e: PointerEvent) => {
-      const r = gl.domElement.getBoundingClientRect();
+      const r = (window.__boothStageRect?.() ?? gl.domElement.getBoundingClientRect()) as DOMRect;
       ndc.current.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
       if (useBooth.getState().lamp === 'AFTERDARK') invalidate();
     };
@@ -116,14 +134,19 @@ export function LampRig() {
     const P = lampById(lamp);
     const env = strikeEnvelope(P.strike.curve, strikeProgress);
     const ramp = strikeKelvin(P.strike.curve, strikeProgress);
+    const onTray = activeSlug !== null;
 
-    // ── ceiling panel ───────────────────────────────
+    // ── ceiling panel + its visible diffuser ────────
     const pl = panel.current!;
     pl.intensity = P.panel.intensity * env;
     pl.color.setRGB(...P.panel.colour);
     pl.width = P.panel.w;
     pl.height = P.panel.d;
-    pl.position.set(0, BOOTH.height - 0.01, P.panel.z);
+    pl.position.set(0, BOOTH.height - 0.006, P.panel.z);
+    diffuserMaterial.color.setRGB(...P.panel.colour).multiplyScalar(Math.max(0.06, P.diffuser * env));
+    // ceiling: bounce from the floor + spill around the diffuser
+    const bounce = (P.fill.intensity * 0.55 + P.diffuser * 0.1 + P.keyLight.intensity * 0.012) * env;
+    ceilingMaterial.color.setRGB(0.45, 0.45, 0.44).multiply(tmpColour.setRGB(...P.fill.sky)).multiplyScalar(bounce);
 
     // ── key light ───────────────────────────────────
     const k = key.current!;
@@ -140,8 +163,7 @@ export function LampRig() {
 
     let handMoving = false;
     if (lamp === 'AFTERDARK') {
-      // aim plane: the lineup row, or the tray when an object is on it
-      plane.constant = -(activeSlug ? TRAY.z : 0);
+      plane.constant = -(onTray ? TRAY.z : 0);
       ray.setFromCamera(ndc.current, camera);
       if (ray.ray.intersectPlane(plane, tmp.v)) hand.current.goal.copy(tmp.v).setY(Math.max(0.02, tmp.v.y));
       // critically damped spring (ω = 9): weighty, no overshoot
@@ -152,26 +174,29 @@ export function LampRig() {
       h.vel.add(tmp.dir);
       h.pos.addScaledVector(h.vel, step);
       handMoving = h.vel.lengthSq() > 1e-6 || h.pos.distanceToSquared(h.goal) > 1e-6;
-      k.position.set(h.pos.x * 0.35, K.position[1], (activeSlug ? TRAY.z : 0) + K.position[2]);
+      k.position.set(h.pos.x * 0.35, K.position[1], (onTray ? TRAY.z : 0) + K.position[2]);
       keyTarget.position.copy(h.pos);
       k.map = gobo;
     } else {
-      k.position.set(...K.position);
-      keyTarget.position.set(...K.target);
+      // with a sample on the tray, every lamp keeps its geometry but aims at the tray
+      const dz = onTray ? TRAY.z * 0.9 : 0;
+      k.position.set(K.position[0], K.position[1], K.position[2] + dz);
+      if (onTray) keyTarget.position.set(K.target[0] * 0.3, TRAY.top + 0.05, TRAY.z);
+      else keyTarget.position.set(...K.target);
       k.map = white;
     }
     keyTarget.updateMatrixWorld();
 
-    // ── bounce fill ─────────────────────────────────
+    // ── bounce fill, room, contact shadows ──────────
     const f = fill.current!;
     f.intensity = P.fill.intensity * env;
     f.color.setRGB(...P.fill.sky);
     f.groundColor.setRGB(...P.fill.ground);
-
-    // ── contact shadows ─────────────────────────────
-    contact.current?.traverse((o) => {
-      if (o instanceof Mesh && o.material instanceof MeshBasicMaterial) o.material.opacity = P.contact * (0.25 + 0.75 * env);
-    });
+    const fr = front.current!;
+    fr.intensity = P.front * env;
+    fr.color.setRGB(...P.fill.sky);
+    bg.setRGB(...P.room).multiplyScalar(0.15 + 0.85 * env);
+    getBlobMaterial().opacity = P.contact * (0.3 + 0.7 * env);
 
     // ── haze cone along the key light ───────────────
     const hz = haze.current!;
@@ -189,13 +214,13 @@ export function LampRig() {
       (hazeMat.uniforms.uColour.value as Color).copy(k.color);
     }
 
-    // ── screens ─────────────────────────────────────
-    setScreensPlaying(P.screens.playing);
-    if (P.screens.playing) sampleScreens();
-    else if (P.screens.spill > 0) sampleScreens(true);
+    // ── screens: always on; live video + spill only in SCREEN ──
+    const src = screenSource(P.screens.live);
+    if (P.screens.live) sampleScreens();
     for (const s of screens) {
       const keep = 1 - ((s.material.userData.dim as number | undefined) ?? 0);
-      s.material.color.setScalar(P.screens.gain * keep);
+      if (s.material.map !== src) s.material.map = src;
+      s.material.color.setScalar(P.screens.gain * (0.35 + 0.65 * env) * keep);
       s.light.intensity = P.screens.spill * env * keep;
       s.light.color.copy(s.colour);
     }
@@ -206,6 +231,32 @@ export function LampRig() {
     postState.bloomThreshold = P.bloom.threshold;
     postState.grain = P.grain;
     postState.matrix.fromArray(P.matrix).transpose(); // fromArray is column-major; presets are row-major
+
+    // Diagnostics: log the rig once each time FLOOD (or any lamp, with ?lampdebug) settles.
+    if (strikeProgress >= 1 && lastLamp.current !== lamp) {
+      lastLamp.current = lamp;
+      if (lamp === 'FLOOD' || window.location.search.includes('lampdebug')) {
+        postState.diagnose = {
+          lamp,
+          key: {
+            intensity: k.intensity,
+            colour: k.color.toArray(),
+            position: k.position.toArray(),
+            target: keyTarget.position.toArray(),
+            angle: k.angle,
+            penumbra: k.penumbra,
+            decay: k.decay,
+            distance: k.distance,
+            shadowRadius: k.shadow.radius,
+            shadowMap: k.shadow.mapSize.toArray(),
+          },
+          panel: { intensity: pl.intensity, w: pl.width, h: pl.height },
+          fill: f.intensity,
+          haze: { visible: hz.visible, opacity: hazeLevel, scale: hz.scale.toArray() },
+          bloom: postState.bloomIntensity,
+        };
+      }
+    }
 
     if (strikeProgress < 1 || handMoving) invalidate();
   });
@@ -219,24 +270,16 @@ export function LampRig() {
         target={keyTarget}
         castShadow
         shadow-mapSize={[2048, 2048]}
-        shadow-bias={-0.0002}
-        shadow-normalBias={0.012}
-        shadow-camera-near={0.3}
-        shadow-camera-far={12}
+        shadow-bias={-0.0004}
+        shadow-normalBias={0.006}
+        shadow-blurSamples={16}
+        shadow-camera-near={0.05}
+        shadow-camera-far={6}
         map={white}
       />
       <hemisphereLight ref={fill} />
+      <directionalLight ref={front} position={[0, 0.6, 6]} />
       <mesh ref={haze} geometry={hazeGeo} material={hazeMat} visible={false} renderOrder={3} />
-      <ContactShadows
-        ref={contact}
-        position={[0, 0.003, 0.15]}
-        scale={[BOOTH.width, 1.7]}
-        resolution={1024}
-        far={0.45}
-        blur={2.2}
-        opacity={0.5}
-        color="#141413"
-      />
     </>
   );
 }

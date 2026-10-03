@@ -1,69 +1,94 @@
 /**
- * Booth staging: the physical layout of the lineup, in metres.
- * Three.js world: Y-up, origin on the floor at the centre of the lineup row,
- * +Z towards the camera. Exported to tools/camera.json for the Blender scene.
+ * Booth staging: the physical booth and the samples inside it, in metres.
+ * Three.js world: Y-up, origin on the booth floor at the centre of the opening
+ * line of the back row, +Z towards the camera (out of the booth).
+ * Exported to tools/camera.json for the Blender scene.
  */
 
 export type Size3 = { w: number; h: number; d: number };
 
-/** Sample footprint (object on its own, real-world scale) and the riser it is propped on. */
-export type Staging = { object: Size3; plinth: Size3 };
-
 /**
- * Plinth heights balance visual weight across the row the way samples are
- * propped in a proofing lineup: the smallest object (phone) rides highest,
- * the largest (book, pouch) sit lowest.
+ * One sample: the object (real-world scale), the riser it is propped on and
+ * where that riser stands. Two rows, like a proofing lineup: wide, tall
+ * samples at the back; small ones forward so they hold their size in frame.
  */
+export type Staging = { object: Size3; plinth: Size3; x: number; z: number };
+
+const BACK_Z = -0.4;
+const FRONT_Z = 0.66;
+
 export const STAGING: Record<string, Staging> = {
-  'too-yumm': { object: { w: 0.16, h: 0.24, d: 0.07 }, plinth: { w: 0.26, d: 0.2, h: 0.03 } },
-  'jsw-sports': { object: { w: 0.4, h: 0.3, d: 0.17 }, plinth: { w: 0.46, d: 0.28, h: 0.03 } },
-  mitooshi: { object: { w: 0.3, h: 0.21, d: 0.24 }, plinth: { w: 0.38, d: 0.32, h: 0.1 } },
-  sonde: { object: { w: 0.25, h: 0.19, d: 0.14 }, plinth: { w: 0.32, d: 0.24, h: 0.13 } },
-  'house-of-hex': { object: { w: 0.08, h: 0.15, d: 0.07 }, plinth: { w: 0.24, d: 0.2, h: 0.24 } },
-  'bengal-t20': { object: { w: 0.22, h: 0.06, d: 0.15 }, plinth: { w: 0.3, d: 0.24, h: 0.17 } },
-  sook: { object: { w: 0.24, h: 0.13, d: 0.07 }, plinth: { w: 0.3, d: 0.18, h: 0.08 } },
-  // archive-only (not staged in the booth, kept so their placeholders still work in the tray)
-  shunya: { object: { w: 0.2, h: 0.09, d: 0.1 }, plinth: { w: 0.26, d: 0.2, h: 0.06 } },
-  'indo-thai': { object: { w: 0.3, h: 0.21, d: 0.24 }, plinth: { w: 0.38, d: 0.32, h: 0.1 } },
+  // back row, left → right: the three large samples, raised so they read over the front row
+  'jsw-sports': { object: { w: 0.37, h: 0.17, d: 0.2 }, plinth: { w: 0.42, d: 0.28, h: 0.13 }, x: -0.55, z: BACK_Z },
+  mitooshi: { object: { w: 0.3, h: 0.21, d: 0.24 }, plinth: { w: 0.36, d: 0.3, h: 0.15 }, x: 0.0, z: BACK_Z },
+  sonde: { object: { w: 0.25, h: 0.19, d: 0.15 }, plinth: { w: 0.31, d: 0.24, h: 0.17 }, x: 0.5, z: BACK_Z },
+  // front row: packaging on the flanks, the small brand + product pieces centre, in front of the back-row gaps
+  'too-yumm': { object: { w: 0.16, h: 0.24, d: 0.07 }, plinth: { w: 0.21, d: 0.15, h: 0.02 }, x: -0.6, z: FRONT_Z },
+  'house-of-hex': { object: { w: 0.09, h: 0.17, d: 0.08 }, plinth: { w: 0.15, d: 0.13, h: 0.06 }, x: -0.21, z: FRONT_Z },
+  'bengal-t20': { object: { w: 0.22, h: 0.07, d: 0.15 }, plinth: { w: 0.27, d: 0.19, h: 0.05 }, x: 0.2, z: FRONT_Z },
+  sook: { object: { w: 0.24, h: 0.13, d: 0.07 }, plinth: { w: 0.29, d: 0.16, h: 0.03 }, x: 0.6, z: FRONT_Z },
+  // archive-only: never staged in the lineup; sizes kept for the tray and archive viewer
+  shunya: { object: { w: 0.2, h: 0.09, d: 0.1 }, plinth: { w: 0.26, d: 0.2, h: 0.06 }, x: 0, z: 0 },
+  'indo-thai': { object: { w: 0.3, h: 0.21, d: 0.24 }, plinth: { w: 0.38, d: 0.32, h: 0.1 }, x: 0, z: 0 },
 };
 
-export const PLINTH_GAP = 0.05;
-/** Plinths: matte, a step lighter than the N7 floor. */
-export const PLINTH_GREY = '#B3B3B1';
+/** Plinths: matte, a step lighter than the floor. */
+export const PLINTH_GREY = '#B4B4B2';
 /** Small chamfer on every plinth edge. */
 export const PLINTH_CHAMFER = 0.004;
 
-/** Booth interior. Depth runs past the camera so the floor never ends in frame. */
-export const BOOTH = { width: 4.2, depth: 16, height: 2.4, backZ: -0.7 } as const;
-/** Proofing tray at the front of the booth: where the active object is examined. */
-export const TRAY = { z: 0.6, w: 0.9, d: 0.5 } as const;
-/** Where the rest of the lineup steps back to while something is on the tray. */
-export const RECEDE_Z = -0.32;
+/**
+ * The booth: an open-fronted box. Interior width × height × depth, back wall
+ * at backZ, the opening (with its front lip) at frontZ. The cabinet shell
+ * around it only shows on narrow or portrait screens.
+ */
+export const BOOTH = { width: 1.75, height: 0.95, backZ: -0.75, frontZ: 1.0, wall: 0.04 } as const;
+/** Front lip at the opening: a thin raised sill carrying the maker's plate. */
+export const LIP = { h: 0.03, d: 0.045 } as const;
+/** Ceiling diffuser (the lamp's light-emitting face). */
+export const DIFFUSER = { w: 1.5, d: 1.25, z: -0.05 } as const;
+
+/**
+ * Proofing tray at the front centre, raised on a short pedestal so the sample
+ * clears the lip: where the active sample is examined. Hidden until in use.
+ * `top` is the height of the plate's upper face.
+ */
+export const TRAY = { z: 0.8, w: 0.46, d: 0.24, h: 0.008, stand: 0.11, top: 0.118 } as const;
+/** How far the lineup steps back while something is on the tray. */
+export const RECEDE_DZ = -0.18;
 
 /** Lens: ~100mm full-frame equivalent → 2·atan(12/100) ≈ 13.7° vertical FOV. */
 export const FOV = 13.7;
 export const SENSOR_HEIGHT_MM = 24;
 export const FOCAL_MM = SENSOR_HEIGHT_MM / 2 / Math.tan(((FOV / 2) * Math.PI) / 180);
 
-/** Lineup shot: frame width = lineup width × margin; floor line pinned this far down the frame. */
-export const LINEUP_MARGIN = 1.06;
-export const FLOOR_LINE = 0.76;
+/** Lineup shot rules: lip top sits this far down (v, -1 = bottom), ceiling edge this far up. */
+export const SHOT = { lipV: -0.93, ceilingV: 0.8, minWallFrame: 1.12 } as const;
 
+/** Calibration props: a small ledge on the back wall, right of centre. */
+export const PROPS = {
+  ledge: { x: 0.56, y: 0.43, w: 0.42, d: 0.05, h: 0.012 },
+  /** Mini 24-patch chart: half the classic size. */
+  checker: { x: 0.64, w: 0.14, h: 0.108, lean: 0.22, yaw: -0.16 },
+  card: { x: 0.47, w: 0.1, h: 0.067, lean: 0.26, yaw: 0.1 },
+  /** Glossy laminated swatch: catches the lamp's reflection (TL84 tubes show as streaks). */
+  gloss: { x: 0.37, w: 0.07, h: 0.1, lean: 0.42, yaw: 0.18 },
+} as const;
+
+/** Plinth positions for a set of lineup slugs (explicit staging, not computed). */
 export function lineupLayout(slugs: string[]) {
-  const widths = slugs.map((s) => STAGING[s].plinth.w);
-  const width = widths.reduce((a, b) => a + b, 0) + PLINTH_GAP * (slugs.length - 1);
   const x: Record<string, number> = {};
-  let cursor = -width / 2;
-  slugs.forEach((s, i) => {
-    x[s] = cursor + widths[i] / 2;
-    cursor += widths[i] + PLINTH_GAP;
-  });
-  return { width, x };
+  const z: Record<string, number> = {};
+  for (const s of slugs) {
+    x[s] = STAGING[s].x;
+    z[s] = STAGING[s].z;
+  }
+  return { x, z };
 }
 
-/** Calibration props, leaning on the back wall behind the right of the row. */
-export const PROPS = {
-  shelf: { x: 1.02, w: 0.62, d: 0.12, h: 0.25 },
-  checker: { x: 1.12, w: 0.279, h: 0.216, lean: 0.2 },
-  card: { x: 0.82, w: 0.15, h: 0.1, lean: 0.24 },
-} as const;
+declare global {
+  interface Window {
+    /** Current booth stage rect in CSS px (set by the view system); used to map pointers into the booth. */
+    __boothStageRect?: () => DOMRect;
+  }
+}

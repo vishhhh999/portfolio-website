@@ -8,13 +8,13 @@ import { Color, Mesh, MeshBasicMaterial, MeshStandardMaterial, type Group } from
 import type { Work } from '@/lib/types';
 import { useBooth } from '@/lib/store';
 import { useReducedMotion } from '@/lib/useReducedMotion';
+import { ContactBlob } from './BoothRoom';
 import { BoothMat, INK_ASPECT, PLACEHOLDERS } from './placeholders';
-import { PLINTH_CHAMFER, PLINTH_GREY, RECEDE_Z, STAGING, TRAY } from './staging';
+import { PLINTH_CHAMFER, PLINTH_GREY, RECEDE_DZ, STAGING, TRAY } from './staging';
 import { createInkTexture } from './uvMaterial';
 
-/** How dark the lineup gets while another object is on the tray. */
-const RECEDE_DIM = 0.75;
-const TRAY_TOP = 0.004;
+/** How dark the lineup gets while another sample is on the tray. */
+const RECEDE_DIM = 0.9;
 
 /**
  * One sample in the lineup: a plinth and the object propped on it.
@@ -22,7 +22,7 @@ const TRAY_TOP = 0.004;
  * Another active → plinth and object step back and fall into shadow.
  * Motion is critically damped: on rails, no overshoot.
  */
-export function ObjectSlot({ work, x }: { work: Work; x: number }) {
+export function ObjectSlot({ work }: { work: Work }) {
   const slotRef = useRef<Group>(null);
   const objRef = useRef<Group>(null);
   const router = useRouter();
@@ -31,7 +31,7 @@ export function ObjectSlot({ work, x }: { work: Work; x: number }) {
   const reduced = useReducedMotion();
   const [hovered, setHovered] = useState(false);
 
-  const { object, plinth } = STAGING[work.slug];
+  const { object, plinth, x, z } = STAGING[work.slug];
   const active = activeSlug === work.slug;
   const receded = activeSlug !== null && !active;
 
@@ -52,7 +52,7 @@ export function ObjectSlot({ work, x }: { work: Work; x: number }) {
     objRef.current?.traverse((o) => {
       if (!(o instanceof Mesh)) return;
       if (o.material instanceof MeshStandardMaterial) objs.push({ mat: o.material, base: o.material.color.clone() });
-      if (o.material instanceof MeshBasicMaterial && o.material.map) screensHere.push(o.material);
+      if (o.material instanceof MeshBasicMaterial && o.material.map && !o.material.transparent) screensHere.push(o.material);
     });
     objMats.current = objs;
     screenMats.current = screensHere;
@@ -69,20 +69,20 @@ export function ObjectSlot({ work, x }: { work: Work; x: number }) {
     if (!slot || !obj) return;
     const k = reduced ? 1 : 1 - Math.exp(-dt * 5);
 
-    const slotZ = receded || active ? RECEDE_Z : 0;
+    const slotZ = z + (activeSlug !== null ? RECEDE_DZ : 0);
     slot.position.z += (slotZ - slot.position.z) * k;
 
     // Object: on its plinth (slot space) or on the tray (world space, converted to slot space).
     const tx = active ? -x : 0;
-    const ty = active ? TRAY_TOP : plinth.h;
+    const ty = active ? TRAY.top : plinth.h;
     const tz = active ? TRAY.z - slot.position.z : 0;
     obj.position.x += (tx - obj.position.x) * k;
     obj.position.y += (ty - obj.position.y) * k;
     obj.position.z += (tz - obj.position.z) * k;
 
-    // The row falls into shadow behind the tray: objects (and their screens) and every plinth, the active one's included.
+    // Behind the tray the row falls into shadow: objects, their screens, and every plinth (the active one's too).
     const td = receded ? RECEDE_DIM : 0;
-    const tp = activeSlug !== null ? RECEDE_DIM * 0.8 : 0;
+    const tp = activeSlug !== null ? RECEDE_DIM * 0.85 : 0;
     const d = dim.current;
     d.obj += (td - d.obj) * k;
     d.plinth += (tp - d.plinth) * k;
@@ -103,7 +103,7 @@ export function ObjectSlot({ work, x }: { work: Work; x: number }) {
   return (
     <group
       ref={slotRef}
-      position={[x, 0, 0]}
+      position={[x, 0, z]}
       onClick={(e) => {
         e.stopPropagation();
         if (!active) router.push(`/work/${work.slug}`, { scroll: false });
@@ -128,9 +128,11 @@ export function ObjectSlot({ work, x }: { work: Work; x: number }) {
       >
         <BoothMat color={PLINTH_GREY} roughness={0.92} />
       </RoundedBox>
+      <ContactBlob w={plinth.w} d={plinth.d} spread={1.25} />
       <group ref={objRef} position={[0, plinth.h, 0]}>
+        <ContactBlob w={object.w} d={Math.min(object.d, plinth.d * 0.8)} spread={1.2} />
         {PLACEHOLDERS[work.slug]?.(inkTex)}
-        <Html position={[0, object.h + 0.03, 0]} center zIndexRange={[5, 0]} style={{ pointerEvents: 'none' }}>
+        <Html position={[0, object.h + 0.025, 0]} center zIndexRange={[5, 0]} style={{ pointerEvents: 'none' }}>
           <div className="specchip" data-visible={showPlate}>
             <span className="specchip__title">{work.title}</span>
             <span className="specchip__meta">

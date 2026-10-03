@@ -9,6 +9,7 @@ Outputs (all replaceable with real files of the same name):
   public/textures/card_uvink.png      uvInk test: proofer's grid + handwritten-style marks
   public/textures/gobo_torch.png      AFTER DARK hand-lamp cookie
   public/media/screen-test.webm/.mp4  looping test video for SCREEN placeholders
+  public/media/screen-test-poster.webp still frame for screens under every other lamp
   public/sounds/click.wav, hum_tl84.wav, buzz_uv.wav
 """
 import math, os, random, subprocess, shutil, tempfile, wave
@@ -183,6 +184,8 @@ def video():
     common = ['-y', '-loglevel', 'error', '-framerate', str(FPS), '-i', os.path.join(tmp, 'f%04d.png')]
     subprocess.run(['ffmpeg', *common, '-c:v', 'libvpx-vp9', '-b:v', '0', '-crf', '42', '-row-mt', '1', '-pix_fmt', 'yuv420p', '-an', os.path.join(out, 'screen-test.webm')], check=True)
     subprocess.run(['ffmpeg', *common, '-c:v', 'libx264', '-crf', '30', '-preset', 'slow', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-an', os.path.join(out, 'screen-test.mp4')], check=True)
+    # still frame shown on screens under every lamp except SCREEN (devices are on, video only plays in SCREEN)
+    subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-ss', '1.2', '-i', os.path.join(out, 'screen-test.webm'), '-frames:v', '1', '-c:v', 'libwebp', '-quality', '82', os.path.join(out, 'screen-test-poster.webp')], check=True)
     shutil.rmtree(tmp)
 
 # ── sounds ────────────────────────────────────────────────────────

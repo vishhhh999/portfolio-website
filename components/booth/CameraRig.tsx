@@ -3,7 +3,6 @@
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useRef } from 'react';
 import { MathUtils, Vector3, type PerspectiveCamera } from 'three';
-import { lineup } from '@/content/work';
 import { useBooth } from '@/lib/store';
 import { useReducedMotion } from '@/lib/useReducedMotion';
 import { lineupShot, trayShot } from './shots';
@@ -11,7 +10,6 @@ import { FOV } from './staging';
 
 const PARALLAX_YAW = MathUtils.degToRad(1.5);
 const PARALLAX_PITCH = MathUtils.degToRad(0.6);
-const SLUGS = lineup.map((w) => w.slug);
 
 /**
  * Locked long-lens camera. Level horizon, flat front, no orbit.
@@ -55,7 +53,7 @@ export function CameraRig() {
 
   useFrame((_, dt) => {
     const aspect = size.width / size.height;
-    const goal = activeSlug ? trayShot(activeSlug, aspect) : lineupShot(SLUGS, aspect);
+    const goal = activeSlug ? trayShot(activeSlug, aspect) : lineupShot(aspect);
     goalTarget.current.set(...goal.target);
 
     const k = reduced || !current.current ? 1 : 1 - Math.exp(-dt * 3.2);

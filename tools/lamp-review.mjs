@@ -35,6 +35,13 @@ for (const [name, viewport, mobile] of [['desktop', { width: 1440, height: 900 }
     await page.waitForTimeout(lamp === 'SCREEN' ? 2500 : 1800);
     const file = OUT + name + '-' + String(i + 1) + '-' + lamp + '.png';
     await page.screenshot({ path: file });
+    if (process.env.CLEAN) {
+      // the booth alone, without the page overlay
+      await page.addStyleTag({ content: '.masthead,.hero,.panel,.footer{visibility:hidden!important}' }).catch(() => {});
+      await page.waitForTimeout(200);
+      await page.screenshot({ path: file.replace('.png', '-clean.png') });
+      await page.addStyleTag({ content: '.masthead,.hero,.panel,.footer{visibility:visible!important}' }).catch(() => {});
+    }
   }
   await ctx.close();
 }

@@ -1,10 +1,15 @@
-import { Color, SRGBColorSpace, VideoTexture, type MeshBasicMaterial, type RectAreaLight } from 'three';
+import { Color, SRGBColorSpace, TextureLoader, VideoTexture, type MeshBasicMaterial, type RectAreaLight, type Texture } from 'three';
 
 /**
- * SCREEN placeholders: one shared looping test video, each device shows its own
- * horizontal region of it. Every ~10 frames the video is drawn into a tiny canvas
- * and averaged per region; that colour drives the RectAreaLight on each screen,
- * so the spill on the floor follows what's on the screen.
+ * Device screens. Devices are always on: under every lamp each screen shows a
+ * still frame at a plausible emissive level. In SCREEN mode the still swaps to
+ * the live looping video (same sampler, no shader recompile) and the screens
+ * become the only light: each screen's RectAreaLight takes the average colour
+ * of its region of the video, sampled from a tiny canvas every ~10 frames, so
+ * the spill on the floor follows what is on screen.
+ *
+ * Placeholder media: one shared test video + still; each device shows its own
+ * horizontal region. Real captures (Phase 4) replace both files.
  */
 export type ScreenRegion = [u0: number, u1: number];
 export const REGIONS = {
@@ -16,50 +21,63 @@ export const REGIONS = {
 type ScreenEntry = { material: MeshBasicMaterial; light: RectAreaLight; region: ScreenRegion; colour: Color };
 export const screens = new Set<ScreenEntry>();
 
+let poster: Texture | null = null;
 let video: HTMLVideoElement | null = null;
-let texture: VideoTexture | null = null;
-const readyListeners = new Set<() => void>();
+let videoTex: VideoTexture | null = null;
+const frameListeners = new Set<() => void>();
 
-/** Called when a new poster frame is available while paused (VideoTexture only auto-updates while playing). */
+/** Notified when new screen content is ready to draw (poster loaded, or video ready). */
 export function onScreenFrame(cb: () => void) {
-  readyListeners.add(cb);
-  return () => void readyListeners.delete(cb);
+  frameListeners.add(cb);
+  return () => void frameListeners.delete(cb);
+}
+const notify = () => frameListeners.forEach((cb) => cb());
+
+/** The still frame: a plain image texture, so it uploads reliably on every GPU. */
+export function getPosterTexture(): Texture {
+  if (poster) return poster;
+  poster = new TextureLoader().load('/media/screen-test-poster.webp', () => {
+    samplePoster();
+    notify();
+  });
+  poster.colorSpace = SRGBColorSpace;
+  return poster;
 }
 
-export function getScreenTexture(): VideoTexture {
-  if (texture) return texture;
+/** The live video, created on first use (SCREEN mode) or idle preload. */
+export function getVideoTexture(): VideoTexture {
+  if (videoTex) return videoTex;
   video = document.createElement('video');
   video.muted = true;
   video.loop = true;
   video.playsInline = true;
   video.crossOrigin = 'anonymous';
   video.preload = 'auto';
-  for (const [src, type] of [['/media/screen-test.webm', 'video/webm'], ['/media/screen-test.mp4', 'video/mp4']]) {
+  for (const [src, type] of [
+    ['/media/screen-test.webm', 'video/webm'],
+    ['/media/screen-test.mp4', 'video/mp4'],
+  ]) {
     const s = document.createElement('source');
     s.src = src;
     s.type = type;
     video.appendChild(s);
   }
-  const poster = () => {
-    if (!texture) return;
-    texture.needsUpdate = true;
-    sampleScreens(true);
-    readyListeners.forEach((cb) => cb());
-  };
-  video.addEventListener('loadeddata', () => {
-    if (video && video.paused) video.currentTime = 1.2; // a frame with content on every region
-  }, { once: true });
-  video.addEventListener('seeked', poster);
+  video.addEventListener('loadeddata', notify, { once: true });
   video.load();
-  texture = new VideoTexture(video);
-  texture.colorSpace = SRGBColorSpace;
-  return texture;
+  videoTex = new VideoTexture(video);
+  videoTex.colorSpace = SRGBColorSpace;
+  return videoTex;
 }
 
-export function setScreensPlaying(playing: boolean) {
-  if (!video) return;
-  if (playing && video.paused) void video.play().catch(() => {});
-  if (!playing && !video.paused) video.pause();
+/** Live video in SCREEN mode, still frame otherwise. Returns the texture screens should show. */
+export function screenSource(live: boolean): Texture {
+  if (!live) {
+    if (video && !video.paused) video.pause();
+    return getPosterTexture();
+  }
+  const tex = getVideoTexture();
+  if (video!.paused) void video!.play().catch(() => {});
+  return video!.readyState >= 2 ? tex : getPosterTexture();
 }
 
 const SW = 32;
@@ -67,28 +85,42 @@ const SH = 9;
 let sampler: CanvasRenderingContext2D | null = null;
 let frame = 0;
 
-/** Updates each screen's spill colour from the video. Cheap: 32×9 readback every 10 frames. */
-export function sampleScreens(force = false) {
-  if (!video || video.readyState < 2) return;
-  if (!force && frame++ % 10 !== 0) return;
+function ctx() {
   if (!sampler) {
     const c = document.createElement('canvas');
     c.width = SW;
     c.height = SH;
     sampler = c.getContext('2d', { willReadFrequently: true });
   }
-  if (!sampler) return;
-  sampler.drawImage(video, 0, 0, SW, SH);
-  const px = sampler.getImageData(0, 0, SW, SH).data;
+  return sampler;
+}
+
+function averageRegions(source: CanvasImageSource) {
+  const g = ctx();
+  if (!g) return;
+  g.drawImage(source, 0, 0, SW, SH);
+  const px = g.getImageData(0, 0, SW, SH).data;
   for (const s of screens) {
     const x0 = Math.floor(s.region[0] * SW);
     const x1 = Math.max(x0 + 1, Math.floor(s.region[1] * SW));
-    let r = 0, g = 0, b = 0, n = 0;
+    let r = 0, gg = 0, b = 0, n = 0;
     for (let y = 0; y < SH; y++)
       for (let x = x0; x < x1; x++) {
         const i = (y * SW + x) * 4;
-        r += px[i]; g += px[i + 1]; b += px[i + 2]; n++;
+        r += px[i]; gg += px[i + 1]; b += px[i + 2]; n++;
       }
-    s.colour.setRGB(r / n / 255, g / n / 255, b / n / 255, SRGBColorSpace);
+    s.colour.setRGB(r / n / 255, gg / n / 255, b / n / 255, SRGBColorSpace);
   }
+}
+
+function samplePoster() {
+  const img = poster?.image as HTMLImageElement | undefined;
+  if (img && img.complete) averageRegions(img);
+}
+
+/** Spill colours from the live video. Cheap: 32×9 readback every 10 frames. */
+export function sampleScreens() {
+  if (!video || video.readyState < 2) return;
+  if (frame++ % 10 !== 0) return;
+  averageRegions(video);
 }

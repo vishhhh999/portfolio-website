@@ -42,16 +42,16 @@ export default function BoothCanvas({ active }: { active: boolean }) {
       sensorHeightMm: SENSOR_HEIGHT_MM,
       focalLengthMm: FOCAL_MM,
       aspect,
-      lineup: lineupShot(SLUGS, aspect),
+      lineup: lineupShot(aspect),
       tray: Object.fromEntries(lineup.map((w) => [w.slug, trayShot(w.slug, aspect)])),
       booth: BOOTH,
       tray_plate: TRAY,
       plinthChamfer: PLINTH_CHAMFER,
       plinths: lineup.map((w) => ({
         slug: w.slug,
-        position: [LAYOUT.x[w.slug], STAGING[w.slug].plinth.h / 2, 0],
+        position: [LAYOUT.x[w.slug], STAGING[w.slug].plinth.h / 2, LAYOUT.z[w.slug]],
         size: STAGING[w.slug].plinth,
-        objectBase: [LAYOUT.x[w.slug], STAGING[w.slug].plinth.h, 0],
+        objectBase: [LAYOUT.x[w.slug], STAGING[w.slug].plinth.h, LAYOUT.z[w.slug]],
         objectSize: STAGING[w.slug].object,
       })),
       props: PROPS,
@@ -61,7 +61,7 @@ export default function BoothCanvas({ active }: { active: boolean }) {
   return (
     <Canvas
       frameloop={!active ? 'never' : continuous ? 'always' : 'demand'}
-      shadows="percentage"
+      shadows="variance"
       dpr={[1, typeof window !== 'undefined' && matchMedia('(pointer: coarse)').matches ? 1.5 : 2]}
       gl={{ antialias: false, powerPreference: 'high-performance', stencil: false }}
       camera={{ fov: FOV, position: [0, 0.4, 7] }}
@@ -71,7 +71,7 @@ export default function BoothCanvas({ active }: { active: boolean }) {
       <CameraRig />
       <BoothRoom />
       {lineup.map((w) => (
-        <ObjectSlot key={w.slug} work={w} x={LAYOUT.x[w.slug]} />
+        <ObjectSlot key={w.slug} work={w} />
       ))}
       <Suspense fallback={null}>
         <LampRig />
