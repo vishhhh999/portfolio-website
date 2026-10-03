@@ -44,6 +44,26 @@ for (const [name, viewport, mobile] of [['desktop', { width: 1440, height: 900 }
     }
   }
   await ctx.close();
+
+  // Too Yumm proof strip under D50, A, UV and AFTER DARK (lit planes need motion allowed + a capable GPU)
+  if (!process.env.NOPROOF) {
+    const pctx = await browser.newContext({ viewport, isMobile: mobile, hasTouch: mobile, deviceScaleFactor: 1 });
+    const pp = await pctx.newPage();
+    pp.on('pageerror', (e) => errors.push(name + ' proof pageerror: ' + e.message));
+    await pp.goto(BASE + '/work/too-yumm?gpu=high', { waitUntil: 'networkidle' });
+    await pp.waitForSelector('.booth-stage[data-ready="true"]', { timeout: 60000 });
+    await pp.evaluate(() => window.scrollTo(0, document.querySelector('.proofstrip').getBoundingClientRect().top + window.scrollY - 40));
+    await pp.waitForFunction(() => document.querySelectorAll('.proof__image [data-lit="true"]').length >= 2, null, { timeout: 60000 }).catch(() => {});
+    await pp.waitForTimeout(1500);
+    for (const [i, lamp] of [[0, 'D50'], [2, 'A'], [3, 'UV'], [6, 'AFTERDARK']]) {
+      if (lamp === 'AFTERDARK') await pp.mouse.move(viewport.width * 0.32, viewport.height * 0.38);
+      await pp.click('.switch >> nth=' + i, { force: true }).catch(() => pp.keyboard.press(String(i + 1)));
+      if (lamp === 'AFTERDARK') await pp.mouse.move(viewport.width * 0.33, viewport.height * 0.4);
+      await pp.waitForTimeout(2500);
+      await pp.screenshot({ path: OUT + name + '-proof-' + lamp + '.png' });
+    }
+    await pctx.close();
+  }
 }
 console.log('errors', errors.length ? errors : 'none');
 await browser.close();

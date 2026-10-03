@@ -153,16 +153,56 @@ html[data-lamp='AFTERDARK'] main a { cursor: pointer; }
 .work__stage { height: calc(70svh - var(--masthead-h)); pointer-events: none; }
 .work__body { background: transparent; padding: var(--gutter); padding-top: 40px; min-height: 60svh; }
 .work__body h1 { font-size: clamp(40px, 6vw, 96px); margin: 12px 0 32px; }
-.specplate {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 0;
-  border: 1px solid var(--ink); margin: 0 0 40px; max-width: 900px;
+.work__intro { display: grid; grid-template-columns: minmax(280px, 420px) minmax(0, 1fr); gap: calc(var(--gutter) * 2); align-items: start; margin-bottom: 56px; }
+.work__copy p { margin: 0 0 1em; max-width: 62ch; font-size: 17px; line-height: 1.55; }
+.work__tbc { opacity: 0.55; font-family: var(--mono); font-size: 12px !important; letter-spacing: 0.06em; text-transform: uppercase; }
+
+/* Spec plate: a booth calibration label */
+.calib { border: 1.5px solid var(--ink); background: #fbfaf6; font-family: var(--mono); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; }
+.calib__head, .calib__foot { display: flex; justify-content: space-between; gap: 12px; padding: 8px 12px; }
+.calib__head { background: var(--ink); color: var(--paper); }
+.calib__rows { margin: 0; }
+.calib__rows div { display: grid; grid-template-columns: 110px 1fr; gap: 12px; padding: 8px 12px; border-top: 1px solid var(--rule); }
+.calib__rows dt { opacity: 0.55; }
+.calib__rows dd { margin: 0; font-family: var(--sans); text-transform: none; letter-spacing: 0; font-size: 14px; }
+.calib__foot { border-top: 1.5px solid var(--ink); align-items: center; opacity: 0.85; }
+.calib__stamp { border: 1.5px solid #b3261e; color: #b3261e; padding: 2px 8px; transform: rotate(-4deg); font-weight: 600; letter-spacing: 0.14em; }
+
+/* Proof strip: 6 frames, each a printed proof with crop marks, registration targets and a colour bar */
+.proofstrip { list-style: none; padding: 0; margin: 0 0 48px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: calc(var(--gutter) * 1.5) var(--gutter); }
+.proof { margin: 0; }
+.proof__sheet { position: relative; padding: 26px 34px 26px 26px; color: var(--ink); }
+.proof__image { position: relative; background: #e9e7e0; }
+.proof__image img, .proof__image video { display: block; width: 100%; height: auto; aspect-ratio: 4 / 3; object-fit: cover; transition: opacity 0ms linear 40ms; }
+.proof__image [data-lit='true'] { opacity: 0; }
+/* once the lit plane draws, the frame must let the canvas (behind the page) show through */
+.proof__image:has([data-lit='true']) { background: transparent; }
+.proof__crop { position: absolute; width: 18px; height: 18px; }
+.proof__crop::before, .proof__crop::after { content: ''; position: absolute; background: var(--ink); }
+.proof__crop::before { width: 18px; height: 1px; }
+.proof__crop::after { width: 1px; height: 18px; }
+.proof__crop--tl { left: 4px; top: 4px; } .proof__crop--tl::before { top: 18px; } .proof__crop--tl::after { left: 18px; }
+.proof__crop--tr { right: 12px; top: 4px; } .proof__crop--tr::before { top: 18px; } .proof__crop--tr::after { left: 0; }
+.proof__crop--bl { left: 4px; bottom: 4px; } .proof__crop--bl::before { top: 0; } .proof__crop--bl::after { left: 18px; }
+.proof__crop--br { right: 12px; bottom: 4px; } .proof__crop--br::before { top: 0; } .proof__crop--br::after { left: 0; }
+.proof__reg { position: absolute; width: 16px; height: 16px; left: calc(50% - 8px); opacity: 0.8; }
+.proof__reg--top { top: 5px; }
+.proof__reg--bottom { bottom: 5px; }
+.proof__bar { position: absolute; right: 8px; top: 26px; bottom: 26px; width: 12px; display: flex; flex-direction: column; gap: 2px; }
+.proof__bar i { flex: 1; display: block; }
+.proof__caption { display: flex; gap: 14px; align-items: baseline; padding: 0 26px; }
+.proof__num { font-family: var(--mono); font-size: 13px; font-weight: 600; }
+.proof__play {
+  position: absolute; left: 12px; bottom: 12px; z-index: 1; border: 0; border-radius: 2px; cursor: pointer;
+  background: var(--paper); color: var(--ink); padding: 8px 12px; font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
 }
-.specplate div { padding: 12px; border-right: 1px solid var(--rule); }
-.specplate dt { font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.6; }
-.specplate dd { margin: 4px 0 0; }
-.proofstrip { list-style: none; padding: 0; margin: 0 0 40px; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--gutter); }
-.proofstrip__frame { aspect-ratio: 4 / 3; border: 1px solid var(--rule); padding: 10px; display: flex; flex-direction: column; justify-content: space-between; }
-.proofstrip__ph { font-size: 13px; opacity: 0.5; }
+.player { padding: 0; border: 0; background: #000; max-width: min(92vw, 1400px); width: 92vw; }
+.player::backdrop { background: rgba(10, 10, 10, 0.86); }
+.player video { display: block; width: 100%; height: auto; max-height: 82vh; background: #000; }
+.player__close { position: absolute; top: 10px; right: 10px; border: 0; background: var(--paper); padding: 8px 12px; cursor: pointer; font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; }
+.work__links { display: flex; justify-content: space-between; align-items: baseline; gap: 24px; flex-wrap: wrap; border-top: 1px solid var(--ink); padding-top: 24px; }
+.proofset { font-family: var(--mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.proofset--tbc { opacity: 0.5; }
 .next { display: inline-flex; gap: 12px; align-items: baseline; font-size: 24px; text-decoration: none; font-weight: 600; letter-spacing: -0.02em; }
 
 /* ── House lights ─────────────────────────────────────────────── */
@@ -212,6 +252,8 @@ html[data-lamp='AFTERDARK'] main a { cursor: pointer; }
   .sound, .panel__status, .panel__foot { display: none; }
   .footer { padding-bottom: 90px; flex-direction: column; }
   .index a { grid-template-columns: 32px 1fr 48px; }
+  .work__intro { grid-template-columns: 1fr; }
+  .proofstrip { grid-template-columns: 1fr; }
   .index__tags, .index__object, .index__legend { display: none; }
 }
 

@@ -7,7 +7,18 @@ export type UvNote = {
   anchor: [number, number, number];
 };
 
-export type Deliverable = { type: 'image' | 'video'; src: string; alt: string };
+export type Deliverable = {
+  type: 'image' | 'video';
+  src: string;
+  alt: string;
+  /** Optional UV slots for the lit proof strip (same meaning as on 3D objects). */
+  fluorMask?: string;
+  uvInk?: string;
+  /** Still frame for video deliverables (shown until the video plays). */
+  poster?: string;
+  /** Extra encodings for video deliverables, tried before `src` (e.g. WebM VP9, then the MP4 in src). */
+  sources?: { src: string; type: string }[];
+};
 
 export type Work = {
   slug: string;

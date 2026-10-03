@@ -19,7 +19,12 @@ const work: Work = {
     { text: 'ASCII system: one glyph ramp drives every illustration', anchor: [0, 0.16, -0.08] },
     { text: 'Type scale: 1.25 ratio, mono for data', anchor: [-0.1, 0.08, -0.08] },
   ],
-  deliverables: placeholderDeliverables('mitooshi', 'Mitooshi'),
+  deliverables: (() => {
+    const d = placeholderDeliverables('mitooshi', 'Mitooshi');
+    // placeholder video deliverable: plays muted as a lit video texture, click opens a player with sound
+    d[5] = { type: 'video', src: '/media/screen-test.mp4', sources: [{ src: '/media/screen-test.webm', type: 'video/webm' }], poster: '/media/screen-test-poster.webp', alt: 'Mitooshi, screen recording (placeholder)' };
+    return d;
+  })(),
 };
 
 export default work;

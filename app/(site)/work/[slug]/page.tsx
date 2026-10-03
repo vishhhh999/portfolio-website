@@ -1,9 +1,10 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getWork, nextWork, works } from '@/content/work';
+import { NextLink } from '@/components/ui/NextLink';
+import { ProofStrip } from '@/components/ui/ProofStrip';
 import { SlugLine } from '@/components/ui/SlugLine';
-import { lampById } from '@/lib/lampPresets';
+import { SpecPlate } from '@/components/ui/SpecPlate';
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -16,7 +17,7 @@ export const dynamicParams = false;
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const work = getWork((await params).slug);
   if (!work) return {};
-  return { title: work.title, description: `${work.title}: ${work.disciplines.join(', ')}. ${work.object}.` };
+  return { title: work.title, description: work.description?.[0] ?? `${work.title}: ${work.disciplines.join(', ')}. ${work.object}.` };
 }
 
 export default async function WorkPage({ params }: Props) {
@@ -24,45 +25,43 @@ export default async function WorkPage({ params }: Props) {
   if (!work) notFound();
   const next = nextWork(work.slug);
   const index = works.indexOf(work) + 1;
+  const serial = 40 + index * 6;
 
   return (
     <article className="work">
       {work.inLineup && <div className="work__stage" aria-hidden="true" />}
       <div className="work__body">
-        <SlugLine id={index} lamp={work.inLineup ? work.nativeLamp : 'ARCHIVE'} />
+        <SlugLine id={serial} lamp={work.inLineup ? work.nativeLamp : 'ARCHIVE'} />
         <h1>{work.title}</h1>
 
-        {/* Spec plate: styled as a calibration label in Phase 5. */}
-        <dl className="specplate">
-          <div><dt>Disciplines</dt><dd>{work.disciplines.join(' · ')}</dd></div>
-          <div><dt>Role</dt><dd>{work.role}</dd></div>
-          <div><dt>Year</dt><dd>{work.year}</dd></div>
-          <div><dt>Scope</dt><dd>{work.scope}</dd></div>
-          <div><dt>Native lamp</dt><dd>{lampById(work.nativeLamp).label}</dd></div>
-        </dl>
+        <div className="work__intro">
+          <SpecPlate work={work} serial={serial} />
+          <div className="work__copy">
+            {work.description?.length ? (
+              work.description.map((p) => <p key={p.slice(0, 32)}>{p}</p>)
+            ) : (
+              <p className="work__tbc">Case copy imports from the live site (TBC).</p>
+            )}
+          </div>
+        </div>
 
         {/* UV annotations, readable without WebGL. */}
         <section className="sr-only" aria-label="Design notes">
           <ul>{work.uvNotes.map((n) => <li key={n.text}>{n.text}</li>)}</ul>
         </section>
 
-        {/* Proof strip: 6 deliverables. Real media + crop marks in Phase 5. */}
-        <ol className="proofstrip">
-          {work.deliverables.map((d, i) => (
-            <li key={d.src} className="proofstrip__frame">
-              <span className="mono">{String(i + 1).padStart(2, '0')}</span>
-              <span className="proofstrip__ph">{d.alt}</span>
-            </li>
-          ))}
-        </ol>
+        <ProofStrip deliverables={work.deliverables} serialBase={serial} />
 
-        {work.behance && (
-          <a href={work.behance} target="_blank" rel="noreferrer">Full proof set ↗</a>
-        )}
-
-        <Link href={`/work/${next.slug}`} scroll={false} className="next">
-          <span className="mono">Next on the tray</span> {next.title} →
-        </Link>
+        <div className="work__links">
+          {work.behance ? (
+            <a href={work.behance} target="_blank" rel="noreferrer" className="proofset">Full proof set ↗</a>
+          ) : (
+            <span className="proofset proofset--tbc">Full proof set ↗ · link TBC</span>
+          )}
+          <NextLink href={`/work/${next.slug}`}>
+            <span className="mono">Next on the tray</span> {next.title} →
+          </NextLink>
+        </div>
       </div>
     </article>
   );

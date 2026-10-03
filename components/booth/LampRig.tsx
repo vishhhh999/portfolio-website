@@ -32,6 +32,7 @@ import { postState } from './Post';
 import { onScreenFrame, sampleScreens, screens, screenSource } from './screens';
 import { BOOTH, TRAY } from './staging';
 import { uvUniforms } from './uvMaterial';
+import { proofUniforms } from './proofUniforms';
 
 const UP = new Vector3(0, 1, 0);
 
@@ -111,6 +112,11 @@ export function LampRig() {
   const plane = useMemo(() => new Plane(new Vector3(0, 0, 1), 0), []);
   const tmp = useMemo(() => ({ v: new Vector3(), dir: new Vector3() }), []);
   const lastLamp = useRef<string | null>(null);
+  const lastHandLamp = useRef<string | null>(null);
+  // pointer in whole-page NDC (for the hand lamp over the proof strip)
+  const ndcPage = useRef(new Vector2(0, 0));
+  const printHand = useMemo(() => ({ pos: new Vector2(), vel: new Vector2(), goal: new Vector2() }), []);
+  const tmp2 = useMemo(() => new Vector2(), []);
 
   useEffect(() => {
     scene.background = bg;
@@ -123,6 +129,7 @@ export function LampRig() {
     const onMove = (e: PointerEvent) => {
       const r = (window.__boothStageRect?.() ?? gl.domElement.getBoundingClientRect()) as DOMRect;
       ndc.current.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+      ndcPage.current.set((e.clientX / window.innerWidth) * 2 - 1, -(e.clientY / window.innerHeight) * 2 + 1);
       if (useBooth.getState().lamp === 'AFTERDARK') invalidate();
     };
     window.addEventListener('pointermove', onMove);
@@ -162,10 +169,17 @@ export function LampRig() {
     if (k.intensity > 0) k.shadow.needsUpdate = true;
 
     let handMoving = false;
+    const handJustOn = lamp === 'AFTERDARK' && lastHandLamp.current !== 'AFTERDARK';
+    lastHandLamp.current = lamp;
     if (lamp === 'AFTERDARK') {
       plane.constant = -(onTray ? TRAY.z : 0);
       ray.setFromCamera(ndc.current, camera);
       if (ray.ray.intersectPlane(plane, tmp.v)) hand.current.goal.copy(tmp.v).setY(Math.max(0.02, tmp.v.y));
+      // switching the hand lamp on: it starts where the pointer is, not flying in from a corner
+      if (handJustOn) {
+        hand.current.pos.copy(hand.current.goal);
+        hand.current.vel.set(0, 0, 0);
+      }
       // critically damped spring (ω = 9): weighty, no overshoot
       const h = hand.current;
       const w = 9;
@@ -223,6 +237,45 @@ export function LampRig() {
       s.material.color.setScalar(P.screens.gain * (0.35 + 0.65 * env) * keep);
       s.light.intensity = P.screens.spill * env * keep;
       s.light.color.copy(s.colour);
+    }
+
+    // ── proof-strip photos: the same lamp, as a print light model ──
+    const pr = P.print;
+    const dpr = gl.getPixelRatio();
+    const level = pr.level * env;
+    if (ramp) proofUniforms.uColour.value.setRGB(...kelvinToAdapted(ramp)).multiplyScalar(level);
+    else proofUniforms.uColour.value.setRGB(...pr.colour).multiplyScalar(level);
+    proofUniforms.uAmbient.value = pr.ambient * env;
+    proofUniforms.uGrad.value.set(pr.grad[0], pr.grad[1], pr.grad[2], 0);
+    if (pr.spot) {
+      const W = window.innerWidth * dpr;
+      const H = window.innerHeight * dpr;
+      const r = pr.spot.r * Math.min(W, H);
+      if (lamp === 'AFTERDARK') {
+        // the hand lamp follows the pointer over the photos too (same critically damped lag)
+        printHand.goal.set(((ndcPage.current.x + 1) / 2) * W, ((ndcPage.current.y + 1) / 2) * H);
+        if (handJustOn) {
+          printHand.pos.copy(printHand.goal);
+          printHand.vel.set(0, 0);
+        }
+        const w = 9;
+        const step = Math.min(dt, 1 / 30);
+        tmp2.copy(printHand.goal).sub(printHand.pos).multiplyScalar(w * w * step).addScaledVector(printHand.vel, -2 * w * step);
+        printHand.vel.add(tmp2);
+        printHand.pos.addScaledVector(printHand.vel, step);
+        if (printHand.vel.lengthSq() > 1e-2) handMoving = true;
+        proofUniforms.uSpot.value.set(printHand.pos.x, printHand.pos.y, r, pr.spot.soft);
+        proofUniforms.uCookie.value = gobo;
+        proofUniforms.uUseCookie.value = 1;
+      } else {
+        proofUniforms.uSpot.value.set(pr.spot.x * W, (1 - pr.spot.y) * H, r, pr.spot.soft);
+        proofUniforms.uUseCookie.value = 0;
+      }
+      proofUniforms.uSpotMix.value = 1;
+      proofUniforms.uSpotOutside.value = pr.spot.outside;
+    } else {
+      proofUniforms.uSpotMix.value = 0;
+      proofUniforms.uUseCookie.value = 0;
     }
 
     // ── fluorescence + post ─────────────────────────

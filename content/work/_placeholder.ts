@@ -6,6 +6,6 @@ export function placeholderFallbacks(slug: string): Record<Lamp, string> {
 }
 
 export function placeholderDeliverables(slug: string, title: string): Work['deliverables'] {
-  const d = (i: number) => ({ type: 'image' as const, src: `/work/${slug}/0${i}.avif`, alt: `${title}, deliverable ${i}` });
+  const d = (i: number) => ({ type: 'image' as const, src: `/work/${slug}/0${i}.webp`, alt: `${title}, deliverable ${i} (placeholder)` });
   return [d(1), d(2), d(3), d(4), d(5), d(6)];
 }

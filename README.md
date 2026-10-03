@@ -30,7 +30,12 @@ npm run build      # production build (also typechecks)
 | `tools/floor-stops.py`, `tools/contact-sheet.py` | Floor evenness per lamp; the 7-lamp contact sheet. |
 | `tools/gen-assets.py` | Regenerates the placeholder checker, calibration card textures, gobo, test video and sounds. |
 | `/?perf` | Frame-time readout in the corner; `window.__boothPerf()` in the console. |
+| `?lampdebug` | Logs a JSON lamp-rig report (with pixel readback) on every lamp change; FLOOD always logs one. |
+| `?gpu=high` / `?gpu=low` | Override GPU tiering (low = proof strip as plain DOM images). |
+| `tools/import-framer.mjs` | Imports copy + deliverables from the live Framer site into `content/work/imported.ts` and `public/work/`. |
+| `tools/behaviour.mjs`, `tools/metrics.mjs`, `tools/check-sizes.mjs` | Behaviour checks; JS sizes, paint timing, plane drift, video; sample sizes in frame. |
+| `tools/make-posters.mjs` + `tools/encode-posters.py` | Re-render the D50 LCP posters after any change to the booth. |
 
 ## Status
 
-Phases 0–2 done (scaffold, booth + house lights, all seven lamps). Next up: Phase 3, UV + SCREEN + AFTER DARK polish (the systems already run; Phase 3 is quality).
+Phases 0–3 done: booth, seven lamps, fixed transparent canvas with a view system on one clock, lit proof strip on project pages. Content import is ready (`node tools/import-framer.mjs`) and waits on network access to the live Framer site.
