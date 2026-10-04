@@ -18,6 +18,7 @@ for (const [name, viewport, mobile] of [['desktop', { width: 1440, height: 900 }
   if (process.env.ONLY && process.env.ONLY !== name) continue;
   const ctx = await browser.newContext({ viewport, isMobile: mobile, hasTouch: mobile, deviceScaleFactor: 1, reducedMotion: 'reduce' });
   const page = await ctx.newPage();
+  page.setDefaultTimeout(180000);
   page.on('console', (m) => m.type() === 'error' && errors.push(name + ': ' + m.text()));
   page.on('pageerror', (e) => errors.push(name + ' pageerror: ' + e.message));
   await page.goto(BASE + '/', { waitUntil: 'networkidle' });

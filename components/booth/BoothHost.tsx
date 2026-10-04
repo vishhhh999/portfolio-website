@@ -3,9 +3,10 @@
 import dynamic from 'next/dynamic';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
-import { getWork, isInLineup } from '@/content/work';
+import { useRouter } from 'next/navigation';
+import { autoHouseLights, failsPerformanceCaveat, setNavigator } from '@/lib/resilience';
+import { isInLineup } from '@/content/work';
 import { lampById } from '@/lib/lampPresets';
-import { switchLamp } from '@/lib/lampController';
 import { useBooth } from '@/lib/store';
 import { onViewsChanged, registerStage, viewCount } from '@/lib/views';
 
@@ -28,7 +29,7 @@ export function boothMode(pathname: string): 'full' | 'header' | 'off' {
  * and the canvas is revealed underneath. The dark-lamp text theme only applies
  * once a dark lamp is actually being drawn.
  */
-export function BoothHost() {
+export function BoothHost({ lightmap = null }: { lightmap?: string | null }) {
   const pathname = usePathname();
   const mode = boothMode(pathname);
   const setActiveSlug = useBooth((s) => s.setActiveSlug);
@@ -37,13 +38,13 @@ export function BoothHost() {
   const [ready, setReady] = useState(false);
   const [hasViews, setHasViews] = useState(false);
   const stageRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
+  useEffect(() => setNavigator((href) => router.replace(href)), [router]);
 
-  // Project pages: the sample goes on the tray under the lamp it was designed for.
+  // Project pages: the sample goes on the tray. The lamp is never changed by a route: it stays
+  // whatever the visitor picked (D50 until they pick); the native lamp is offered as a chip.
   useEffect(() => {
-    const slug = mode === 'header' ? pathname.split('/')[2] : null;
-    setActiveSlug(slug);
-    const work = slug ? getWork(slug) : null;
-    if (work) switchLamp(work.nativeLamp);
+    setActiveSlug(mode === 'header' ? pathname.split('/')[2] : null);
   }, [pathname, mode, setActiveSlug]);
 
   useEffect(() => {
@@ -65,18 +66,23 @@ export function BoothHost() {
     root.dataset.dark = String(ready && mode === 'header' && lampById(lamp).dark);
   }, [lamp, mode, ready]);
 
-  // Load the 3D after first paint, as soon as there is anything for it to draw.
+  // Load the 3D after first paint, as soon as there is anything for it to draw. A GPU that fails
+  // the browser's major-performance-caveat test (software rendering) gets house lights instead.
   useEffect(() => {
     if (mounted || !hasViews) return;
+    if (mode !== 'off' && failsPerformanceCaveat()) {
+      autoHouseLights('speed');
+      return;
+    }
     const idle = window.requestIdleCallback ?? ((cb: () => void) => window.setTimeout(cb, 120));
     const id = idle(() => setMounted(true), { timeout: 1200 });
     return () => (window.cancelIdleCallback ?? window.clearTimeout)(id as number);
-  }, [hasViews, mounted]);
+  }, [hasViews, mounted, mode]);
 
   return (
     <>
       <div className="booth-canvas" data-visible={hasViews} aria-hidden="true">
-        {mounted && <BoothCanvas onReady={() => setReady(true)} />}
+        {mounted && <BoothCanvas onReady={() => setReady(true)} lightmap={lightmap} />}
       </div>
       {mode !== 'off' && (
         <div ref={stageRef} className="booth-stage" data-mode={mode} data-ready={ready} aria-hidden="true">

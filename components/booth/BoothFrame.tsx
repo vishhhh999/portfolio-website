@@ -4,7 +4,9 @@ import Link from 'next/link';
 import { useEffect, useRef } from 'react';
 import { useBooth } from '@/lib/store';
 import { registerFrame } from '@/lib/views';
+import { playEvent } from '@/lib/sound';
 import { CABINET_FACE } from './staging';
+import { BoothFocus } from './BoothFocus';
 
 export type FrameSample = { slug: string; title: string; meta: string };
 
@@ -28,6 +30,7 @@ export function BoothFrame({ samples }: { samples: FrameSample[] }) {
 
   const go = (d: number) => {
     const i = Math.min(samples.length - 1, Math.max(0, index + d));
+    if (i !== index) playEvent('swipe', d > 0 ? window.innerWidth * 0.7 : window.innerWidth * 0.3);
     setFocus(samples[i].slug);
   };
 
@@ -47,6 +50,7 @@ export function BoothFrame({ samples }: { samples: FrameSample[] }) {
 
   return (
     <div className="booth-frame-wrap">
+      <BoothFocus samples={samples} />
       <div
         ref={ref}
         className="booth-frame"

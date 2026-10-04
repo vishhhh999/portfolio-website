@@ -5,7 +5,9 @@ import { useEffect, useMemo, useRef } from 'react';
 import {
   DataTexture,
   Mesh,
+  NearestFilter,
   OrthographicCamera,
+  RepeatWrapping,
   PlaneGeometry,
   RGBAFormat,
   Scene,
@@ -18,7 +20,7 @@ import {
 import { onViewsChanged, planeEntries, planeRect } from '@/lib/views';
 import { proofLayer } from './Post';
 import { proofUniforms } from './proofUniforms';
-import { uvUniforms } from './uvMaterial';
+import { createProofInk, uvUniforms } from './uvMaterial';
 
 const black = (() => {
   const t = new DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1, RGBAFormat);
@@ -27,12 +29,11 @@ const black = (() => {
 })();
 
 /**
- * A printed photograph under the booth's lamp. The image is display-referred,
- * so it is first lifted back through the inverse of the neutral tone curve:
- * under D50 at level 1 it comes out of the post chain looking exactly like the
- * file. Then the active lamp's print model lights it (colour, falloff, pool or
- * hand lamp), and the same fluorMask / uvInk slots as the 3D objects glow under UV.
- * The colour matrix and tone mapping are applied by the shared post pass.
+ * A printed photograph under the booth's lamp. The image is display-referred and the post chain
+ * leaves proof pixels untone-mapped (tone mapping is the booth's only), so at D50 level 1 this
+ * outputs the file itself. The active lamp's print model lights it (colour, falloff, pool or hand
+ * lamp), and the same fluorMask / uvInk slots as the 3D objects glow under UV. Last, a ±0.5/255
+ * blue-noise dither: relighting never adds banding of its own (it does not smooth the source).
  */
 function printMaterial(map: Texture, fluor: Texture | null, ink: Texture | null, withUV: boolean) {
   return new ShaderMaterial({
@@ -45,12 +46,13 @@ function printMaterial(map: Texture, fluor: Texture | null, ink: Texture | null,
       uFluorMask: { value: fluor ?? black },
       uUvInk: { value: ink ?? black },
       uHasUV: { value: fluor || ink ? 1 : 0 },
+      uBlueNoise: { value: blueNoise() },
     },
     vertexShader: /* glsl */ `
       varying vec2 vUv;
       void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
     fragmentShader: /* glsl */ `
-      uniform sampler2D map, uFluorMask, uUvInk, uCookie;
+      uniform sampler2D map, uFluorMask, uUvInk, uCookie, uBlueNoise;
       uniform vec3 uColour, uFluorColor, uInkColor;
       uniform float uAmbient, uSpotMix, uSpotOutside, uUseCookie, uProofUV, uFluorGain, uInkGain, uHasUV, uFloor;
       uniform mat3 uNeutralize;
@@ -58,18 +60,12 @@ function printMaterial(map: Texture, fluor: Texture | null, ink: Texture | null,
       uniform vec2 uBuffer;
       varying vec2 vUv;
 
-      // inverse of Khronos PBR Neutral's highlight compression (start 0.76)
-      vec3 unNeutral(vec3 c) {
-        c = min(c, vec3(0.985));
-        float peak = max(c.r, max(c.g, c.b));
-        if (peak <= 0.76) return c;
-        float d = 0.24;
-        float p = d * d / (1.0 - peak) - d + 0.76;
-        return c * (p / peak);
-      }
+      // linear <-> sRGB transfer, so the dither lands on the 8-bit output steps
+      vec3 toSRGB(vec3 c) { return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, c)); }
+      vec3 toLinear(vec3 c) { return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(0.04045, c)); }
 
       void main() {
-        vec3 base = unNeutral(texture2D(map, vUv).rgb);
+        vec3 base = texture2D(map, vUv).rgb;
         vec2 frag = gl_FragCoord.xy;
         vec2 c = frag / uBuffer * 2.0 - 1.0;
         float g = 1.0 - uGrad.z * (1.0 - (dot(normalize(uGrad.xy + 1e-5), c) * 0.5 + 0.5));
@@ -94,11 +90,26 @@ function printMaterial(map: Texture, fluor: Texture | null, ink: Texture | null,
         #ifdef PRINT_UV
           col += uProofUV * (uFluorGain * uFluorColor * texture2D(uFluorMask, vUv).rgb + uInkGain * uInkColor * texture2D(uUvInk, vUv).r);
         #endif
-        gl_FragColor = vec4(max(uNeutralize * col, 0.0), 1.0);
+        col = max(uNeutralize * col, 0.0);
+        float n = texture2D(uBlueNoise, gl_FragCoord.xy / 64.0).r - 0.5;
+        col = toLinear(clamp(toSRGB(col) + n / 255.0, 0.0, 1.0));
+        gl_FragColor = vec4(col, 1.0);
       }`,
     depthTest: false,
     depthWrite: false,
   });
+}
+
+let noiseTex: Texture | null = null;
+/** 64×64 blue-noise tile (tools/gen-bluenoise.py), nearest-sampled and repeated in screen pixels. */
+function blueNoise() {
+  if (!noiseTex) {
+    noiseTex = new TextureLoader().load('/textures/bluenoise64.png');
+    noiseTex.wrapS = noiseTex.wrapT = RepeatWrapping;
+    noiseTex.magFilter = noiseTex.minFilter = NearestFilter;
+    noiseTex.generateMipmaps = false;
+  }
+  return noiseTex;
 }
 
 type PlaneObj = {
@@ -157,7 +168,7 @@ export function ProofLayer() {
       for (const [id, spec] of entries) {
         if (objs.current.has(id)) continue;
         // created lazily, once the frame comes within a viewport of the screen (see useFrame)
-        objs.current.set(id, { mesh: null, ready: false, announced: false, hasUV: !!(spec.fluorMask || spec.uvInk) });
+        objs.current.set(id, { mesh: null, ready: false, announced: false, hasUV: !!(spec.fluorMask || spec.uvInk || spec.inkNotes?.length) });
       }
       invalidate();
     };
@@ -187,7 +198,11 @@ export function ProofLayer() {
       }
       obj.map = map;
       obj.base = printMaterial(map, null, null, false);
-      if (obj.hasUV) obj.uvMaps = [load(spec.fluorMask, true), load(spec.uvInk)];
+      if (obj.hasUV) {
+        const r = spec.el.getBoundingClientRect();
+        const ink = spec.inkNotes?.length ? createProofInk(spec.inkNotes, r.width / Math.max(1, r.height)) : load(spec.uvInk);
+        obj.uvMaps = [load(spec.fluorMask, true), ink];
+      }
       obj.mesh = new Mesh(geo, obj.base);
       obj.mesh.visible = false;
       obj.mesh.frustumCulled = false;

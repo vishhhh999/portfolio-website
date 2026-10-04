@@ -1,20 +1,19 @@
 import type { Work } from '@/lib/types';
 import { placeholderDeliverables, placeholderFallbacks } from './_placeholder';
 
-// TODO(vish): confirm year, role, scope, Behance URL.
 const work: Work = {
   slug: 'house-of-hex',
   title: 'House of Hex',
   disciplines: ['Product UI', 'Brand'],
   year: 2025,
-  role: 'TBC',
-  scope: 'TBC',
+  role: '',
+  scope: '',
   inLineup: true,
   nativeLamp: 'SCREEN',
   glb: '',
-  object: 'Phone on a small stand',
+  object: 'Phone on a stand showing the House of Hex logo',
   fallbacks: placeholderFallbacks('house-of-hex'),
-  // UV notes: none until approved by Vishesh (drafts in content/uv-notes-draft.md)
+  // UV notes: the approved set is applied in corrections.ts
   uvNotes: [],
   deliverables: placeholderDeliverables('house-of-hex', 'House of Hex'),
 };

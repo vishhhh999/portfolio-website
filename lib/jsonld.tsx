@@ -1,3 +1,4 @@
+import { SOCIALS } from './site';
 import type { Work } from '@/lib/types';
 import { CONTACT_EMAIL, SITE_NAME, SITE_URL } from '@/lib/site';
 
@@ -16,7 +17,7 @@ export const personLd = {
   email: `mailto:${CONTACT_EMAIL}`,
   address: { '@type': 'PostalAddress', addressCountry: 'IN' },
   knowsAbout: ['Brand identity', 'Packaging design', 'Editorial design', 'Web design', 'Product design', '3D visualization'],
-  sameAs: ['https://www.behance.net/visheshmahendru', 'https://www.linkedin.com/in/visheshmahendru/'],
+  sameAs: SOCIALS.map((s) => s.href),
 };
 
 export function workLd(w: Work) {

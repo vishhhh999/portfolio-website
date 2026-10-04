@@ -5,6 +5,8 @@ export type UvNote = {
   text: string;
   /** Object-local position in metres, origin at base centre. */
   anchor: [number, number, number];
+  /** Where the same note sits on the project's first proof image (0–1 from the top left). */
+  proof?: [number, number];
 };
 
 export type Deliverable = {
@@ -21,6 +23,8 @@ export type Deliverable = {
   height?: number;
   /** Extra encodings for video deliverables, tried before `src` (e.g. WebM VP9, then the MP4 in src). */
   sources?: { src: string; type: string }[];
+  /** UV notes printed on this proof in invisible ink (the first proof of each project). */
+  inkNotes?: { text: string; at: [number, number] }[];
 };
 
 export type Work = {
@@ -30,11 +34,12 @@ export type Work = {
   description?: string[];
   /** Headed case sections that follow the intro, imported as written. */
   sections?: { heading: string; body: string[] }[];
-  /** The shipped site, for web projects. */
+  /** The shipped site, for web projects (import only; shown through `links`). */
   live?: string;
   client?: string;
   clientType?: string;
-  credits?: string;
+  /** Outbound link buttons (new tab). Only projects with a real destination have one. */
+  links?: { label: string; href: string }[];
   disciplines: string[];
   year: number;
   role: string;
@@ -42,13 +47,19 @@ export type Work = {
   nativeLamp: Lamp;
   /** R2 URL. Empty until the Blender asset lands (Phase 4). */
   glb: string;
+  /**
+   * The booth object from Blender (tools/optimize-models.mjs output), in real-world metres. Without
+   * one, the procedural object for the project is used. Its display scale is the staging's
+   * (components/booth/staging.ts); `rotation` is Euler radians; `plinthOffset` lifts it off its
+   * base (metres) if its origin is not at its base; `frontSide` for closed meshes exported two-sided.
+   */
+  model?: { src: string; mobile: string; rotation?: [number, number, number]; plinthOffset?: number; frontSide?: boolean };
   /** Pre-rendered still per lamp (Phase 6). */
   fallbacks: Record<Lamp, string>;
   /** Approved proofer's notes only (shown under UV). Empty until Vishesh approves them. */
   uvNotes: UvNote[];
   /** Six is the target; when the live site has fewer, the real ones are shown rather than padded with placeholders. */
   deliverables: Deliverable[];
-  behance?: string;
   /** false = archive only: not on the booth floor, listed in /archive and /house-lights. */
   inLineup: boolean;
   /** Hero object description, used for alt text and the house-lights index. */

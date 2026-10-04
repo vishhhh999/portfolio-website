@@ -1,127 +1,110 @@
-import { Color, SRGBColorSpace, TextureLoader, VideoTexture, type MeshBasicMaterial, type RectAreaLight, type Texture } from 'three';
+import { CanvasTexture, Color, SRGBColorSpace, type Material, type RectAreaLight, type Texture } from 'three';
 
 /**
- * Device screens. Devices are always on: under every lamp each screen shows a
- * still frame at a plausible emissive level. In SCREEN mode the still swaps to
- * the live looping video (same sampler, no shader recompile) and the screens
- * become the only light: each screen's RectAreaLight takes the average colour
- * of its region of the video, sampled from a tiny canvas every ~10 frames, so
- * the spill on the floor follows what is on screen.
+ * Device screens. Each screen shows its project's logo, centred on the brand's background colour
+ * (public/brand/<slug>/logo.svg + bg.txt). Devices are always on: the lamp rig sets the emissive
+ * level per lamp (bright and spilling onto the floor under SCREEN, a small glow under AFTER DARK,
+ * plausible under the room lamps, where the glass on top reflects the booth). Each screen's spill
+ * light takes the average colour of what it shows.
  *
- * Placeholder media: one shared test video + still; each device shows its own
- * horizontal region. Real captures (Phase 4) replace both files.
+ * If a project has no logo files, the screen falls back to the project's first still, cropped to
+ * the screen's aspect. Never placeholder "UI".
  */
-export type ScreenRegion = [u0: number, u1: number];
-export const REGIONS = {
-  laptop: [0, 0.5] as ScreenRegion,
-  tablet: [0.5, 0.75] as ScreenRegion,
-  phone: [0.75, 1] as ScreenRegion,
-};
 
 /** `light` is null on the mobile tier: one combined spill light in the lamp rig stands in for all screens. */
-type ScreenEntry = { material: MeshBasicMaterial; light: RectAreaLight | null; region: ScreenRegion; colour: Color };
+export type ScreenEntry = { material: Material & { emissiveIntensity?: number; userData: Record<string, unknown> }; light: RectAreaLight | null; colour: Color };
 export const screens = new Set<ScreenEntry>();
 
-let poster: Texture | null = null;
-let video: HTMLVideoElement | null = null;
-let videoTex: VideoTexture | null = null;
 const frameListeners = new Set<() => void>();
-
-/** Notified when new screen content is ready to draw (poster loaded, or video ready). */
+/** Notified when new screen content is ready to draw. */
 export function onScreenFrame(cb: () => void) {
   frameListeners.add(cb);
   return () => void frameListeners.delete(cb);
 }
 const notify = () => frameListeners.forEach((cb) => cb());
 
-/** The still frame: a plain image texture, so it uploads reliably on every GPU. */
-export function getPosterTexture(): Texture {
-  if (poster) return poster;
-  poster = new TextureLoader().load('/media/screen-test-poster.webp', () => {
-    samplePoster();
-    notify();
+const loadImage = (src: string) =>
+  new Promise<HTMLImageElement>((resolve, reject) => {
+    const img = new Image();
+    img.decoding = 'async';
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
   });
-  poster.colorSpace = SRGBColorSpace;
-  return poster;
-}
 
-/** The live video, created on first use (SCREEN mode) or idle preload. */
-export function getVideoTexture(): VideoTexture {
-  if (videoTex) return videoTex;
-  video = document.createElement('video');
-  video.muted = true;
-  video.loop = true;
-  video.playsInline = true;
-  video.crossOrigin = 'anonymous';
-  video.preload = 'auto';
-  for (const [src, type] of [
-    ['/media/screen-test.webm', 'video/webm'],
-    ['/media/screen-test.mp4', 'video/mp4'],
-  ]) {
-    const s = document.createElement('source');
-    s.src = src;
-    s.type = type;
-    video.appendChild(s);
-  }
-  video.addEventListener('loadeddata', notify, { once: true });
-  video.load();
-  videoTex = new VideoTexture(video);
-  videoTex.colorSpace = SRGBColorSpace;
-  return videoTex;
-}
-
-/** Live video in SCREEN mode, still frame otherwise. Returns the texture screens should show. */
-export function screenSource(live: boolean): Texture {
-  if (!live) {
-    if (video && !video.paused) video.pause();
-    return getPosterTexture();
-  }
-  const tex = getVideoTexture();
-  if (video!.paused) void video!.play().catch(() => {});
-  return video!.readyState >= 2 ? tex : getPosterTexture();
-}
-
-const SW = 32;
-const SH = 9;
-let sampler: CanvasRenderingContext2D | null = null;
-let frame = 0;
-
-function ctx() {
-  if (!sampler) {
-    const c = document.createElement('canvas');
-    c.width = SW;
-    c.height = SH;
-    sampler = c.getContext('2d', { willReadFrequently: true });
-  }
-  return sampler;
-}
-
-function averageRegions(source: CanvasImageSource) {
-  const g = ctx();
-  if (!g) return;
-  g.drawImage(source, 0, 0, SW, SH);
-  const px = g.getImageData(0, 0, SW, SH).data;
-  for (const s of screens) {
-    const x0 = Math.floor(s.region[0] * SW);
-    const x1 = Math.max(x0 + 1, Math.floor(s.region[1] * SW));
-    let r = 0, gg = 0, b = 0, n = 0;
-    for (let y = 0; y < SH; y++)
-      for (let x = x0; x < x1; x++) {
-        const i = (y * SW + x) * 4;
-        r += px[i]; gg += px[i + 1]; b += px[i + 2]; n++;
-      }
-    s.colour.setRGB(r / n / 255, gg / n / 255, b / n / 255, SRGBColorSpace);
+async function brand(slug: string): Promise<{ logo: HTMLImageElement; bg: string } | null> {
+  try {
+    const res = await fetch(`/brand/${slug}/bg.txt`);
+    if (!res.ok) return null;
+    const bg = (await res.text()).trim();
+    if (!/^#[0-9a-f]{6}$/i.test(bg)) return null;
+    const logo = await loadImage(`/brand/${slug}/logo.svg`).catch(() => loadImage(`/brand/${slug}/logo.png`));
+    return { logo, bg };
+  } catch {
+    return null;
   }
 }
 
-function samplePoster() {
-  const img = poster?.image as HTMLImageElement | undefined;
-  if (img && img.complete) averageRegions(img);
-}
+const cache = new Map<string, { texture: CanvasTexture; colour: Color }>();
 
-/** Spill colours from the live video. Cheap: 32×9 readback every 10 frames. */
-export function sampleScreens() {
-  if (!video || video.readyState < 2) return;
-  if (frame++ % 10 !== 0) return;
-  averageRegions(video);
+/**
+ * The screen image for a project at a screen aspect (w / h). Returns at once with a dark texture
+ * and draws into it when the logo (or the fallback still) has loaded.
+ */
+export function screenTexture(slug: string, aspect: number, fallbackStill: string): { texture: Texture; colour: Color } {
+  const key = `${slug}@${aspect.toFixed(3)}`;
+  const hit = cache.get(key);
+  if (hit) return hit;
+  const W = aspect >= 1 ? 1024 : Math.round(1024 * aspect);
+  const H = Math.round(W / aspect);
+  const canvas = document.createElement('canvas');
+  canvas.width = W;
+  canvas.height = H;
+  const g = canvas.getContext('2d')!;
+  g.fillStyle = '#050506';
+  g.fillRect(0, 0, W, H);
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  texture.anisotropy = 8;
+  const colour = new Color(0.05, 0.05, 0.06);
+  const entry = { texture, colour };
+  cache.set(key, entry);
+
+  void (async () => {
+    const b = await brand(slug);
+    if (b) {
+      g.fillStyle = b.bg;
+      g.fillRect(0, 0, W, H);
+      // the logo fills 46% of the screen's short side, centred, at its own aspect
+      const la = b.logo.naturalWidth / Math.max(1, b.logo.naturalHeight) || 1;
+      const box = Math.min(W, H) * 0.46;
+      const lw = la >= 1 ? Math.min(W * 0.62, box * la) : box * la;
+      const lh = lw / la;
+      g.drawImage(b.logo, (W - lw) / 2, (H - lh) / 2, lw, lh);
+    } else {
+      // no logo files: the first still, cropped to the screen (cover)
+      const img = await loadImage(fallbackStill).catch(() => null);
+      if (!img) return;
+      const ia = img.naturalWidth / img.naturalHeight;
+      const sw = ia > aspect ? img.naturalHeight * aspect : img.naturalWidth;
+      const sh = ia > aspect ? img.naturalHeight : img.naturalWidth / aspect;
+      g.drawImage(img, (img.naturalWidth - sw) / 2, (img.naturalHeight - sh) / 2, sw, sh, 0, 0, W, H);
+    }
+    // the spill colour: the screen's average
+    const s = document.createElement('canvas');
+    s.width = s.height = 8;
+    const sg = s.getContext('2d', { willReadFrequently: true })!;
+    sg.drawImage(canvas, 0, 0, 8, 8);
+    const px = sg.getImageData(0, 0, 8, 8).data;
+    let r = 0, gg = 0, bl = 0;
+    for (let i = 0; i < px.length; i += 4) {
+      r += px[i];
+      gg += px[i + 1];
+      bl += px[i + 2];
+    }
+    colour.setRGB(r / 64 / 255, gg / 64 / 255, bl / 64 / 255, SRGBColorSpace);
+    texture.needsUpdate = true;
+    notify();
+  })();
+  return entry;
 }

@@ -28,17 +28,22 @@ import {
   type Texture,
 } from 'three';
 import { kelvinToAdapted } from '@/lib/kelvin';
-import { lampById, strikeEnvelope, strikeKelvin } from '@/lib/lampPresets';
+import { lampById, strikeChannels, strikeKelvin } from '@/lib/lampPresets';
 import { useBooth } from '@/lib/store';
-import { ceilingMaterial, diffuserMaterial, getBlobMaterial } from './BoothRoom';
+import { ceilingMaterial, diffuserMaterial, getBlobMaterial, lightmapTint } from './BoothRoom';
 import { postState } from './Post';
-import { onScreenFrame, sampleScreens, screens, screenSource } from './screens';
+import { onScreenFrame, screens } from './screens';
 import { BOOTH, TRAY } from './staging';
+import { boothEnvironment, ENV_INTENSITY } from './environment';
 import { uvUniforms } from './uvMaterial';
 import { PRINT_FLOORS, proofUniforms } from './proofUniforms';
 import { isMobileTier } from '@/lib/perfTier';
 
 const D50_PRINT = lampById('D50').print;
+
+/** Bumped on resize and DPR steps: cached shadow maps must re-render. */
+export const shadowEpoch = { value: 0 };
+export const invalidateShadows = () => void shadowEpoch.value++;
 const tmpSpill = new Color();
 
 const UP = new Vector3(0, 1, 0);
@@ -127,7 +132,7 @@ export function LampRig() {
   const plane = useMemo(() => new Plane(new Vector3(0, 0, 1), 0), []);
   const tmp = useMemo(() => ({ v: new Vector3(), dir: new Vector3() }), []);
   const lastLamp = useRef<string | null>(null);
-  const shadowKey = useRef<{ lamp: string | null; slug: string | null }>({ lamp: null, slug: null });
+  const shadowKey = useRef<{ lamp: string | null; slug: string | null; focus: string | null; epoch: number }>({ lamp: null, slug: null, focus: null, epoch: -1 });
   const shadowUntil = useRef(0);
   const handWasMoving = useRef(false);
   const lastHandLamp = useRef<string | null>(null);
@@ -140,7 +145,20 @@ export function LampRig() {
   useEffect(() => {
     scene.background = null;
   }, [scene]);
+
+  // Image-based light: the booth's own interior as a PMREM, re-tinted per lamp (built once each).
+  const lampNow = useBooth((st) => st.lamp);
+  useEffect(() => {
+    scene.environment = boothEnvironment(gl, lampNow);
+    invalidate();
+  }, [gl, scene, lampNow, invalidate]);
   useEffect(() => useBooth.subscribe(() => invalidate()), [invalidate]);
+  const size = useThree((s) => s.size);
+  const dprNow = useThree((s) => s.viewport.dpr);
+  useEffect(() => {
+    invalidateShadows();
+    invalidate();
+  }, [size.width, size.height, dprNow, invalidate]);
   useEffect(() => onScreenFrame(() => invalidate()), [invalidate]);
 
   useEffect(() => {
@@ -157,9 +175,14 @@ export function LampRig() {
   useFrame((_, dt) => {
     const { lamp, strikeProgress, activeSlug } = useBooth.getState();
     const P = lampById(lamp);
-    const env = strikeEnvelope(P.strike.curve, strikeProgress);
+    const ch = strikeChannels(P.strike.curve, strikeProgress);
+    const env = ch.light;
     const ramp = strikeKelvin(P.strike.curve, strikeProgress);
     const onTray = activeSlug !== null;
+
+    scene.environmentIntensity = ENV_INTENSITY[lamp] * env;
+    // a baked shell lightmap (if any) is bounce light: the lamp's colour at its bounce level
+    lightmapTint.value.setRGB(...P.fill.sky).multiplyScalar((P.fill.intensity + P.panel.intensity * 0.25) * env);
 
     // ── ceiling panel + its visible diffuser ────────
     const pl = panel.current!;
@@ -187,9 +210,13 @@ export function LampRig() {
     // The booth is static: the shadow map (VSM: a depth pass + two blur passes) re-renders only
     // when something changes it: a lamp strike or switch, samples moving to/from the tray, or the
     // hand lamp moving. Never under D50 (shadow intensity 0). The measured top per-frame cost otherwise.
+    // Anything that moves a caster or the shadow camera re-renders the map for a while: a lamp
+    // change, the tray, a swipe to another sample, a resize or a DPR step (shadowEpoch).
     const nowMs = performance.now();
-    if (lamp !== shadowKey.current.lamp || activeSlug !== shadowKey.current.slug) {
-      shadowKey.current = { lamp, slug: activeSlug };
+    const { focusSlug } = useBooth.getState();
+    const sk = shadowKey.current;
+    if (lamp !== sk.lamp || activeSlug !== sk.slug || focusSlug !== sk.focus || shadowEpoch.value !== sk.epoch) {
+      shadowKey.current = { lamp, slug: activeSlug, focus: focusSlug, epoch: shadowEpoch.value };
       shadowUntil.current = nowMs + 2500;
     }
     k.shadow.autoUpdate = false;
@@ -255,25 +282,22 @@ export function LampRig() {
       (hazeMat.uniforms.uColour.value as Color).copy(k.color);
     }
 
-    // ── screens: always on; live video + spill only in SCREEN ──
-    const src = screenSource(P.screens.live);
-    if (P.screens.live) sampleScreens();
+    // ── screens: always on (the logo as an emissive layer under glass); spill only where the lamp says ──
     let spillSum = 0;
     const spillColour = tmpSpill.setRGB(0, 0, 0);
     for (const s of screens) {
       const keep = 1 - ((s.material.userData.dim as number | undefined) ?? 0);
-      if (s.material.map !== src) s.material.map = src;
-      s.material.color.setScalar(P.screens.gain * (0.35 + 0.65 * env) * keep);
+      s.material.emissiveIntensity = P.screens.gain * (0.35 + 0.65 * ch.screens) * keep;
       if (s.light) {
-        s.light.intensity = P.screens.spill * env * keep;
+        s.light.intensity = P.screens.spill * ch.spill * keep;
         s.light.color.copy(s.colour);
       }
       spillSum += keep;
       spillColour.add(s.colour);
     }
     if (spill.current) {
-      // the three screens' area together, from one light across the back row
-      spill.current.intensity = screens.size ? (P.screens.spill * env * spillSum * 0.45) : 0;
+      // the screens' area together, from one light across the back row
+      spill.current.intensity = screens.size ? P.screens.spill * ch.spill * spillSum * 0.45 : 0;
       spill.current.color.copy(screens.size ? spillColour.multiplyScalar(1 / screens.size) : spillColour);
     }
 
@@ -290,7 +314,7 @@ export function LampRig() {
     else proofUniforms.uColour.value.setRGB(...pr.colour).multiplyScalar(level);
     proofUniforms.uAmbient.value = pr.ambient * penv;
     proofUniforms.uFloor.value = picked ? (PRINT_FLOORS[lamp] ?? 0) : 0;
-    proofUniforms.uProofUV.value = picked ? P.uv * env : 0;
+    proofUniforms.uProofUV.value = picked ? P.uv * ch.uv : 0;
     proofUniforms.uGrad.value.set(pr.grad[0], pr.grad[1], pr.grad[2], 0);
     if (pr.spot) {
       const W = window.innerWidth * dpr;
@@ -324,11 +348,12 @@ export function LampRig() {
     }
 
     // ── fluorescence + post ─────────────────────────
-    uvUniforms.uUV.value = P.uv * env;
+    uvUniforms.uUV.value = P.uv * ch.uv;
     // mobile: bloom under UV makes no visible difference (A/B: 0.06% of pixels change), so it is off there
     postState.bloomIntensity = mobile && lamp === 'UV' ? 0 : P.bloom.intensity * env;
     postState.bloomThreshold = P.bloom.threshold;
     postState.grain = P.grain;
+    postState.exposure = P.exposure * ch.exposure;
     postState.matrix.fromArray(P.matrix).transpose(); // fromArray is column-major; presets are row-major
     if (useBooth.getState().lampPicked) proofUniforms.uNeutralize.value.identity();
     else proofUniforms.uNeutralize.value.copy(postState.matrix).invert();
@@ -366,18 +391,17 @@ export function LampRig() {
   return (
     <>
       <rectAreaLight ref={panel} rotation={[-Math.PI / 2, 0, 0]} />
-      {mobile && <rectAreaLight ref={spill} width={0.9} height={0.18} position={[0.1, 0.32, -0.2]} rotation={[0, Math.PI, 0]} intensity={0} />}
+      {mobile && <rectAreaLight ref={spill} width={0.8} height={0.16} position={[0, 0.42, -0.2]} rotation={[0, Math.PI, 0]} intensity={0} />}
       <primitive object={keyTarget} />
       <spotLight
         ref={key}
         target={keyTarget}
         castShadow
         shadow-mapSize={mobile ? [1024, 1024] : [2048, 2048]}
-        shadow-bias={-0.0006}
-        shadow-normalBias={0.02}
-        shadow-blurSamples={16}
-        shadow-camera-near={0.25}
-        shadow-camera-far={3.5}
+        shadow-bias={-0.0004}
+        shadow-normalBias={0.012}
+        shadow-camera-near={0.1}
+        shadow-camera-far={3}
         map={white}
       />
       <hemisphereLight ref={fill} />

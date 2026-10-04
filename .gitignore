@@ -13,3 +13,5 @@ tools/lamp-review/
 tools/import/source/
 # Throwaway local scripts
 tools/_*.mjs
+# Masters release download (tools/import-masters.mjs)
+tools/import/masters/

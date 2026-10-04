@@ -1,7 +1,14 @@
 import type { Metadata, Viewport } from 'next';
-import { GeistSans } from 'geist/font/sans';
-import { GeistMono } from 'geist/font/mono';
+import localFont from 'next/font/local';
+import { Analytics } from '@vercel/analytics/next';
 import './globals.css';
+
+/**
+ * Geist + Geist Mono, subset to the characters the site uses (tools/subset-fonts.sh: 141 KB → 50 KB),
+ * preloaded, swapped in over metric-matched fallbacks so nothing shifts.
+ */
+const GeistSans = localFont({ src: './fonts/geist-sans-subset.woff2', variable: '--font-geist-sans', weight: '100 900', display: 'swap', preload: true, adjustFontFallback: 'Arial' });
+const GeistMono = localFont({ src: './fonts/geist-mono-subset.woff2', variable: '--font-geist-mono', weight: '100 900', display: 'swap', preload: true, adjustFontFallback: false, fallback: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'] });
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://www.visheshmahendru.com'),
@@ -30,10 +37,11 @@ export const metadata: Metadata = {
 export const viewport: Viewport = { themeColor: '#A8A8A6' };
 
 /**
- * Runs before first paint: a visitor who chose house lights never sees the booth flash on /.
- * Same key as lib/store.ts. Only the visitor's own toggle ever sets it.
+ * Runs before first paint: the visitor's lamp pick for this session is on <html data-lamp> before
+ * anything renders, and a visitor who chose house lights never sees the booth flash on /.
+ * Same keys as lib/store.ts. Only the visitor's own choices ever set them.
  */
-const HOUSE_LIGHTS_BOOT = `(function(){try{if(location.pathname==='/'&&localStorage.getItem('vm:houseLights:v2')==='1'){document.documentElement.setAttribute('data-house-lights-redirect','');location.replace('/house-lights'+location.search+location.hash);}}catch(e){}})();`;
+const HOUSE_LIGHTS_BOOT = `(function(){try{var l=sessionStorage.getItem('vm:lamp:v1');if(l)document.documentElement.setAttribute('data-lamp',l);}catch(e){}try{if(localStorage.getItem('vm:houseLights:v2')==='1'||sessionStorage.getItem('vm:autoHouseLights:v1')==='1')document.documentElement.setAttribute('data-house-lights-pref','');}catch(e){}try{if(location.pathname==='/'&&(localStorage.getItem('vm:houseLights:v2')==='1'||sessionStorage.getItem('vm:autoHouseLights:v1')==='1')){document.documentElement.setAttribute('data-house-lights-redirect','');location.replace('/house-lights'+location.search+location.hash);}}catch(e){}})();`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -41,7 +49,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <script dangerouslySetInnerHTML={{ __html: HOUSE_LIGHTS_BOOT }} />
       </head>
-      <body>{children}</body>
+      <body>
+        {children}
+        <Analytics />
+      </body>
     </html>
   );
 }

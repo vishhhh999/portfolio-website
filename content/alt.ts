@@ -1,8 +1,8 @@
 /**
  * Alt text overrides, applied over the Framer import (which re-generates imported.ts).
  * Keyed by project slug, then 1-based deliverable position.
- * DRAFT: the videos had no alt on Framer; these are written from the footage and await
- * Vishesh's approval (content/alt-draft.md).
+ * The videos had no alt on Framer; these were written from the footage (content/alt-draft.md)
+ * and ship as approved, with Vish changing any by exception.
  */
 export const ALT: Record<string, Record<number, string>> = {
   'house-of-hex': {

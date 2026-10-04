@@ -5,6 +5,7 @@ import { litPlanesEnabled } from '@/lib/gpuTier';
 import { useBooth } from '@/lib/store';
 import type { Deliverable } from '@/lib/types';
 import { registerPlane } from '@/lib/views';
+import { avifFor } from '@/content/masters';
 
 const BAR = ['#009ee0', '#e2007a', '#ffed00', '#1e1e1e', '#e2231a', '#009640', '#2d2e83', '#f3f3f2', '#a0a0a0', '#555555'];
 
@@ -20,9 +21,9 @@ function RegTarget({ className }: { className: string }) {
 
 /**
  * One frame of the proof strip. The DOM <img>/<video> always stays in the
- * layout (SEO, accessibility, fallback). On capable GPUs it registers as a
- * lit WebGL plane and is visually hidden once the plane has drawn, so the
- * active lamp relights the photograph itself.
+ * layout (SEO, accessibility, fallback) and is what shows under D50. On
+ * capable GPUs, under any other lamp, it registers as a lit WebGL plane and
+ * fades out once the plane has drawn, so the lamp relights the photograph.
  */
 const aspectOf = (d: Deliverable) => (d.width && d.height ? d.width / d.height : 4 / 3);
 
@@ -70,18 +71,27 @@ function ProofFrame({ d, index, serial, onPlay }: { d: Deliverable; index: numbe
     return () => io.disconnect();
   }, [d]);
 
+  // D50 is pixel-exact: the plain <img>/<video>, no WebGL plane, no grain, matrix or bloom.
+  // A relit plane only exists while the visitor has another lamp on; the DOM frame crossfades
+  // out over it (300ms) once it has drawn, and back in before the plane goes on returning to D50.
+  const relit = lamp !== 'D50';
   useEffect(() => {
     const el = ref.current;
-    if (!el || !litPlanesEnabled()) return;
-    return registerPlane({
+    if (!el || !relit || !litPlanesEnabled()) return;
+    const off = registerPlane({
       el,
       kind: d.type,
       src: d.src,
       fluorMask: d.fluorMask,
       uvInk: d.uvInk,
+      inkNotes: d.inkNotes,
       onReady: () => setLit(true),
     });
-  }, [d]);
+    return () => {
+      setLit(false);
+      window.setTimeout(off, 320); // keep the plane under the fading-in DOM frame
+    };
+  }, [d, relit]);
 
   const slug = `VM_PROOF_${String(serial).padStart(4, '0')} · ${lamp === 'AFTERDARK' ? 'AFTER DARK' : lamp} · 2026-10`;
 
@@ -111,8 +121,22 @@ function ProofFrame({ d, index, serial, onPlay }: { d: Deliverable; index: numbe
               </button>
             </>
           ) : (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img ref={ref} src={d.src} alt={d.alt} width={d.width ?? 1600} height={d.height ?? 1200} loading={index < 3 ? 'eager' : 'lazy'} decoding="async" data-lit={lit} style={{ aspectRatio: `${aspectOf(d)}` }} />
+            <picture>
+              {avifFor(d.src) && <source srcSet={avifFor(d.src)!} type="image/avif" />}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                ref={ref}
+                src={d.src}
+                alt={d.alt}
+                width={d.width ?? 1600}
+                height={d.height ?? 1200}
+                loading={index < 3 ? 'eager' : 'lazy'}
+                fetchPriority={index === 0 ? 'high' : 'auto'}
+                decoding="async"
+                data-lit={lit}
+                style={{ aspectRatio: `${aspectOf(d)}` }}
+              />
+            </picture>
           )}
         </div>
       </div>

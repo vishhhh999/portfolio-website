@@ -1,6 +1,9 @@
 'use client';
 
-import { useFrame, useThree } from '@react-three/fiber';
+import { advance, useFrame, useThree } from '@react-three/fiber';
+import { postApi } from './Post';
+import { invalidateShadows } from './LampRig';
+import { autoHouseLights } from '@/lib/resilience';
 import { useEffect, useRef } from 'react';
 import { useBooth } from '@/lib/store';
 import { perfInfo, perfState } from '@/lib/perfTier';
@@ -40,6 +43,10 @@ export function PerfProbe({ readout }: { readout: boolean }) {
   const setDpr = useThree((s) => s.setDpr);
   const samples = useRef<{ t: number; ms: number }[]>([]);
   const overSince = useRef<number | null>(null);
+  const stepPending = useRef(false);
+  const slowSince = useRef<number | null>(null);
+  const get = useThree((s) => s.get);
+  const renderNow = () => advance(performance.now() / 1000, true, get());
   const el = useRef<HTMLDivElement | null>(null);
   const info = perfInfo();
 
@@ -50,11 +57,12 @@ export function PerfProbe({ readout }: { readout: boolean }) {
 
   useEffect(() => {
     window.__boothPerf = () => {
-      const s = samples.current.map((x) => x.ms).sort((a, b) => a - b);
+      const now = performance.now();
+      const s = samples.current.filter((x) => now - x.t < 4000).map((x) => x.ms).sort((a, b) => a - b);
       const avg = s.reduce((a, b) => a + b, 0) / Math.max(1, s.length);
       return {
         frames: s.length,
-        fps: +(1000 / Math.max(avg, 0.001)).toFixed(1),
+        fps: s.length ? +(1000 / Math.max(avg, 0.001)).toFixed(1) : 0,
         p50Ms: +pct(s, 0.5).toFixed(2),
         p95Ms: +pct(s, 0.95).toFixed(2),
         worstMs: +(s[s.length - 1] ?? 0).toFixed(2),
@@ -72,7 +80,23 @@ export function PerfProbe({ readout }: { readout: boolean }) {
       'position:fixed;left:8px;top:8px;z-index:99;font:600 15px/1.35 ui-monospace,monospace;background:#000d;color:#9f9;padding:10px 12px;border-radius:4px;pointer-events:none;white-space:pre;max-width:calc(100vw - 16px);overflow:hidden';
     document.body.appendChild(div);
     el.current = div;
-    return () => div.remove();
+    // C7: refreshed on a timer, not per rendered frame: the booth renders on demand, so with nothing
+    // animating there are no frames and a frame-driven readout would sit empty.
+    const draw = () => {
+      const r = window.__boothPerf!();
+      const idle = r.frames === 0;
+      div.textContent =
+        (idle ? 'idle (on-demand: no frames in the last 4s)\n' : `${r.fps} fps   p50 ${r.p50Ms}ms   p95 ${r.p95Ms}ms\n`) +
+        `DPR ${r.dpr}${perfState.steps ? ` (−${perfState.steps})` : ''}   tier ${r.tier}   lamp ${r.lamp}\n` +
+        `${r.cores} cores · ${r.renderer.slice(0, 38)}` +
+        (r.lowPower ? '\nlow power mode? (frames pinned ~33ms)' : '');
+    };
+    draw();
+    const id = window.setInterval(draw, 500);
+    return () => {
+      window.clearInterval(id);
+      div.remove();
+    };
   }, [readout, info]);
 
   useFrame((_, dt) => {
@@ -94,25 +118,36 @@ export function PerfProbe({ readout }: { readout: boolean }) {
         perfState.lowPower = p50 > 30 && p50 < 36.5 && p5 > 28 && p95 < 38;
         if (info.tier === 'mobile' && !perfState.lowPower && p95 > 20) {
           overSince.current ??= now;
-          if (now - overSince.current >= 2000 && perfState.dpr > 1) {
-            perfState.dpr = Math.max(1, +(perfState.dpr - 0.25).toFixed(2));
-            perfState.steps++;
-            setDpr(perfState.dpr);
+          if (now - overSince.current >= 2000 && perfState.dpr > 1 && !stepPending.current) {
+            // C8: step on the next idle moment, and in that same task resize the composer and draw a
+            // frame, so the browser never presents a cleared or stretched canvas in between.
+            stepPending.current = true;
+            const idle = window.requestIdleCallback ?? ((cb: () => void) => window.setTimeout(cb, 50));
+            idle(() => {
+              perfState.dpr = Math.max(1, +(perfState.dpr - 0.25).toFixed(2));
+              perfState.steps++;
+              setDpr(perfState.dpr);
+              postApi.resize();
+              invalidateShadows();
+              renderNow();
+              stepPending.current = false;
+            });
             overSince.current = null;
             list.length = 0;
           }
         } else overSince.current = null;
+        // I4: still over 50ms (p95) for 3s with the resolution as low as it goes: house lights
+        const atFloor = info.tier !== 'mobile' || perfState.dpr <= 1;
+        if (p95 > 50 && atFloor && !perfState.lowPower) {
+          slowSince.current ??= now;
+          if (now - slowSince.current >= 3000) {
+            slowSince.current = null;
+            autoHouseLights('speed');
+          }
+        } else slowSince.current = null;
       }
     }
 
-    if (el.current && list.length % 10 === 0) {
-      const r = window.__boothPerf!();
-      el.current.textContent =
-        `${r.fps} fps   p50 ${r.p50Ms}ms   p95 ${r.p95Ms}ms\n` +
-        `DPR ${r.dpr}${perfState.steps ? ` (−${perfState.steps})` : ''}   tier ${r.tier}   lamp ${r.lamp}\n` +
-        `${r.cores} cores · ${r.renderer.slice(0, 38)}` +
-        (r.lowPower ? '\nlow power mode? (frames pinned ~33ms)' : '');
-    }
   });
   return null;
 }

@@ -1,26 +1,29 @@
 'use client';
 
-import { Html, RoundedBox } from '@react-three/drei';
+import { ContactShadows, Html } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
 import { useRouter } from 'next/navigation';
-import { useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Color, Mesh, MeshBasicMaterial, MeshStandardMaterial, type Group } from 'three';
+import { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Color, FrontSide, Matrix4, Mesh, MeshStandardMaterial, Vector3, type Camera, type Group, type Material, type Object3D } from 'three';
 import type { Work } from '@/lib/types';
+import { isMobileTier } from '@/lib/perfTier';
 import { useBooth } from '@/lib/store';
 import { useReducedMotion } from '@/lib/useReducedMotion';
-import { ContactBlob } from './BoothRoom';
-import { BoothMat, INK_ASPECT, PLACEHOLDERS } from './placeholders';
-import { PLINTH_CHAMFER, PLINTH_GREY, RECEDE_DZ, STAGING, TRAY } from './staging';
-import { blankInk, createInkTexture } from './uvMaterial';
-import { stageRect } from '@/lib/views';
-import { Vector3, type Camera, type Object3D } from 'three';
+import { baseFor, baseMaterial, ContactBlob } from './BoothRoom';
+import { loadModel } from './models';
+import { PLACEHOLDERS } from './placeholders';
+import { RECEDE_DZ, STAGING, TRAY } from './staging';
+import { applyUV, blankInk, createProofInk } from './uvMaterial';
+import { setFocusRect } from './focus';
+import { playEvent } from '@/lib/sound';
+import { track } from '@/lib/analytics';
+import { openProject } from '@/lib/navigate';
 
 const _v = new Vector3();
-/** drei Html places labels in canvas space; the booth draws into the stage rect, so project into that. */
-function stagePosition(el: Object3D, camera: Camera): [number, number] {
-  const r = stageRect() ?? { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight };
+/** drei Html places labels in canvas space; the booth camera's projection spans the canvas too. */
+function stagePosition(el: Object3D, camera: Camera, size: { width: number; height: number }): [number, number] {
   _v.setFromMatrixPosition(el.matrixWorld).project(camera);
-  return [r.left + ((_v.x + 1) / 2) * r.width, r.top + ((1 - _v.y) / 2) * r.height];
+  return [((_v.x + 1) / 2) * size.width, ((1 - _v.y) / 2) * size.height];
 }
 
 /** The clipped, fixed layer the spec chips render into (see .booth-canvas in globals.css). */
@@ -32,87 +35,177 @@ const htmlLayer = {
 
 /** How dark the lineup gets while another sample is on the tray. */
 const RECEDE_DIM = 0.9;
+/** Hover: lift 4mm over ~120ms (critically damped, no bounce). */
+const LIFT = 0.004;
+
+/** The approved UV notes as ink on an object's front, projected along +z in object space. */
+function objectInk(work: Work, w: number, h: number) {
+  if (!work.uvNotes.length) return { map: blankInk(), box: [0, 0, 1, 1] as [number, number, number, number] };
+  const box: [number, number, number, number] = [-w / 2, 0, w / 2, h];
+  const at = work.uvNotes.map((n) => ({ text: n.text, at: [(n.anchor[0] - box[0]) / (box[2] - box[0]), 1 - (n.anchor[1] - box[1]) / (box[3] - box[1])] as [number, number] }));
+  return { map: createProofInk(at, w / h), box };
+}
 
 /**
- * One sample in the lineup: a plinth and the object propped on it.
- * Active → the object lifts off its plinth onto the proofing tray.
- * Another active → plinth and object step back and fall into shadow.
+ * A GLB booth object (tools/optimize-models.mjs output): real-world metres, origin at its base
+ * centre, front +Z. Cloned per slot; every material gets the UV chunk (paper whites fluoresce,
+ * approved notes print as ink across the front) and casts/receives shadows.
+ */
+function ModelObject({ work, onReady }: { work: Work; onReady: () => void }) {
+  const gl = useThree((s) => s.gl);
+  const invalidate = useThree((s) => s.invalidate);
+  const [root, setRoot] = useState<Object3D | null>(null);
+  const m = work.model!;
+  useEffect(() => {
+    let live = true;
+    loadModel(isMobileTier() ? m.mobile : m.src, gl)
+      .then((gltf) => {
+        if (!live) return;
+        const scene = gltf.scene.clone(true);
+        const st = STAGING[work.slug];
+        const real = { w: st.object.w / (st.scale ?? 1), h: st.object.h / (st.scale ?? 1) };
+        const ink = objectInk(work, real.w, real.h);
+        scene.updateMatrixWorld(true);
+        const toRoot = new Matrix4();
+        scene.traverse((o) => {
+          const mesh = o as Mesh;
+          if (!mesh.isMesh) return;
+          mesh.castShadow = mesh.receiveShadow = true;
+          // a material per mesh (the ink matrix is per mesh), shared textures untouched
+          const mat = (mesh.material as Material).clone() as MeshStandardMaterial;
+          if (m.frontSide) mat.side = FrontSide;
+          mat.envMapIntensity = 0.8;
+          toRoot.copy(mesh.matrixWorld);
+          applyUV(mat, { fluorFromBase: true, inkProj: { ...ink, space: toRoot.clone() } });
+          mesh.material = mat;
+        });
+        setRoot(scene);
+        invalidate();
+        onReady();
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [gl, m, work, invalidate, onReady]);
+  if (!root) return null;
+  return <primitive object={root} rotation={m.rotation ?? [0, 0, 0]} position={[0, m.plinthOffset ?? 0, 0]} />;
+}
+
+/** Rendered after its Suspense siblings resolve: the object is drawn, its contact shadow can be taken. */
+function Ready({ onReady }: { onReady: () => void }) {
+  useEffect(() => onReady(), [onReady]);
+  return null;
+}
+
+/**
+ * One sample in the lineup: its base (plinth, riser or tray) and the object standing on it.
+ * Active → the object moves off its base onto the proofing tray.
+ * Another active → base and object step back and fall into shadow.
  * Motion is critically damped: on rails, no overshoot.
  */
-export function ObjectSlot({ work }: { work: Work }) {
+export function ObjectSlot({ work, lineup }: { work: Work; lineup: string[] }) {
   const slotRef = useRef<Group>(null);
   const objRef = useRef<Group>(null);
+  const liftRef = useRef<Group>(null);
   const router = useRouter();
   const invalidate = useThree((s) => s.invalidate);
   const activeSlug = useBooth((s) => s.activeSlug);
+  const lamp = useBooth((s) => s.lamp);
   const reduced = useReducedMotion();
+  const mobile = isMobileTier();
   const [hovered, setHovered] = useState(false);
+  const [modelReady, setModelReady] = useState(false);
+  const onModelReady = useCallback(() => setModelReady(true), []);
 
-  const { object, plinth, x, z } = STAGING[work.slug];
+  const st = STAGING[work.slug];
+  const { object, base, x, z } = st;
   const active = activeSlug === work.slug;
   const receded = activeSlug !== null && !active;
+  const basePart = useMemo(() => baseFor(lineup, work.slug), [lineup, work.slug]);
+  const baseMat = useMemo(() => baseMaterial(base.kind, mobile) as MeshStandardMaterial, [base.kind, mobile]);
+  const baseColor = useMemo(() => baseMat.color.clone(), [baseMat]);
 
-  const inkTex = useMemo(
-    // no approved notes → no ink at all under UV (only physical fluorescence)
-    () => (work.uvNotes.length ? createInkTexture(work.uvNotes.map((n) => n.text), INK_ASPECT[work.slug] ?? 1, work.slug.length) : blankInk()),
-    [work],
-  );
+  const inkTex = useMemo(() => {
+    const real = { w: object.w / (st.scale ?? 1), h: object.h / (st.scale ?? 1) };
+    return objectInk(work, real.w, real.h).map;
+  }, [work, object, st.scale]);
 
   type Dimmable = { mat: MeshStandardMaterial; base: Color };
   const objMats = useRef<Dimmable[]>([]);
-  const plinthMats = useRef<Dimmable[]>([]);
-  const screenMats = useRef<MeshBasicMaterial[]>([]);
-  const dim = useRef({ obj: 0, plinth: 0 });
+  const screenMats = useRef<MeshStandardMaterial[]>([]);
+  const hoverMats = useRef<Material[]>([]);
+  const dim = useRef({ obj: 0, base: 0, lift: 0 });
 
+  // collect the object's materials (again once a GLB arrives)
   useLayoutEffect(() => {
     const objs: Dimmable[] = [];
-    const screensHere: MeshBasicMaterial[] = [];
-    objRef.current?.traverse((o) => {
+    const screensHere: MeshStandardMaterial[] = [];
+    const hov: Material[] = [];
+    liftRef.current?.traverse((o) => {
       if (!(o instanceof Mesh)) return;
-      if (o.material instanceof MeshStandardMaterial) objs.push({ mat: o.material, base: o.material.color.clone() });
-      if (o.material instanceof MeshBasicMaterial && o.material.map && !o.material.transparent) screensHere.push(o.material);
+      const mats = (Array.isArray(o.material) ? o.material : [o.material]) as Material[];
+      for (const mt of mats) {
+        if (mt.userData.uv) hov.push(mt);
+        if (!(mt instanceof MeshStandardMaterial)) continue;
+        // screens dim through their emissive level (the rig reads userData.dim), not their colour
+        if (mt.emissiveMap) screensHere.push(mt);
+        else objs.push({ mat: mt, base: mt.color.clone() });
+      }
     });
     objMats.current = objs;
     screenMats.current = screensHere;
-    const plinths: Dimmable[] = [];
-    slotRef.current?.children.forEach((c) => {
-      if (c instanceof Mesh && c.material instanceof MeshStandardMaterial) plinths.push({ mat: c.material, base: c.material.color.clone() });
-    });
-    plinthMats.current = plinths;
-  }, []);
+    hoverMats.current = hov;
+    invalidate();
+  }, [modelReady, invalidate]);
+
+  const camera = useThree((st) => st.camera);
+  const size = useThree((st) => st.size);
+  const box = useMemo(() => ({ v: new Vector3(), corners: [-1, 1].flatMap((sx) => [0, 1].flatMap((sy) => [-1, 1].map((sz) => [sx, sy, sz] as const))) }), []);
+  useEffect(() => () => setFocusRect(work.slug, null), [work.slug]);
 
   useFrame((_, dt) => {
     const slot = slotRef.current;
     const obj = objRef.current;
-    if (!slot || !obj) return;
-    const k = reduced ? 1 : 1 - Math.exp(-dt * 5);
+    const lift = liftRef.current;
+    if (!slot || !obj || !lift) return;
+    // on rails: ~95% of the way in 0.65s (the camera's dolly takes ~0.7s)
+    const k = reduced ? 1 : 1 - Math.exp(-dt * 4.6);
 
     const slotZ = z + (activeSlug !== null ? RECEDE_DZ : 0);
     slot.position.z += (slotZ - slot.position.z) * k;
 
-    // Object: on its plinth (slot space) or on the tray (world space, converted to slot space).
+    // Object: on its base (slot space) or on the tray (world space, converted to slot space).
     const tx = active ? -x : 0;
-    const ty = active ? TRAY.top : plinth.h;
+    const ty = active ? TRAY.top : base.h;
     const tz = active ? TRAY.z - slot.position.z : 0;
     obj.position.x += (tx - obj.position.x) * k;
     obj.position.y += (ty - obj.position.y) * k;
     obj.position.z += (tz - obj.position.z) * k;
 
-    // Behind the tray the row falls into shadow: objects, their screens, and every plinth (the active one's too).
+    // hover lift: ~120ms to settle (rate 25/s), rim highlight with it; none under reduced motion
+    const d = dim.current;
+    const keyed = useBooth.getState().keySlug === work.slug;
+    const liftGoal = (hovered || keyed) && activeSlug === null ? 1 : 0;
+    d.lift = reduced ? liftGoal : d.lift + (liftGoal - d.lift) * (1 - Math.exp(-dt * 25));
+    if (Math.abs(liftGoal - d.lift) < 1e-3) d.lift = liftGoal;
+    lift.position.y = (reduced ? 0 : LIFT) * d.lift;
+    for (const mt of hoverMats.current) (mt.userData.uv as { uHover: { value: number } }).uHover.value = d.lift;
+
+    // Behind the tray the row falls into shadow: objects, their screens, and every base (the active one's too).
     const td = receded ? RECEDE_DIM : 0;
     const tp = activeSlug !== null ? RECEDE_DIM * 0.85 : 0;
-    const d = dim.current;
     d.obj += (td - d.obj) * k;
-    d.plinth += (tp - d.plinth) * k;
-    for (const { mat, base } of objMats.current) mat.color.copy(base).multiplyScalar(1 - d.obj);
-    for (const { mat, base } of plinthMats.current) mat.color.copy(base).multiplyScalar(1 - d.plinth);
-    for (const m of screenMats.current) m.userData.dim = d.obj;
+    d.base += (tp - d.base) * k;
+    for (const { mat, base: c } of objMats.current) mat.color.copy(c).multiplyScalar(1 - d.obj);
+    baseMat.color.copy(baseColor).multiplyScalar(1 - d.base);
+    for (const mt of screenMats.current) mt.userData.dim = d.obj;
 
-    // Tray shot: the front row would sit between the camera and the tray. Once dimmed (mid-move),
-    // front-row neighbours and every front-row plinth drop out; only the dimmed back row stays as context.
-    if (z > 0) {
-      const hidePlinth = activeSlug !== null && d.plinth > 0.35;
-      for (const c of slot.children) if (c !== obj) c.visible = !hidePlinth;
+    // Tray shot: front-tier neighbours sit between the camera and the tray. Once dimmed (mid-move),
+    // they and every front-tier base drop out; the dimmed back tiers stay as context.
+    if (z > 0.2) {
+      const hideBase = activeSlug !== null && d.base > 0.35;
+      for (const c of slot.children) if (c !== obj) c.visible = !hideBase;
       obj.visible = !(receded && d.obj > 0.45);
     }
 
@@ -120,11 +213,26 @@ export function ObjectSlot({ work }: { work: Work }) {
       Math.abs(slotZ - slot.position.z) > 1e-4 ||
       Math.abs(tx - obj.position.x) + Math.abs(ty - obj.position.y) + Math.abs(tz - obj.position.z) > 1e-4 ||
       Math.abs(td - d.obj) > 1e-3 ||
-      Math.abs(tp - d.plinth) > 1e-3;
+      Math.abs(tp - d.base) > 1e-3 ||
+      Math.abs(liftGoal - d.lift) > 1e-3;
     if (moving) invalidate();
+
+    // where this object is on screen, for the keyboard layer's focusable button (home lineup only)
+    if (activeSlug === null && obj.visible) {
+      obj.updateWorldMatrix(true, false);
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      for (const [sx, sy, sz] of box.corners) {
+        box.v.set((sx * object.w) / 2, sy * object.h, (sz * object.d) / 2).applyMatrix4(obj.matrixWorld).project(camera);
+        const px = ((box.v.x + 1) / 2) * size.width, py = ((1 - box.v.y) / 2) * size.height;
+        x0 = Math.min(x0, px); x1 = Math.max(x1, px); y0 = Math.min(y0, py); y1 = Math.max(y1, py);
+      }
+      setFocusRect(work.slug, { x: x0, y: y0, w: x1 - x0, h: y1 - y0 });
+    } else setFocusRect(work.slug, null);
   });
 
-  const showPlate = hovered && activeSlug === null;
+  const keySlug = useBooth((st) => st.keySlug);
+  const showPlate = (hovered || keySlug === work.slug) && activeSlug === null;
+  const Procedural = PLACEHOLDERS[work.slug];
 
   return (
     <group
@@ -133,10 +241,14 @@ export function ObjectSlot({ work }: { work: Work }) {
       onClick={(e) => {
         e.stopPropagation();
         if (e.delta > 12) return; // a swipe across the cabinet, not a tap on this sample
-        if (!active) router.push(`/work/${work.slug}`, { scroll: false });
+        if (active) return;
+        playEvent('select', e.nativeEvent.clientX);
+        track('Project opened', { slug: work.slug, from: 'booth' });
+        openProject(router, `/work/${work.slug}`);
       }}
       onPointerOver={(e) => {
         e.stopPropagation();
+        if (!hovered && activeSlug === null) playEvent('hover', e.nativeEvent.clientX);
         setHovered(true);
         document.body.style.cursor = active ? '' : 'pointer';
       }}
@@ -145,20 +257,33 @@ export function ObjectSlot({ work }: { work: Work }) {
         document.body.style.cursor = '';
       }}
     >
-      <RoundedBox
-        args={[plinth.w, plinth.h, plinth.d]}
-        radius={PLINTH_CHAMFER}
-        smoothness={1}
-        position={[0, plinth.h / 2, 0]}
-        castShadow
-        receiveShadow
-      >
-        <BoothMat color={PLINTH_GREY} roughness={0.92} />
-      </RoundedBox>
-      <ContactBlob w={plinth.w} d={plinth.d} spread={1.25} />
-      <group ref={objRef} position={[0, plinth.h, 0]}>
-        <ContactBlob w={object.w} d={Math.min(object.d, plinth.d * 0.8)} spread={1.2} />
-        <group scale={STAGING[work.slug]?.scale ?? 1}>{PLACEHOLDERS[work.slug]?.(inkTex)}</group>
+      {basePart && <mesh geometry={basePart.geometry} material={baseMat} position={[0, base.h / 2, 0]} castShadow receiveShadow />}
+      <ContactBlob w={base.w} d={base.d} spread={1.18} />
+      <group ref={objRef} position={[0, base.h, 0]}>
+        {/* the object's own contact shadow, rendered once (it moves with the object) */}
+        <ContactShadows
+          key={`${modelReady ? 'ready' : 'wait'}-${lamp}`}
+          frames={3}
+          position={[0, 0.001, 0]}
+          scale={[object.w * 1.5, object.d * 1.6]}
+          resolution={mobile ? 256 : 512}
+          far={Math.max(0.05, object.h * 0.6)}
+          blur={2.2}
+          opacity={0.55}
+          color="#1a1a19"
+        />
+        <group ref={liftRef}>
+          <group scale={st.scale ?? 1}>
+            {work.model ? (
+              <ModelObject work={work} onReady={onModelReady} />
+            ) : (
+              <Suspense fallback={null}>
+                {Procedural?.(inkTex)}
+                <Ready onReady={onModelReady} />
+              </Suspense>
+            )}
+          </group>
+        </group>
         {/* portalled into the fixed, clipped canvas layer: drei defaults to the event source (body), where chips widen the page */}
         <Html portal={htmlLayer} position={[0, object.h + 0.025, 0]} center zIndexRange={[5, 0]} calculatePosition={stagePosition} style={{ pointerEvents: 'none' }}>
           <div className="specchip" data-visible={showPlate}>

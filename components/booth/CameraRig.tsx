@@ -9,14 +9,16 @@ import { frameRect, stageRect } from '@/lib/views';
 import { cabinetShot, lineupShot, trayShot } from './shots';
 import { FOV, STAGING } from './staging';
 
-const PARALLAX_YAW = MathUtils.degToRad(1.2);
-const PARALLAX_PITCH = MathUtils.degToRad(0.5);
+const PARALLAX_YAW = MathUtils.degToRad(1.5);
+const PARALLAX_PITCH = MathUtils.degToRad(0.6);
+const UP = new Vector3(0, 1, 0);
 
 /**
- * Locked long-lens camera. Level horizon, flat front, no orbit.
+ * Locked camera: a ~38mm lens a little above the plinth line, looking 7° down. No orbit.
  * Home: the cabinet framed as an object on the page (box set by the layout).
  * Project pages: the tray shot inside the booth. Moves between them on rails
- * (critically damped, no overshoot), lens shift included. Pointer parallax ≤1.2°.
+ * (critically damped, no overshoot), lens shift included. Pointer parallax ≤1.5°, desktop
+ * pointers only, none under reduced motion.
  */
 export function CameraRig() {
   const camera = useThree((s) => s.camera) as PerspectiveCamera;
@@ -27,13 +29,15 @@ export function CameraRig() {
 
   const pointer = useRef({ x: 0, y: 0 });
   const smooth = useRef({ x: 0, y: 0 });
-  const current = useRef<{ target: Vector3; dist: number; ox: number; oy: number } | null>(null);
+  const current = useRef<{ target: Vector3; position: Vector3; ox: number; oy: number } | null>(null);
   const goalTarget = useRef(new Vector3());
+  const goalPos = useRef(new Vector3());
+  const tmp = useRef({ p: new Vector3(), right: new Vector3() });
 
   useEffect(() => {
     camera.fov = FOV;
     camera.near = 0.05;
-    camera.far = 60;
+    camera.far = 12;
     camera.updateProjectionMatrix();
   }, [camera]);
 
@@ -59,45 +63,48 @@ export function CameraRig() {
     const r = stageRect() ?? { left: 0, top: 0, width: size.width, height: size.height };
     const aspect = r.height > 0 ? r.width / r.height : size.width / size.height;
 
-    let goal: { target: [number, number, number]; dist: number; offset: [number, number] };
+    let goal: { target: [number, number, number]; position: [number, number, number]; offset: [number, number] };
     const f = frameRect();
     if (activeSlug) goal = { ...trayShot(activeSlug, aspect), offset: [0, 0] };
     else if (f) {
       const fs = useBooth.getState().focusSlug;
       const st = fs ? STAGING[fs] : null;
       goal = cabinetShot(r, { left: f.left - r.left, top: f.top - r.top, width: f.width, height: f.height }, st ? { x: st.x, z: st.z + st.object.d / 2 } : null);
-    }
-    else goal = { ...lineupShot(aspect), offset: [0, 0] };
+    } else goal = lineupShot(aspect);
     goalTarget.current.set(...goal.target);
+    goalPos.current.set(...goal.position);
 
-    const k = reduced || !current.current ? 1 : 1 - Math.exp(-dt * 3.2);
-    if (!current.current) current.current = { target: goalTarget.current.clone(), dist: goal.dist, ox: goal.offset[0], oy: goal.offset[1] };
+    // the dolly between the lineup and the tray: ~95% of the way in 0.7s, critically damped
+    const k = reduced || !current.current ? 1 : 1 - Math.exp(-dt * 4.3);
+    if (!current.current) current.current = { target: goalTarget.current.clone(), position: goalPos.current.clone(), ox: goal.offset[0], oy: goal.offset[1] };
     const c = current.current;
     c.target.lerp(goalTarget.current, k);
-    c.dist += (goal.dist - c.dist) * k;
+    c.position.lerp(goalPos.current, k);
     c.ox += (goal.offset[0] - c.ox) * k;
     c.oy += (goal.offset[1] - c.oy) * k;
 
     const kp = reduced ? 1 : 1 - Math.exp(-dt * 4);
     smooth.current.x += (pointer.current.x - smooth.current.x) * kp;
     smooth.current.y += (pointer.current.y - smooth.current.y) * kp;
-    const yaw = smooth.current.x * PARALLAX_YAW;
-    const pitch = smooth.current.y * PARALLAX_PITCH;
 
-    camera.position.set(
-      c.target.x + Math.sin(yaw) * c.dist,
-      c.target.y + Math.sin(pitch) * c.dist,
-      c.target.z + Math.cos(yaw) * c.dist,
-    );
+    // parallax: swing the camera around its target (yaw about up, pitch about the camera's right)
+    const { p, right } = tmp.current;
+    p.copy(c.position).sub(c.target);
+    p.applyAxisAngle(UP, smooth.current.x * PARALLAX_YAW);
+    right.crossVectors(UP, p).normalize();
+    p.applyAxisAngle(right, smooth.current.y * PARALLAX_PITCH);
+    camera.position.copy(c.target).add(p);
     camera.lookAt(c.target);
+    // One projection for the whole canvas: the booth's picture is the stage rect (aspect, lens
+    // shift) and the canvas is a window onto it, so depth, normals (SSAO), raycasts and labels all
+    // share one mapping. Outside the stage the views pass scissors the booth away.
     camera.aspect = aspect;
-    if (Math.abs(c.ox) > 0.25 || Math.abs(c.oy) > 0.25) camera.setViewOffset(r.width, r.height, c.ox, c.oy, r.width, r.height);
-    else camera.clearViewOffset();
+    camera.setViewOffset(r.width, r.height, c.ox - r.left, c.oy - r.top, size.width, size.height);
     camera.updateProjectionMatrix();
 
     const moving =
       c.target.distanceTo(goalTarget.current) > 1e-4 ||
-      Math.abs(c.dist - goal.dist) > 1e-3 ||
+      c.position.distanceTo(goalPos.current) > 1e-4 ||
       Math.abs(c.ox - goal.offset[0]) + Math.abs(c.oy - goal.offset[1]) > 0.3 ||
       Math.abs(pointer.current.x - smooth.current.x) > 1e-3 ||
       Math.abs(pointer.current.y - smooth.current.y) > 1e-3;

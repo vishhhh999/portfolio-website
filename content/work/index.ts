@@ -1,6 +1,7 @@
 import type { Deliverable, Work } from '@/lib/types';
 import { imported } from './imported';
 import { ALT } from '../alt';
+import { correct } from './corrections';
 import tooYumm from './too-yumm';
 import sook from './sook';
 import shunya from './shunya';
@@ -13,7 +14,7 @@ import sonde from './sonde';
 
 /**
  * Overlay content imported from the live Framer site (tools/import-framer.mjs).
- * Imported copy wins over placeholders; anything not found stays as authored (TBC).
+ * Imported copy wins over the per-project files; corrections.ts then applies the live-site facts.
  */
 function withImport(w: Work): Work {
   const o = imported[w.slug] as (Omit<Partial<Work>, 'deliverables'> & { deliverables?: (Deliverable & { source?: string })[] }) | undefined;
@@ -34,10 +35,16 @@ function withImport(w: Work): Work {
     ...(o.scope ? { scope: o.scope } : {}),
     ...(o.client ? { client: o.client } : {}),
     ...(o.clientType ? { clientType: o.clientType } : {}),
-    ...(o.credits ? { credits: o.credits } : {}),
     // real deliverables replace the placeholders outright; per-project extras (UV masks) carry over by index
     ...(d && d.length ? { deliverables: d.map((x, i) => (x.type === 'image' && w.deliverables[i]?.type === 'image' && w.deliverables[i].fluorMask ? { ...w.deliverables[i], ...x } : x)) } : {}),
   };
+}
+
+/** The approved UV notes are also printed on the project's first proof image. */
+function inkFirstProof(w: Work): Work {
+  const notes = w.uvNotes.filter((n) => n.proof).map((n) => ({ text: n.text, at: n.proof! }));
+  if (!notes.length || !w.deliverables[0]) return w;
+  return { ...w, deliverables: [{ ...w.deliverables[0], inkNotes: notes }, ...w.deliverables.slice(1)] };
 }
 
 /**
@@ -45,7 +52,7 @@ function withImport(w: Work): Work {
  * packaging on the flanks, brand + web centre stage. Archive-only
  * projects (inLineup: false) are listed last.
  */
-export const works: Work[] = [tooYumm, jswSports, mitooshi, sonde, houseOfHex, bengalT20, sook, shunya, indoThai].map(withImport);
+export const works: Work[] = [tooYumm, jswSports, mitooshi, sonde, houseOfHex, bengalT20, sook, shunya, indoThai].map(withImport).map(correct).map(inkFirstProof);
 
 /** The 7 objects on the booth floor. */
 export const lineup: Work[] = works.filter((w) => w.inLineup);
