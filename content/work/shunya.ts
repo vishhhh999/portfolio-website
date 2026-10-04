@@ -8,10 +8,11 @@ const work: Work = {
   year: 2025,
   role: '',
   scope: '',
-  inLineup: false,
+  inLineup: true,
   nativeLamp: 'A',
   glb: '',
-  object: 'Camphor jar and tin',
+  model: { src: '/models/shunya/shunya.glb', mobile: '/models/shunya/shunya.mobile.glb' },
+  object: 'The SHUNYA range: Ritual Set, Bhimseni jar, Air tin and Pooja carton',
   fallbacks: placeholderFallbacks('shunya'),
   // UV notes: the approved set is applied in corrections.ts
   uvNotes: [],

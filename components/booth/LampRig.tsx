@@ -28,12 +28,13 @@ import {
   type Texture,
 } from 'three';
 import { kelvinToAdapted } from '@/lib/kelvin';
-import { lampById, strikeEnvelope, strikeKelvin } from '@/lib/lampPresets';
+import { lampById, strikeChannels, strikeKelvin } from '@/lib/lampPresets';
 import { useBooth } from '@/lib/store';
 import { ceilingMaterial, diffuserMaterial, getBlobMaterial } from './BoothRoom';
 import { postState } from './Post';
 import { onScreenFrame, screens } from './screens';
 import { BOOTH, TRAY } from './staging';
+import { boothEnvironment, ENV_INTENSITY } from './environment';
 import { uvUniforms } from './uvMaterial';
 import { PRINT_FLOORS, proofUniforms } from './proofUniforms';
 import { isMobileTier } from '@/lib/perfTier';
@@ -144,6 +145,13 @@ export function LampRig() {
   useEffect(() => {
     scene.background = null;
   }, [scene]);
+
+  // Image-based light: the booth's own interior as a PMREM, re-tinted per lamp (built once each).
+  const lampNow = useBooth((st) => st.lamp);
+  useEffect(() => {
+    scene.environment = boothEnvironment(gl, lampNow);
+    invalidate();
+  }, [gl, scene, lampNow, invalidate]);
   useEffect(() => useBooth.subscribe(() => invalidate()), [invalidate]);
   const size = useThree((s) => s.size);
   const dprNow = useThree((s) => s.viewport.dpr);
@@ -167,9 +175,12 @@ export function LampRig() {
   useFrame((_, dt) => {
     const { lamp, strikeProgress, activeSlug } = useBooth.getState();
     const P = lampById(lamp);
-    const env = strikeEnvelope(P.strike.curve, strikeProgress);
+    const ch = strikeChannels(P.strike.curve, strikeProgress);
+    const env = ch.light;
     const ramp = strikeKelvin(P.strike.curve, strikeProgress);
     const onTray = activeSlug !== null;
+
+    scene.environmentIntensity = ENV_INTENSITY[lamp] * env;
 
     // ── ceiling panel + its visible diffuser ────────
     const pl = panel.current!;
@@ -274,9 +285,9 @@ export function LampRig() {
     const spillColour = tmpSpill.setRGB(0, 0, 0);
     for (const s of screens) {
       const keep = 1 - ((s.material.userData.dim as number | undefined) ?? 0);
-      s.material.emissiveIntensity = P.screens.gain * (0.35 + 0.65 * env) * keep;
+      s.material.emissiveIntensity = P.screens.gain * (0.35 + 0.65 * ch.screens) * keep;
       if (s.light) {
-        s.light.intensity = P.screens.spill * env * keep;
+        s.light.intensity = P.screens.spill * ch.spill * keep;
         s.light.color.copy(s.colour);
       }
       spillSum += keep;
@@ -284,7 +295,7 @@ export function LampRig() {
     }
     if (spill.current) {
       // the screens' area together, from one light across the back row
-      spill.current.intensity = screens.size ? P.screens.spill * env * spillSum * 0.45 : 0;
+      spill.current.intensity = screens.size ? P.screens.spill * ch.spill * spillSum * 0.45 : 0;
       spill.current.color.copy(screens.size ? spillColour.multiplyScalar(1 / screens.size) : spillColour);
     }
 
@@ -301,7 +312,7 @@ export function LampRig() {
     else proofUniforms.uColour.value.setRGB(...pr.colour).multiplyScalar(level);
     proofUniforms.uAmbient.value = pr.ambient * penv;
     proofUniforms.uFloor.value = picked ? (PRINT_FLOORS[lamp] ?? 0) : 0;
-    proofUniforms.uProofUV.value = picked ? P.uv * env : 0;
+    proofUniforms.uProofUV.value = picked ? P.uv * ch.uv : 0;
     proofUniforms.uGrad.value.set(pr.grad[0], pr.grad[1], pr.grad[2], 0);
     if (pr.spot) {
       const W = window.innerWidth * dpr;
@@ -335,12 +346,12 @@ export function LampRig() {
     }
 
     // ── fluorescence + post ─────────────────────────
-    uvUniforms.uUV.value = P.uv * env;
+    uvUniforms.uUV.value = P.uv * ch.uv;
     // mobile: bloom under UV makes no visible difference (A/B: 0.06% of pixels change), so it is off there
     postState.bloomIntensity = mobile && lamp === 'UV' ? 0 : P.bloom.intensity * env;
     postState.bloomThreshold = P.bloom.threshold;
     postState.grain = P.grain;
-    postState.exposure = P.exposure;
+    postState.exposure = P.exposure * ch.exposure;
     postState.matrix.fromArray(P.matrix).transpose(); // fromArray is column-major; presets are row-major
     if (useBooth.getState().lampPicked) proofUniforms.uNeutralize.value.identity();
     else proofUniforms.uNeutralize.value.copy(postState.matrix).invert();
@@ -378,18 +389,17 @@ export function LampRig() {
   return (
     <>
       <rectAreaLight ref={panel} rotation={[-Math.PI / 2, 0, 0]} />
-      {mobile && <rectAreaLight ref={spill} width={0.9} height={0.18} position={[0.1, 0.32, -0.2]} rotation={[0, Math.PI, 0]} intensity={0} />}
+      {mobile && <rectAreaLight ref={spill} width={0.8} height={0.16} position={[0, 0.42, -0.2]} rotation={[0, Math.PI, 0]} intensity={0} />}
       <primitive object={keyTarget} />
       <spotLight
         ref={key}
         target={keyTarget}
         castShadow
         shadow-mapSize={mobile ? [1024, 1024] : [2048, 2048]}
-        shadow-bias={-0.0006}
-        shadow-normalBias={0.02}
-        shadow-blurSamples={16}
-        shadow-camera-near={0.25}
-        shadow-camera-far={3.5}
+        shadow-bias={-0.0004}
+        shadow-normalBias={0.012}
+        shadow-camera-near={0.1}
+        shadow-camera-far={3}
         map={white}
       />
       <hemisphereLight ref={fill} />

@@ -11,6 +11,7 @@ const work: Work = {
   inLineup: true,
   nativeLamp: 'TL84',
   glb: '',
+  model: { src: '/models/too-yumm/too-yumm.glb', mobile: '/models/too-yumm/too-yumm.mobile.glb', frontSide: true },
   object: 'Standing pouch',
   fallbacks: placeholderFallbacks('too-yumm'),
   // UV notes: the approved set is applied in corrections.ts

@@ -1,4 +1,4 @@
-import { CanvasTexture, Color, DataTexture, Vector4, type Material, type Texture } from 'three';
+import { CanvasTexture, Color, DataTexture, Matrix3, Matrix4, Vector4, type Material, type Texture } from 'three';
 
 /**
  * UV (blacklight) material system. One set of shared uniforms drives every
@@ -28,12 +28,22 @@ export const uvUniforms = {
 
 export type InkProjection = {
   map: Texture;
-  /** Local-space rectangle the ink covers: [x0, y0, x1, y1]. */
+  /** Rectangle the ink covers, in the projection space (x, y): [x0, y0, x1, y1]. */
   box: [number, number, number, number];
+  /**
+   * Mesh-local → projection space. Placeholders print in their own local space (identity); a GLB's
+   * meshes sit under node transforms, so each gets the matrix into the object's root space.
+   */
+  space?: Matrix4;
 };
 
 export type UVOptions = {
   fluor?: number;
+  /**
+   * GLB materials without an authored fluorMask: paper whites fluoresce in proportion to how white
+   * they are (optical brighteners live in white stock, not in the inks printed on it).
+   */
+  fluorFromBase?: boolean;
   fluorMask?: Texture | null;
   uvInk?: Texture | null;
   inkProj?: InkProjection | null;
@@ -43,29 +53,35 @@ export function applyUV(material: Material, opts: UVOptions = {}) {
   const hasMask = !!opts.fluorMask;
   const hasInk = !!opts.uvInk;
   const hasProj = !!opts.inkProj;
+  const fromBase = !!opts.fluorFromBase;
+  const lit = material.type !== 'MeshBasicMaterial';
   const local = {
-    uFluor: { value: opts.fluor ?? (hasMask ? 1 : 0) },
+    /** Hover: a soft rim highlight, 0–1 (set by the slot). */
+    uHover: { value: 0 },
+    uFluor: { value: opts.fluor ?? (hasMask || opts.fluorFromBase ? 1 : 0) },
     uFluorMask: { value: opts.fluorMask ?? null },
     uUvInk: { value: opts.uvInk ?? null },
     uInkProj: { value: opts.inkProj?.map ?? null },
     uInkBox: { value: new Vector4(...(opts.inkProj?.box ?? [0, 0, 1, 1])) },
+    uInkSpace: { value: opts.inkProj?.space ?? new Matrix4() },
+    uInkSpaceN: { value: new Matrix3().getNormalMatrix(opts.inkProj?.space ?? new Matrix4()) },
   };
   material.userData.uv = local;
 
   material.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, uvUniforms, local);
     shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nvarying vec2 vBoothUv;\nvarying vec3 vBoothPos;\nvarying vec3 vBoothNormal;')
+      .replace('#include <common>', '#include <common>\nvarying vec2 vBoothUv;\nvarying vec3 vBoothPos;\nvarying vec3 vBoothNormal;\nuniform mat4 uInkSpace;\nuniform mat3 uInkSpaceN;')
       .replace(
         '#include <begin_vertex>',
-        '#include <begin_vertex>\nvBoothUv = uv;\nvBoothPos = position;\nvBoothNormal = normal;',
+        '#include <begin_vertex>\nvBoothUv = uv;\nvBoothPos = (uInkSpace * vec4(position, 1.0)).xyz;\nvBoothNormal = uInkSpaceN * normal;',
       );
     shader.fragmentShader = shader.fragmentShader
       .replace(
         '#include <common>',
         `#include <common>
         varying vec2 vBoothUv; varying vec3 vBoothPos; varying vec3 vBoothNormal;
-        uniform float uUV, uFluor, uFluorGain, uInkGain;
+        uniform float uUV, uFluor, uFluorGain, uInkGain, uHover;
         uniform vec3 uFluorColor, uInkColor;
         uniform vec4 uInkBox;
         ${hasMask ? 'uniform sampler2D uFluorMask;' : ''}
@@ -76,7 +92,7 @@ export function applyUV(material: Material, opts: UVOptions = {}) {
         '#include <opaque_fragment>',
         `{
           vec3 boothUV = vec3(0.0);
-          vec3 fluorTint = ${hasMask ? 'texture2D(uFluorMask, vBoothUv).rgb' : 'vec3(1.0)'};
+          vec3 fluorTint = ${hasMask ? 'texture2D(uFluorMask, vBoothUv).rgb' : fromBase ? 'vec3(smoothstep(0.72, 0.95, dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722))))' : 'vec3(1.0)'};
           boothUV += uFluor * uFluorGain * uFluorColor * fluorTint;
           ${hasInk ? 'boothUV += uInkGain * uInkColor * texture2D(uUvInk, vBoothUv).r;' : ''}
           ${
@@ -90,11 +106,16 @@ export function applyUV(material: Material, opts: UVOptions = {}) {
               : ''
           }
           outgoingLight += uUV * boothUV;
+          ${lit ? `{
+            // hover: a soft fresnel rim, neutral, a few percent (the object "catches" the light)
+            float rim = pow(1.0 - clamp(dot(normalize(normal), normalize(vViewPosition)), 0.0, 1.0), 3.0);
+            outgoingLight += uHover * rim * 0.22 * vec3(1.0);
+          }` : ''}
         }
         #include <opaque_fragment>`,
       );
   };
-  material.customProgramCacheKey = () => `booth-uv-${hasMask}-${hasInk}-${hasProj}`;
+  material.customProgramCacheKey = () => `booth-uv-${hasMask}-${hasInk}-${hasProj}-${fromBase}-${lit}`;
   material.needsUpdate = true;
 }
 

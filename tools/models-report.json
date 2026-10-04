@@ -1,0 +1,314 @@
+{
+  "sook/desktop": {
+    "file": "public/models/sook/sook.glb",
+    "sourceMB": 1.87,
+    "MB": 0.56,
+    "triangles": 3180,
+    "sourceTriangles": 3180,
+    "art": 1024,
+    "data": 512,
+    "textures": [
+      {
+        "name": "orm",
+        "mime": "image/ktx2",
+        "kb": 9
+      },
+      {
+        "name": "basecolor_berry-bloom",
+        "mime": "image/ktx2",
+        "kb": 149
+      },
+      {
+        "name": "basecolor_garden-fresh",
+        "mime": "image/ktx2",
+        "kb": 197
+      },
+      {
+        "name": "basecolor_summer-sun",
+        "mime": "image/ktx2",
+        "kb": 196
+      }
+    ]
+  },
+  "sook/mobile": {
+    "file": "public/models/sook/sook.mobile.glb",
+    "sourceMB": 1.87,
+    "MB": 0.23,
+    "triangles": 3180,
+    "sourceTriangles": 3180,
+    "art": 512,
+    "data": 256,
+    "textures": [
+      {
+        "name": "orm",
+        "mime": "image/ktx2",
+        "kb": 5
+      },
+      {
+        "name": "basecolor_berry-bloom",
+        "mime": "image/ktx2",
+        "kb": 62
+      },
+      {
+        "name": "basecolor_garden-fresh",
+        "mime": "image/ktx2",
+        "kb": 76
+      },
+      {
+        "name": "basecolor_summer-sun",
+        "mime": "image/ktx2",
+        "kb": 76
+      }
+    ]
+  },
+  "totals": {
+    "desktopMB": 5.83,
+    "mobileMB": 2
+  },
+  "too-yumm/desktop": {
+    "file": "public/models/too-yumm/too-yumm.glb",
+    "sourceMB": 5.06,
+    "MB": 1,
+    "triangles": 29479,
+    "sourceTriangles": 29479,
+    "art": 1024,
+    "data": 512,
+    "textures": [
+      {
+        "name": "normal",
+        "mime": "image/ktx2",
+        "kb": 9
+      },
+      {
+        "name": "orm",
+        "mime": "image/ktx2",
+        "kb": 9
+      },
+      {
+        "name": "basecolor",
+        "mime": "image/ktx2",
+        "kb": 577
+      }
+    ]
+  },
+  "too-yumm/mobile": {
+    "file": "public/models/too-yumm/too-yumm.mobile.glb",
+    "sourceMB": 4.3,
+    "MB": 0.34,
+    "triangles": 7899,
+    "sourceTriangles": 7899,
+    "art": 512,
+    "data": 512,
+    "textures": [
+      {
+        "name": "normal",
+        "mime": "image/ktx2",
+        "kb": 9
+      },
+      {
+        "name": "orm",
+        "mime": "image/ktx2",
+        "kb": 9
+      },
+      {
+        "name": "basecolor",
+        "mime": "image/ktx2",
+        "kb": 186
+      }
+    ]
+  },
+  "jsw-sports/desktop": {
+    "file": "public/models/jsw-sports/jsw-sports.glb",
+    "sourceMB": 8.55,
+    "MB": 2.18,
+    "triangles": 3772,
+    "sourceTriangles": 3772,
+    "art": 2048,
+    "data": 1024,
+    "textures": [
+      {
+        "name": "normal",
+        "mime": "image/ktx2",
+        "kb": 30
+      },
+      {
+        "name": "orm",
+        "mime": "image/ktx2",
+        "kb": 47
+      },
+      {
+        "name": "basecolor",
+        "mime": "image/ktx2",
+        "kb": 2108
+      }
+    ]
+  },
+  "jsw-sports/mobile": {
+    "file": "public/models/jsw-sports/jsw-sports.mobile.glb",
+    "sourceMB": 8.55,
+    "MB": 0.68,
+    "triangles": 3772,
+    "sourceTriangles": 3772,
+    "art": 1024,
+    "data": 512,
+    "textures": [
+      {
+        "name": "normal",
+        "mime": "image/ktx2",
+        "kb": 3
+      },
+      {
+        "name": "orm",
+        "mime": "image/ktx2",
+        "kb": 16
+      },
+      {
+        "name": "basecolor",
+        "mime": "image/ktx2",
+        "kb": 635
+      }
+    ]
+  },
+  "shunya/desktop": {
+    "file": "public/models/shunya/shunya.glb",
+    "sourceMB": 30.58,
+    "MB": 2.09,
+    "triangles": 41190,
+    "sourceTriangles": 41190,
+    "art": 1024,
+    "data": 512,
+    "textures": [
+      {
+        "name": "normal_air-tin",
+        "mime": "image/ktx2",
+        "kb": 5
+      },
+      {
+        "name": "orm_air-tin",
+        "mime": "image/ktx2",
+        "kb": 34
+      },
+      {
+        "name": "basecolor_air-tin",
+        "mime": "image/ktx2",
+        "kb": 279
+      },
+      {
+        "name": "normal_bhimseni-jar",
+        "mime": "image/ktx2",
+        "kb": 23
+      },
+      {
+        "name": "orm_bhimseni-jar",
+        "mime": "image/ktx2",
+        "kb": 28
+      },
+      {
+        "name": "basecolor_bhimseni-jar",
+        "mime": "image/ktx2",
+        "kb": 389
+      },
+      {
+        "name": "normal_pooja-carton",
+        "mime": "image/ktx2",
+        "kb": 48
+      },
+      {
+        "name": "orm_pooja-carton",
+        "mime": "image/ktx2",
+        "kb": 21
+      },
+      {
+        "name": "basecolor_pooja-carton",
+        "mime": "image/ktx2",
+        "kb": 333
+      },
+      {
+        "name": "normal_ritual-set",
+        "mime": "image/ktx2",
+        "kb": 28
+      },
+      {
+        "name": "orm_ritual-set",
+        "mime": "image/ktx2",
+        "kb": 28
+      },
+      {
+        "name": "basecolor_ritual-set",
+        "mime": "image/ktx2",
+        "kb": 350
+      }
+    ]
+  },
+  "shunya/mobile": {
+    "file": "public/models/shunya/shunya.mobile.glb",
+    "sourceMB": 29.12,
+    "MB": 0.75,
+    "triangles": 11228,
+    "sourceTriangles": 11228,
+    "art": 512,
+    "data": 256,
+    "textures": [
+      {
+        "name": "normal_air-tin",
+        "mime": "image/ktx2",
+        "kb": 2
+      },
+      {
+        "name": "orm_air-tin",
+        "mime": "image/ktx2",
+        "kb": 13
+      },
+      {
+        "name": "basecolor_air-tin",
+        "mime": "image/ktx2",
+        "kb": 118
+      },
+      {
+        "name": "normal_bhimseni-jar",
+        "mime": "image/ktx2",
+        "kb": 3
+      },
+      {
+        "name": "orm_bhimseni-jar",
+        "mime": "image/ktx2",
+        "kb": 11
+      },
+      {
+        "name": "basecolor_bhimseni-jar",
+        "mime": "image/ktx2",
+        "kb": 119
+      },
+      {
+        "name": "normal_pooja-carton",
+        "mime": "image/ktx2",
+        "kb": 10
+      },
+      {
+        "name": "orm_pooja-carton",
+        "mime": "image/ktx2",
+        "kb": 7
+      },
+      {
+        "name": "basecolor_pooja-carton",
+        "mime": "image/ktx2",
+        "kb": 104
+      },
+      {
+        "name": "normal_ritual-set",
+        "mime": "image/ktx2",
+        "kb": 3
+      },
+      {
+        "name": "orm_ritual-set",
+        "mime": "image/ktx2",
+        "kb": 10
+      },
+      {
+        "name": "basecolor_ritual-set",
+        "mime": "image/ktx2",
+        "kb": 107
+      }
+    ]
+  }
+}

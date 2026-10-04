@@ -9,7 +9,9 @@ import {
   EffectPass,
   Pass,
   ShaderPass,
+  NormalPass,
   SMAAEffect,
+  SSAOEffect,
 } from 'postprocessing';
 import { useEffect, useLayoutEffect, useMemo } from 'react';
 import {
@@ -49,6 +51,8 @@ export const postState = {
   diagnose: null as null | Record<string, unknown>,
 };
 
+/** ?exposure=0.6: multiply every lamp's exposure (calibration only). */
+const EXPOSURE_OVERRIDE = typeof window !== 'undefined' ? Number(new URLSearchParams(window.location.search).get('exposure') ?? 1) || 1 : 1;
 const VIEW_DEBUG = typeof window !== 'undefined' && window.location.search.includes('viewdebug');
 let debugScene: Scene | null = null;
 const MAGENTA = new MeshBasicMaterial({ color: 0xff00ff, toneMapped: false });
@@ -87,6 +91,9 @@ function debugQuad() {
   return debugScene;
 }
 
+/** The booth's scissor in buffer px this frame (the normal pass for SSAO uses the same). */
+const boothScissor = new Vector4();
+
 /** Lets the perf probe resize the composer in the same task as a DPR step. */
 export const postApi = { resize: () => {}, samples: 0 };
 
@@ -117,11 +124,11 @@ class ViewsPass extends Pass {
 
     const s = stageRect();
     if (s && s.top < window.innerHeight && s.top + s.height > 0) {
+      // the booth camera's projection spans the whole buffer; the stage rect is a scissor
       const x = Math.round(s.left * dpr);
       const w = Math.round(s.width * dpr);
       const h = Math.round(s.height * dpr);
       const y = Math.round(H - (s.top + s.height) * dpr);
-      inputBuffer.viewport.set(x, y, w, h);
       inputBuffer.scissor.set(x, Math.max(0, y), w, Math.min(h, H - Math.max(0, y)));
       inputBuffer.scissorTest = true;
       renderer.setRenderTarget(inputBuffer);
@@ -135,16 +142,38 @@ class ViewsPass extends Pass {
         renderer.clear(true, true, false); // scene background fills the stage only
         renderer.render(this.booth, this.boothCamera);
       }
-      inputBuffer.viewport.set(0, 0, inputBuffer.width, H);
+      boothScissor.set(x, Math.max(0, y), w, Math.min(h, H - Math.max(0, y)));
       inputBuffer.scissorTest = false;
       renderer.setRenderTarget(inputBuffer);
-    }
+    } else boothScissor.set(0, 0, 0, 0);
 
+    // proof planes neither test nor write depth: the booth's depth stays intact for SSAO
     if (proofLayer.scene && proofLayer.camera && planeEntries().size) {
-      renderer.clearDepth();
       renderer.render(proofLayer.scene, proofLayer.camera);
     }
     renderer.autoClear = autoClear;
+  }
+}
+
+/**
+ * Normals + depth of the booth for SSAO (desktop), at half resolution, limited to the booth's
+ * scissor. Everything outside is cleared to "nothing here" every frame, so no stale normals are
+ * ever read outside the stage (the stage moves as the page scrolls).
+ */
+class BoothNormalPass extends NormalPass {
+  render(renderer: WebGLRenderer, inputBuffer: WebGLRenderTarget | null, outputBuffer: WebGLRenderTarget | null, deltaTime?: number, stencilTest?: boolean) {
+    const rt = (this as unknown as { renderTarget: WebGLRenderTarget }).renderTarget;
+    rt.scissorTest = false;
+    renderer.setRenderTarget(rt);
+    renderer.setClearColor(0x7777ff, 1);
+    renderer.clear(true, true, false);
+    renderer.setClearColor(0x000000, 0);
+    if (boothScissor.z <= 0 || !inputBuffer) return;
+    const k = rt.width / inputBuffer.width;
+    rt.scissor.set(Math.floor(boothScissor.x * k), Math.floor(boothScissor.y * k), Math.ceil(boothScissor.z * k), Math.ceil(boothScissor.w * k));
+    rt.scissorTest = true;
+    super.render(renderer, inputBuffer, outputBuffer, deltaTime, stencilTest);
+    rt.scissorTest = false;
   }
 }
 
@@ -238,7 +267,7 @@ class BoothToneEffect extends Effect {
     );
   }
   update() {
-    (this.uniforms.get('exposure') as Uniform<number>).value = postState.exposure;
+    (this.uniforms.get('exposure') as Uniform<number>).value = postState.exposure * EXPOSURE_OVERRIDE;
     setStageBox(this.uniforms.get('box')!.value as Vector4);
   }
 }
@@ -379,7 +408,28 @@ export function Post() {
     bloom.update = (renderer, inputBuffer, deltaTime) => {
       if (bloom.intensity > 0.001) update(renderer, inputBuffer, deltaTime);
     };
+    // desktop: subtle SSAO at half resolution (mobile relies on the baked AO only)
+    const normals = mobile ? null : new BoothNormalPass(scene, camera, { resolutionScale: 0.5 });
+    const ssao = normals
+      ? new SSAOEffect(camera, normals.texture, {
+          resolutionScale: 0.5,
+          samples: 12,
+          rings: 5,
+          worldDistanceThreshold: 3,
+          worldDistanceFalloff: 0.5,
+          worldProximityThreshold: 0.03,
+          worldProximityFalloff: 0.015,
+          minRadiusScale: 0.2,
+          radius: 0.06,
+          intensity: 1.6,
+          luminanceInfluence: 0.55,
+          bias: 0.03,
+          fade: 0.02,
+        })
+      : null;
     return {
+      normals,
+      ssao,
       sanitize: new ShaderPass(sanitizeMaterial(), 'inputBuffer'),
       bloom,
       matrix: new ColorMatrixEffect(),
@@ -388,16 +438,18 @@ export function Post() {
       coverage,
       mask: new ViewMaskEffect(coverage.target),
     };
-  }, [mobile]);
+  }, [mobile, scene, camera]);
 
   useEffect(() => {
     const prev = gl.toneMapping;
     gl.toneMapping = NoToneMapping; // tone mapping happens in the effect pass
     composer.addPass(new ViewsPass(scene, camera));
+    if (fx.normals) composer.addPass(fx.normals);
     composer.addPass(fx.coverage);
     composer.addPass(fx.sanitize);
     if (samples < 2) composer.addPass(new EffectPass(camera, new SMAAEffect()));
-    const finalPass = new EffectPass(camera, fx.bloom, fx.matrix, fx.tone, fx.noise, fx.mask);
+    const effects = [fx.ssao, fx.bloom, fx.matrix, fx.tone, fx.noise, fx.mask].filter((e): e is Effect => e !== null);
+    const finalPass = new EffectPass(camera, ...effects);
     // dark lamps (UV, AFTER DARK) live in the bottom few 8-bit codes: dither the output so gradients don't contour
     finalPass.dithering = true;
     composer.addPass(finalPass);

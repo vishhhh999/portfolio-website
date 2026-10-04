@@ -3,8 +3,10 @@
  * and finds the coloured region; every edge must be within 2px. Widths 1280, 1568, 1920, 2560
  * (DPR 1, classic 15px scrollbars on, so innerWidth and clientWidth differ).
  *   project pages: the booth stage (?viewdebug: the stage rect painted solid) vs .booth-stage
- *   home:          the cabinet (?viewdebug=cabinet: the booth's opaque silhouette) vs .booth-frame,
- *                  contain-fit to the cabinet's aspect, aligned left and bottom
+ *   home:          the cabinet (?viewdebug=cabinet: the booth's opaque silhouette) vs .booth-frame: the
+ *                  camera contain-fits the cabinet's outline into the box, centred, standing on its
+ *                  floor: bottom on the box's bottom, and either both sides on the box's sides or the
+ *                  top on its top with the outline centred
  *   node tools/check-views.mjs   (against a running build)
  */
 import { createRequire } from 'module';
@@ -30,14 +32,8 @@ for (const route of routes) {
     const dom = await p.evaluate((home) => {
       const sb = innerWidth - document.documentElement.clientWidth;
       if (home) {
-        const f = document.querySelector('.booth-frame');
-        const r = f.getBoundingClientRect();
-        const [aw, ah] = getComputedStyle(f).getPropertyValue('--cab-aspect').split('/').map(Number);
-        const a = aw / ah;
-        // landscape box: the cabinet fills the width; portrait (phones): the height
-        const w = r.width / r.height >= 1 ? r.width : r.height * a;
-        const h = w / a;
-        return { left: r.left, right: r.left + w, top: r.bottom - h, bottom: Math.min(innerHeight, r.bottom), sb };
+        const r = document.querySelector('.booth-frame').getBoundingClientRect();
+        return { home: true, left: r.left, right: r.right, top: r.top, bottom: Math.min(innerHeight, r.bottom), sb };
       }
       const r = document.querySelector('.booth-stage').getBoundingClientRect();
       // the stage clipped to the viewport (what can be drawn)
@@ -63,7 +59,14 @@ for (const route of routes) {
       }
       return r < 0 ? null : { left: l, right: r + 1, top: t, bottom: bt + 1 };
     }, png.toString('base64'));
-    const err = found ? Math.max(...['left', 'right', 'top', 'bottom'].map((k) => Math.abs(found[k] - dom[k]))) : Infinity;
+    let err = Infinity;
+    if (found && dom.home) {
+      // contain-fit: bottom on the floor of the box; width-filled or height-filled and centred
+      const bottom = Math.abs(found.bottom - dom.bottom);
+      const sides = Math.max(Math.abs(found.left - dom.left), Math.abs(found.right - dom.right));
+      const topCentre = Math.max(Math.abs(found.top - dom.top), Math.abs((found.left + found.right) / 2 - (dom.left + dom.right) / 2));
+      err = Math.max(bottom, Math.min(sides, topCentre));
+    } else if (found) err = Math.max(...['left', 'right', 'top', 'bottom'].map((k) => Math.abs(found[k] - dom[k])));
     const pass = err <= TOL;
     if (!pass) ok = false;
     const f = (o) => o ? `${Math.round(o.left)},${Math.round(o.top)} → ${Math.round(o.right)},${Math.round(o.bottom)}` : 'none';

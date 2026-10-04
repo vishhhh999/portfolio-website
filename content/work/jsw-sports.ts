@@ -11,6 +11,7 @@ const work: Work = {
   inLineup: true,
   nativeLamp: 'D50',
   glb: '',
+  model: { src: '/models/jsw-sports/jsw-sports.glb', mobile: '/models/jsw-sports/jsw-sports.mobile.glb' },
   object: 'Coffee table book, standing open',
   fallbacks: placeholderFallbacks('jsw-sports'),
   // UV notes: the approved set is applied in corrections.ts

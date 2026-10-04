@@ -1,75 +1,113 @@
-import { BOOTH, CABINET, CABINET_FACE, FOV, LIP, SHOT, STAGING, TRAY } from './staging';
-
-export type Shot = { target: [number, number, number]; position: [number, number, number]; dist: number };
-
-const tanV = Math.tan(((FOV / 2) * Math.PI) / 180);
+import { MathUtils, PerspectiveCamera, Vector3 } from 'three';
+import { BOOTH, CABINET_FACE, EYE, FACE_Z, FOV, STAGING, TRAY } from './staging.ts';
 
 /**
- * Lineup shot: a level camera looking into the booth.
- * Vertical: the lip top lands at SHOT.lipV and the ceiling's back edge at
- * SHOT.ceilingV, so you always see floor, back wall, side walls and the lit
- * ceiling meet in corners. Horizontal: the back wall never fills less than
- * SHOT.minWallFrame of the booth width, so the side walls stay in view.
- * Distances are to the back wall.
+ * A camera pose: where it stands, what it looks at (pitched EYE.pitchDeg down), and a lens shift
+ * (view offset, CSS px of the stage) that places the picture in the page layout.
  */
-export function lineupShot(aspect: number): Shot {
-  const tanH = tanV * aspect;
-  const L = BOOTH.frontZ - BOOTH.backZ;
-  // vertical solve: H − ye = ceilingV·d·t  and  ye = lipTop − lipV·(d − L)·t
-  const dV = (BOOTH.height - LIP.h - SHOT.lipV * L * tanV) / ((SHOT.ceilingV - SHOT.lipV) * tanV);
-  const dH = (BOOTH.width * SHOT.minWallFrame) / 2 / tanH;
-  const d = Math.max(dV, dH);
-  const camZ = BOOTH.backZ + d;
-  const ye = LIP.h - SHOT.lipV * (camZ - BOOTH.frontZ) * tanV;
-  return { target: [0, ye, BOOTH.backZ], position: [0, ye, camZ], dist: d };
-}
-
-/** Tray shot: the active sample alone on the tray, level, owning the frame. */
-export function trayShot(slug: string, aspect: number): Shot {
-  const { w, h } = STAGING[slug].object;
-  const tanH = tanV * aspect;
-  const fitH = Math.max(h * 1.65, 0.26);
-  const fitW = Math.max(w * 1.6, 0.36);
-  const dist = Math.max(fitH / 2 / tanV, fitW / 2 / tanH);
-  const y = TRAY.top + h * 0.5;
-  return { target: [0, y, TRAY.z], position: [0, y, TRAY.z + dist], dist };
-}
-
+export type Shot = { target: [number, number, number]; position: [number, number, number]; dist: number };
 export type FramedShot = Shot & { offset: [number, number] };
 
+const PITCH = MathUtils.degToRad(EYE.pitchDeg);
+const tanV = Math.tan(MathUtils.degToRad(FOV / 2));
+
+/** Camera on the booth's centre line at eye height, `dist` in front of the face plane, pitched down. */
+function pose(dist: number): Shot {
+  const position: [number, number, number] = [0, EYE.y, FACE_Z + dist];
+  // look along the pitched axis to a point roughly at the back wall
+  const reach = dist + (FACE_Z - BOOTH.backZ);
+  const target: [number, number, number] = [0, EYE.y + Math.tan(PITCH) * reach, FACE_Z + dist - reach];
+  return { position, target, dist };
+}
+
+const cam = new PerspectiveCamera(FOV, 1, 0.05, 20);
+const v = new Vector3();
+
+/** The cabinet's front-face corners projected for a pose: bbox in stage CSS px. */
+function faceBox(shot: Shot, stage: { width: number; height: number }) {
+  cam.aspect = stage.width / stage.height;
+  cam.position.set(...shot.position);
+  cam.lookAt(...shot.target);
+  cam.updateProjectionMatrix();
+  cam.updateMatrixWorld();
+  let l = Infinity, r = -Infinity, t = Infinity, b = -Infinity;
+  const hw = CABINET_FACE.w / 2;
+  for (const x of [-hw, hw])
+    for (const y of [CABINET_FACE.bottom, CABINET_FACE.bottom + CABINET_FACE.h]) {
+      v.set(x, y, FACE_Z).project(cam);
+      const px = ((v.x + 1) / 2) * stage.width;
+      const py = ((1 - v.y) / 2) * stage.height;
+      l = Math.min(l, px);
+      r = Math.max(r, px);
+      t = Math.min(t, py);
+      b = Math.max(b, py);
+    }
+  return { l, r, t, b, w: r - l, h: b - t };
+}
+
+const cache = new Map<string, FramedShot>();
+
 /**
- * Cabinet shot (home): the whole booth cabinet as an object on the page, placed
- * into `box` (CSS px, relative to the stage). Contain-fit the cabinet's front
- * face, aligned to the box's left and bottom; a level camera on the face centre
- * keeps the interior perspective symmetric, and a view offset (shifted lens, no
- * tilt) moves it into place.
+ * Cabinet shot (home): the whole cabinet as an object on the page, placed into `box` (CSS px,
+ * relative to the stage). The camera keeps its height and pitch; its distance is solved so the
+ * cabinet's projected outline contain-fits the box (landscape: the box's width; portrait: its
+ * height, cropped left/right and panned to the focused sample), then a lens shift moves the
+ * outline onto the box's left and bottom edges.
  */
 export function cabinetShot(
   stage: { width: number; height: number },
   box: { left: number; top: number; width: number; height: number },
   focus?: { x: number; z: number } | null,
 ): FramedShot {
-  const { w: Wc, h: Hc, bottom } = CABINET_FACE;
-  // Landscape box: the whole cabinet fills the column's width. Portrait box (phones): the cabinet
-  // fills the height and is cropped left/right, panned to the focused sample (swipe between them).
+  const key = [stage.width, stage.height, box.left, box.top, box.width, box.height, focus?.x ?? '', focus?.z ?? ''].map((n) => (typeof n === 'number' ? n.toFixed(1) : n)).join('|');
+  const hit = cache.get(key);
+  if (hit) return hit;
   const portrait = box.width / box.height < 1;
-  const s = portrait ? box.height / Hc : box.width / Wc; // px per metre at the face plane
-  const dist = stage.height / (2 * s * tanV);
-  const cy = bottom + Hc / 2;
-  const z = BOOTH.frontZ + CABINET.proud;
-  let centreX = box.left + box.width / 2;
-  if (portrait && focus) {
-    // lens shift is a 2D pan: a sample deeper in the booth moves by its perspective-scaled x
-    const k = dist / (dist + (z - focus.z));
-    centreX -= focus.x * s * k;
-    const half = (Wc * s) / 2;
-    centreX = Math.min(box.left + half, Math.max(box.left + box.width - half, centreX));
+  // bisection on distance: projected size falls monotonically as the camera backs off
+  let lo = 0.3, hi = 30;
+  for (let i = 0; i < 40; i++) {
+    const mid = (lo + hi) / 2;
+    const fb = faceBox(pose(mid), stage);
+    const fits = portrait ? fb.h <= box.height : fb.w <= box.width && fb.h <= box.height;
+    if (fits) hi = mid;
+    else lo = mid;
   }
-  const centreY = box.top + box.height - (Hc * s) / 2;
-  return {
-    target: [0, cy, z],
-    position: [0, cy, z + dist],
-    dist,
-    offset: [stage.width / 2 - centreX, stage.height / 2 - centreY],
-  };
+  const shot = pose(hi);
+  const fb = faceBox(shot, stage);
+  let dx = box.left - fb.l + (box.width - fb.w) / 2;
+  if (portrait && focus) {
+    // pan so the focused sample sits at the box centre, without showing past the cabinet's sides
+    cam.position.set(...shot.position);
+    cam.lookAt(...shot.target);
+    cam.updateMatrixWorld();
+    v.set(focus.x, EYE.y * 0.5, focus.z).project(cam);
+    const fx = ((v.x + 1) / 2) * stage.width;
+    dx = box.left + box.width / 2 - fx;
+    dx = Math.min(box.left - fb.l, Math.max(box.left + box.width - fb.r, dx));
+  }
+  const dy = box.top + box.height - fb.b;
+  // setViewOffset moves the picture by -offset: a positive dx (move right) is a negative offset
+  const out: FramedShot = { ...shot, offset: [-dx, -dy] };
+  if (cache.size > 64) cache.clear();
+  cache.set(key, out);
+  return out;
+}
+
+/** Lineup shot without a page layout box: the cabinet filling the stage. */
+export function lineupShot(aspect: number): FramedShot {
+  const stage = { width: 1000 * aspect, height: 1000 };
+  return cabinetShot(stage, { left: 40, top: 40, width: stage.width - 80, height: stage.height - 80 });
+}
+
+/** Tray shot: the active sample alone on the tray, the same lens and pitch, owning the frame. */
+export function trayShot(slug: string, aspect: number): Shot {
+  const { w, h } = STAGING[slug].object;
+  const tanH = tanV * aspect;
+  const fitH = Math.max(h * 1.7, 0.26);
+  const fitW = Math.max(w * 1.6, 0.36);
+  const dist = Math.max(fitH / 2 / tanV, fitW / 2 / tanH);
+  const cy = TRAY.top + h * 0.5;
+  // stand back along the pitched axis from the sample's centre
+  const position: [number, number, number] = [0, cy - Math.sin(PITCH) * dist, TRAY.z + Math.cos(PITCH) * dist];
+  return { target: [0, cy, TRAY.z], position, dist };
 }

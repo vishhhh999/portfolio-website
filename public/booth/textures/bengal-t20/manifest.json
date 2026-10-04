@@ -1,0 +1,81 @@
+{
+  "slug": "bengal-t20",
+  "rule": "Crops of the project's own stills only; nothing drawn.",
+  "crops": [
+    {
+      "file": "flag.webp",
+      "still": "/work/bengal-t20/03.webp",
+      "cropPx": {
+        "left": 432,
+        "top": 285,
+        "width": 1440,
+        "height": 615
+      },
+      "size": [
+        1024,
+        437
+      ],
+      "note": "tiger wall art on the stadium (flag face)"
+    },
+    {
+      "file": "ticket.webp",
+      "still": "/work/bengal-t20/02.webp",
+      "cropPx": {
+        "left": 739,
+        "top": 366,
+        "width": 883,
+        "height": 226
+      },
+      "size": [
+        768,
+        197
+      ],
+      "note": "BENGAL T20 LEAGUE banner on the big screen (match ticket face)"
+    },
+    {
+      "file": "swatch-folk.webp",
+      "still": "/work/bengal-t20/05.webp",
+      "cropPx": {
+        "left": 0,
+        "top": 30,
+        "width": 716,
+        "height": 720
+      },
+      "size": [
+        509,
+        512
+      ],
+      "note": "folk-art backdrop pattern (jersey swatch)"
+    },
+    {
+      "file": "swatch-tiger.webp",
+      "still": "/work/bengal-t20/06.webp",
+      "cropPx": {
+        "left": 167,
+        "top": 60,
+        "width": 1312,
+        "height": 525
+      },
+      "size": [
+        512,
+        205
+      ],
+      "note": "tiger pair on the auction backdrop (jersey swatch)"
+    },
+    {
+      "file": "swatch-rays.webp",
+      "still": "/work/bengal-t20/03.webp",
+      "cropPx": {
+        "left": 96,
+        "top": 450,
+        "width": 384,
+        "height": 450
+      },
+      "size": [
+        437,
+        512
+      ],
+      "note": "yellow rays on blue from the wall art (jersey swatch)"
+    }
+  ]
+}

@@ -11,7 +11,7 @@ const work: Work = {
   inLineup: true,
   nativeLamp: 'SCREEN',
   glb: '',
-  object: 'Phone on a small stand',
+  object: 'Phone on a stand showing the House of Hex logo',
   fallbacks: placeholderFallbacks('house-of-hex'),
   // UV notes: the approved set is applied in corrections.ts
   uvNotes: [],

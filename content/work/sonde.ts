@@ -11,7 +11,7 @@ const work: Work = {
   inLineup: true,
   nativeLamp: 'SCREEN',
   glb: '',
-  object: 'Tablet with the product UI',
+  object: 'Tablet on an easel showing the Sonde logo',
   fallbacks: placeholderFallbacks('sonde'),
   // UV notes: the approved set is applied in corrections.ts
   uvNotes: [],

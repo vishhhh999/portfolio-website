@@ -1,66 +1,74 @@
 {
-  "_readme": "Booth camera + staging for the Blender fallback renders. Units: metres. \"three\" = three.js world (Y-up, +Z towards camera). \"blender\" = same point in Blender (Z-up): (x, y, z)three -> (x, -z, y)blender. Run tools/blender_camera.py inside Blender to build both cameras, plinths, tray and props.",
+  "_readme": "Booth camera + staging for Blender. Units: metres. \"three\" = three.js world (Y-up, +Z towards camera); \"blender\" = the same point Z-up: (x, y, z)three -> (x, -z, y)blender. tools/blender_camera.py imports tools/booth-shell.glb (shell, bases, TEXCOORD_1 lightmap atlas) and builds the cameras from this file.",
   "units": "metres",
   "lens": {
-    "fovVerticalDeg": 13.7,
+    "fovVerticalDeg": 35,
     "sensorFit": "VERTICAL",
     "sensorHeightMm": 24,
-    "focalLengthMm": 99.893,
-    "clipStart": 0.1,
-    "clipEnd": 60,
-    "note": "Vertical FOV is fixed; horizontal FOV follows the render aspect. The lineup shot distance is solved per aspect so the whole row fills the width, so it differs between 16:9 and 16:10."
+    "focalLengthMm": 38.059,
+    "clipStart": 0.05,
+    "clipEnd": 12,
+    "eye": {
+      "y": 0.4,
+      "pitchDeg": -7
+    },
+    "note": "A ~38mm full-frame equivalent, 7 degrees down from a little above the plinth line. Home shots use a lens shift to place the cabinet in the page layout."
   },
   "shots": {
     "LINEUP_16x9 (1920x1080)": {
       "three": {
         "position": [
           0,
-          0.43416,
-          4.61763
+          0.4,
+          2.74751
         ],
         "target": [
           0,
-          0.43416,
-          -0.75
+          0.00739,
+          -0.45
         ]
       },
       "blender": {
         "location": [
           0,
-          -4.61763,
-          0.43416
+          -2.74751,
+          0.4
         ],
         "target": [
           0,
-          0.75,
-          0.43416
-        ]
+          0.45,
+          0.00739
+        ],
+        "shift_x": 0.07,
+        "shift_y": 0.20221
       }
     },
     "LINEUP_16x10 (1440x900)": {
       "three": {
         "position": [
           0,
-          0.43416,
-          4.61763
+          0.4,
+          2.74751
         ],
         "target": [
           0,
-          0.43416,
-          -0.75
+          0.00739,
+          -0.45
         ]
       },
       "blender": {
         "location": [
           0,
-          -4.61763,
-          0.43416
+          -2.74751,
+          0.4
         ],
         "target": [
           0,
-          0.75,
-          0.43416
-        ]
+          0.45,
+          0.00739
+        ],
+        "shift_x": 0.07,
+        "shift_y": 0.22467
       }
     },
     "TRAY_16x9": {
@@ -68,505 +76,477 @@
         "three": {
           "position": [
             0,
-            0.238,
-            2.44824
+            0.40832,
+            1.23759
           ],
           "target": [
             0,
-            0.238,
-            0.8
+            0.2932,
+            0.3
           ]
         },
         "blender": {
           "location": [
             0,
-            -2.44824,
-            0.238
+            -1.23759,
+            0.40832
           ],
           "target": [
             0,
-            -0.8,
-            0.238
-          ]
+            -0.3,
+            0.2932
+          ],
+          "shift_x": 0,
+          "shift_y": 0
         }
       },
       "jsw-sports": {
         "three": {
           "position": [
             0,
-            0.203,
-            2.18602
+            0.30636,
+            0.93916
           ],
           "target": [
             0,
-            0.203,
-            0.8
+            0.22788,
+            0.3
           ]
         },
         "blender": {
           "location": [
             0,
-            -2.18602,
-            0.203
+            -0.93916,
+            0.30636
           ],
           "target": [
             0,
-            -0.8,
-            0.203
-          ]
+            -0.3,
+            0.22788
+          ],
+          "shift_x": 0,
+          "shift_y": 0
         }
       },
       "mitooshi": {
         "three": {
           "position": [
             0,
-            0.223,
-            2.24221
+            0.29199,
+            0.86191
           ],
           "target": [
             0,
             0.223,
-            0.8
+            0.3
           ]
         },
         "blender": {
           "location": [
             0,
-            -2.24221,
-            0.223
+            -0.86191,
+            0.29199
           ],
           "target": [
             0,
-            -0.8,
+            -0.3,
             0.223
-          ]
+          ],
+          "shift_x": 0,
+          "shift_y": 0
         }
       },
       "sonde": {
         "three": {
           "position": [
             0,
-            0.213,
-            2.10486
+            0.29904,
+            0.88465
           ],
           "target": [
             0,
-            0.213,
-            0.8
+            0.22725,
+            0.3
           ]
         },
         "blender": {
           "location": [
             0,
-            -2.10486,
-            0.213
+            -0.88465,
+            0.29904
           ],
           "target": [
             0,
-            -0.8,
-            0.213
-          ]
+            -0.3,
+            0.22725
+          ],
+          "shift_x": 0,
+          "shift_y": 0
         }
       },
       "house-of-hex": {
         "three": {
           "position": [
             0,
-            0.203,
-            1.96751
+            0.34336,
+            1.02781
           ],
           "target": [
             0,
-            0.203,
-            0.8
+            0.254,
+            0.3
           ]
         },
         "blender": {
           "location": [
             0,
-            -1.96751,
-            0.203
+            -1.02781,
+            0.34336
           ],
           "target": [
             0,
-            -0.8,
-            0.203
-          ]
+            -0.3,
+            0.254
+          ],
+          "shift_x": 0,
+          "shift_y": 0
         }
       },
       "bengal-t20": {
         "three": {
           "position": [
             0,
-            0.153,
-            1.88218
+            0.217,
+            0.70923
           ],
           "target": [
             0,
-            0.153,
-            0.8
+            0.16675,
+            0.3
           ]
         },
         "blender": {
           "location": [
             0,
-            -1.88218,
-            0.153
+            -0.70923,
+            0.217
           ],
           "target": [
             0,
-            -0.8,
-            0.153
-          ]
+            -0.3,
+            0.16675
+          ],
+          "shift_x": 0,
+          "shift_y": 0
         }
       },
       "sook": {
         "three": {
           "position": [
             0,
-            0.183,
-            1.88218
+            0.22106,
+            0.72724
           ],
           "target": [
             0,
-            0.183,
-            0.8
+            0.1686,
+            0.3
           ]
         },
         "blender": {
           "location": [
             0,
-            -1.88218,
-            0.183
+            -0.72724,
+            0.22106
           ],
           "target": [
             0,
-            -0.8,
-            0.183
+            -0.3,
+            0.1686
+          ],
+          "shift_x": 0,
+          "shift_y": 0
+        }
+      },
+      "shunya": {
+        "three": {
+          "position": [
+            0,
+            0.22868,
+            0.77764
+          ],
+          "target": [
+            0,
+            0.17004,
+            0.3
           ]
+        },
+        "blender": {
+          "location": [
+            0,
+            -0.77764,
+            0.22868
+          ],
+          "target": [
+            0,
+            -0.3,
+            0.17004
+          ],
+          "shift_x": 0,
+          "shift_y": 0
         }
       }
     }
   },
   "booth": {
-    "width": 1.75,
-    "height": 0.95,
-    "backZ": -0.75,
-    "frontZ": 1,
-    "wall": 0.04
+    "width": 1.5,
+    "height": 0.8,
+    "backZ": -0.45,
+    "frontZ": 0.5,
+    "wall": 0.04,
+    "faceZ": 0.525,
+    "cabinetFace": {
+      "w": 1.57,
+      "h": 0.9650000000000001,
+      "bottom": -0.075
+    },
+    "cove": 0.02
   },
-  "trayPlate": {
-    "z": 0.8,
+  "tray": {
+    "z": 0.3,
     "w": 0.46,
     "d": 0.24,
     "h": 0.008,
     "stand": 0.11,
     "top": 0.118,
-    "three": {
-      "center": [
-        0,
-        0.002,
-        0.8
-      ]
-    },
     "blender": {
       "center": [
         0,
-        -0.8,
-        0.002
+        -0.3,
+        0.118
       ]
     }
   },
-  "plinthChamferMetres": 0.004,
-  "plinths": [
+  "bases": [
     {
       "slug": "too-yumm",
+      "kind": "plinth",
       "size": {
-        "width_x": 0.21,
-        "depth": 0.15,
-        "height": 0.02
+        "kind": "plinth",
+        "w": 0.24,
+        "d": 0.14,
+        "h": 0.05
       },
-      "three": {
-        "center": [
-          -0.6,
-          0.01,
-          0.66
-        ],
-        "objectBase": [
-          -0.6,
-          0.02,
-          0.66
-        ]
-      },
+      "scale": 1.46,
       "blender": {
         "center": [
-          -0.6,
-          -0.66,
-          0.01
+          -0.61,
+          -0.3,
+          0.025
         ],
         "objectBase": [
-          -0.6,
-          -0.66,
-          0.02
+          -0.61,
+          -0.3,
+          0.05
         ]
-      },
-      "objectFootprint": {
-        "w": 0.16,
-        "h": 0.24,
-        "d": 0.07
       }
     },
     {
       "slug": "jsw-sports",
+      "kind": "plinth",
       "size": {
-        "width_x": 0.42,
-        "depth": 0.28,
-        "height": 0.13
+        "kind": "plinth",
+        "w": 0.5,
+        "d": 0.24,
+        "h": 0.035
       },
-      "three": {
-        "center": [
-          -0.55,
-          0.065,
-          -0.4
-        ],
-        "objectBase": [
-          -0.55,
-          0.13,
-          -0.4
-        ]
-      },
+      "scale": 0.8,
       "blender": {
         "center": [
-          -0.55,
-          0.4,
-          0.065
+          -0.24,
+          -0.04,
+          0.0175
         ],
         "objectBase": [
-          -0.55,
-          0.4,
-          0.13
+          -0.24,
+          -0.04,
+          0.035
         ]
-      },
-      "objectFootprint": {
-        "w": 0.37,
-        "h": 0.17,
-        "d": 0.2
       }
     },
     {
       "slug": "mitooshi",
+      "kind": "plinth",
       "size": {
-        "width_x": 0.36,
-        "depth": 0.3,
-        "height": 0.15
+        "kind": "plinth",
+        "w": 0.36,
+        "d": 0.3,
+        "h": 0.26
       },
-      "three": {
-        "center": [
-          0,
-          0.075,
-          -0.4
-        ],
-        "objectBase": [
-          0,
-          0.15,
-          -0.4
-        ]
-      },
+      "scale": 1,
       "blender": {
         "center": [
-          0,
-          0.4,
-          0.075
+          -0.21,
+          0.26,
+          0.13
         ],
         "objectBase": [
-          0,
-          0.4,
-          0.15
+          -0.21,
+          0.26,
+          0.26
         ]
-      },
-      "objectFootprint": {
-        "w": 0.3,
-        "h": 0.21,
-        "d": 0.24
       }
     },
     {
       "slug": "sonde",
+      "kind": "plinth",
       "size": {
-        "width_x": 0.31,
-        "depth": 0.24,
-        "height": 0.17
+        "kind": "plinth",
+        "w": 0.34,
+        "d": 0.26,
+        "h": 0.2
       },
-      "three": {
-        "center": [
-          0.5,
-          0.085,
-          -0.4
-        ],
-        "objectBase": [
-          0.5,
-          0.17,
-          -0.4
-        ]
-      },
+      "scale": 1.15,
       "blender": {
         "center": [
-          0.5,
-          0.4,
-          0.085
+          0.22,
+          0.26,
+          0.1
         ],
         "objectBase": [
-          0.5,
-          0.4,
-          0.17
+          0.22,
+          0.26,
+          0.2
         ]
-      },
-      "objectFootprint": {
-        "w": 0.25,
-        "h": 0.19,
-        "d": 0.15
       }
     },
     {
       "slug": "house-of-hex",
+      "kind": "plinth",
       "size": {
-        "width_x": 0.15,
-        "depth": 0.13,
-        "height": 0.06
+        "kind": "plinth",
+        "w": 0.24,
+        "d": 0.16,
+        "h": 0.07
       },
-      "three": {
-        "center": [
-          -0.21,
-          0.03,
-          0.66
-        ],
-        "objectBase": [
-          -0.21,
-          0.06,
-          0.66
-        ]
-      },
+      "scale": 1.6,
       "blender": {
         "center": [
-          -0.21,
-          -0.66,
-          0.03
+          0.61,
+          -0.3,
+          0.035
         ],
         "objectBase": [
-          -0.21,
-          -0.66,
-          0.06
+          0.61,
+          -0.3,
+          0.07
         ]
-      },
-      "objectFootprint": {
-        "w": 0.09,
-        "h": 0.17,
-        "d": 0.08
       }
     },
     {
       "slug": "bengal-t20",
+      "kind": "tray",
       "size": {
-        "width_x": 0.27,
-        "depth": 0.19,
-        "height": 0.05
+        "kind": "tray",
+        "w": 0.33,
+        "d": 0.23,
+        "h": 0.012
       },
-      "three": {
-        "center": [
-          0.2,
-          0.025,
-          0.66
-        ],
-        "objectBase": [
-          0.2,
-          0.05,
-          0.66
-        ]
-      },
+      "scale": 1.3,
       "blender": {
         "center": [
-          0.2,
-          -0.66,
-          0.025
+          -0.24,
+          -0.3,
+          0.006
         ],
         "objectBase": [
-          0.2,
-          -0.66,
-          0.05
+          -0.24,
+          -0.3,
+          0.012
         ]
-      },
-      "objectFootprint": {
-        "w": 0.22,
-        "h": 0.07,
-        "d": 0.15
       }
     },
     {
       "slug": "sook",
+      "kind": "plinth",
       "size": {
-        "width_x": 0.29,
-        "depth": 0.16,
-        "height": 0.03
+        "kind": "plinth",
+        "w": 0.34,
+        "d": 0.13,
+        "h": 0.04
       },
-      "three": {
-        "center": [
-          0.6,
-          0.015,
-          0.66
-        ],
-        "objectBase": [
-          0.6,
-          0.03,
-          0.66
-        ]
-      },
+      "scale": 1,
       "blender": {
         "center": [
-          0.6,
-          -0.66,
-          0.015
+          0.11,
+          -0.3,
+          0.02
         ],
         "objectBase": [
-          0.6,
-          -0.66,
-          0.03
+          0.11,
+          -0.3,
+          0.04
         ]
+      }
+    },
+    {
+      "slug": "shunya",
+      "kind": "riser",
+      "size": {
+        "kind": "riser",
+        "w": 0.37,
+        "d": 0.3,
+        "h": 0.07
       },
-      "objectFootprint": {
-        "w": 0.24,
-        "h": 0.13,
-        "d": 0.07
+      "scale": 1.15,
+      "blender": {
+        "center": [
+          0.36,
+          -0.04,
+          0.035
+        ],
+        "objectBase": [
+          0.36,
+          -0.04,
+          0.07
+        ]
       }
     }
   ],
   "props": {
     "ledge": {
-      "x": 0.56,
-      "y": 0.43,
-      "w": 0.42,
+      "x": 0.5,
+      "y": 0.47,
+      "w": 0.4,
       "d": 0.05,
       "h": 0.012
     },
     "checker": {
-      "x": 0.64,
+      "x": 0.59,
       "w": 0.14,
       "h": 0.108,
       "lean": 0.22,
       "yaw": -0.16
     },
     "card": {
-      "x": 0.47,
+      "x": 0.43,
       "w": 0.1,
       "h": 0.067,
       "lean": 0.26,
       "yaw": 0.1
     },
     "gloss": {
-      "x": 0.37,
+      "x": 0.34,
       "w": 0.07,
       "h": 0.1,
       "lean": 0.42,
       "yaw": 0.18
     }
+  },
+  "shellGlb": "booth-shell.glb",
+  "lightmap": {
+    "uv": "TEXCOORD_1",
+    "atlas": "1024px",
+    "output": "public/models/booth-shell/lightmap.ktx2 (or lightmap.png)"
   }
 }

@@ -4,6 +4,7 @@ import { ReactLenis, type LenisRef } from 'lenis/react';
 import { usePathname } from 'next/navigation';
 import { useEffect, useLayoutEffect, useRef, type ReactNode } from 'react';
 import { readLampPreference, useBooth } from '@/lib/store';
+import { playEvent, restoreSoundPreference } from '@/lib/sound';
 import { attachLenis, startClock } from '@/lib/clock';
 import { measure } from '@/lib/views';
 
@@ -23,6 +24,7 @@ export function Providers({ children }: { children: ReactNode }) {
   useLayoutEffect(() => {
     const lamp = readLampPreference();
     if (lamp !== 'D50') useBooth.setState({ lamp, lampPicked: true, strikeProgress: 1 });
+    restoreSoundPreference();
   }, []);
 
   useEffect(() => {
@@ -46,6 +48,7 @@ export function Providers({ children }: { children: ReactNode }) {
       else lenis.scrollTo(0, { immediate: true, force: true });
     } else window.scrollTo(0, 0);
     navIntent.smoothTop = false;
+    playEvent('route');
     requestAnimationFrame(() => {
       lenisRef.current?.lenis?.resize();
       measure();

@@ -2,7 +2,8 @@
 
 import { pickLamp } from '@/lib/lampController';
 import { lampById } from '@/lib/lampPresets';
-import { playClick } from '@/lib/sound';
+import { playEvent } from '@/lib/sound';
+import { track } from '@/lib/analytics';
 import { useBooth } from '@/lib/store';
 import type { Lamp } from '@/lib/types';
 
@@ -21,9 +22,10 @@ export function NativeLampChip({ lamp }: { lamp: Lamp }) {
       aria-pressed={active}
       disabled={active}
       style={{ ['--lamp' as string]: lampById(lamp).indicator }}
-      onClick={() => {
-        playClick();
+      onClick={(e) => {
+        playEvent(`switch:${lamp}`, e.clientX);
         pickLamp(lamp);
+        track('Lamp picked', { lamp, from: 'native chip' });
       }}
     >
       <span className="lampchip__led" aria-hidden="true" />

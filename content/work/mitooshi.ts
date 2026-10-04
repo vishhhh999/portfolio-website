@@ -11,7 +11,7 @@ const work: Work = {
   inLineup: true,
   nativeLamp: 'SCREEN',
   glb: '',
-  object: 'Laptop with ASCII art on screen',
+  object: 'Laptop showing the Mitooshi logo',
   fallbacks: placeholderFallbacks('mitooshi'),
   // UV notes: the approved set is applied in corrections.ts
   uvNotes: [],

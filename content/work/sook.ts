@@ -11,6 +11,7 @@ const work: Work = {
   inLineup: true,
   nativeLamp: 'TL84',
   glb: '',
+  model: { src: '/models/sook/sook.glb', mobile: '/models/sook/sook.mobile.glb' },
   object: 'Tea box trio',
   fallbacks: placeholderFallbacks('sook'),
   // UV notes: the approved set is applied in corrections.ts

@@ -30,10 +30,10 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
  * SHUNYA pieces are 3 to 23cm. The JSW book is half a metre wide and the tray hero: full 2048.
  */
 const SIZES = {
-  'too-yumm': { desktop: { art: 1024, data: 1024 }, mobile: { art: 512, data: 512 } },
+  'too-yumm': { desktop: { art: 1024, data: 512 }, mobile: { art: 512, data: 512 } },
   sook: { desktop: { art: 1024, data: 512 }, mobile: { art: 512, data: 256 } },
   'jsw-sports': { desktop: { art: 2048, data: 1024 }, mobile: { art: 1024, data: 512 } },
-  shunya: { desktop: { art: 1024, data: 1024 }, mobile: { art: 512, data: 512 } },
+  shunya: { desktop: { art: 1024, data: 512 }, mobile: { art: 512, data: 256 } },
 };
 
 /** RGBA raster for the Basis encoder (it takes raw pixels in Node). */

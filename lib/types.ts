@@ -47,6 +47,13 @@ export type Work = {
   nativeLamp: Lamp;
   /** R2 URL. Empty until the Blender asset lands (Phase 4). */
   glb: string;
+  /**
+   * The booth object from Blender (tools/optimize-models.mjs output), in real-world metres. Without
+   * one, the procedural object for the project is used. Its display scale is the staging's
+   * (components/booth/staging.ts); `rotation` is Euler radians; `plinthOffset` lifts it off its
+   * base (metres) if its origin is not at its base; `frontSide` for closed meshes exported two-sided.
+   */
+  model?: { src: string; mobile: string; rotation?: [number, number, number]; plinthOffset?: number; frontSide?: boolean };
   /** Pre-rendered still per lamp (Phase 6). */
   fallbacks: Record<Lamp, string>;
   /** Approved proofer's notes only (shown under UV). Empty until Vishesh approves them. */

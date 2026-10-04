@@ -1,8 +1,9 @@
 'use client';
 
 import { advance, Canvas, events as createPointerEvents, useFrame, useThree, type RootState } from '@react-three/fiber';
+import { SoftShadows } from '@react-three/drei';
 import { Suspense, useEffect, useRef } from 'react';
-import { Vector3 } from 'three';
+import { Euler, Matrix4, Quaternion, Vector3 } from 'three';
 import { lineup } from '@/content/work';
 import { attachRenderer, requestFrames, setContinuous } from '@/lib/clock';
 import { lampById } from '@/lib/lampPresets';
@@ -17,7 +18,7 @@ import { perfInfo } from '@/lib/perfTier';
 import { Post } from './Post';
 import { ProofLayer } from './ProofLayer';
 import { lineupShot, trayShot } from './shots';
-import { BOOTH, CABINET, CABINET_FACE, FOCAL_MM, FOV, PLINTH_CHAMFER, PROPS, SENSOR_HEIGHT_MM, STAGING, TRAY, lineupLayout } from './staging';
+import { BOOTH, CABINET_FACE, FACE_Z, FOCAL_MM, FOV, PLINTH_CHAMFER, PROPS, SENSOR_HEIGHT_MM, STAGING, TRAY, lineupLayout } from './staging';
 
 declare global {
   interface Window {
@@ -29,13 +30,14 @@ declare global {
     __boothMounts?: number;
     /** Staging + camera data for tools/export-camera.mjs (Blender scene). */
     __boothExport?: (aspect: number) => unknown;
+    __boothGreyCard?: () => { x: number; y: number };
   }
 }
 
 const SLUGS = lineup.map((w) => w.slug);
 const LAYOUT = lineupLayout(SLUGS);
 
-/** Booth pointer events only inside the stage rect, with NDC relative to that rect (the booth's own viewport). */
+/** Booth pointer events only inside the stage rect (the camera's projection spans the whole canvas). */
 function stageEvents(store: Parameters<typeof createPointerEvents>[0]) {
   const base = createPointerEvents(store);
   return {
@@ -48,7 +50,7 @@ function stageEvents(store: Parameters<typeof createPointerEvents>[0]) {
       const inside =
         !onUi && r && event.clientX >= r.left && event.clientX <= r.left + r.width && event.clientY >= r.top && event.clientY <= r.top + r.height;
       if (!r || !inside) state.pointer.set(9, 9);
-      else state.pointer.set(((event.clientX - r.left) / r.width) * 2 - 1, -((event.clientY - r.top) / r.height) * 2 + 1);
+      else state.pointer.set((event.clientX / state.size.width) * 2 - 1, -(event.clientY / state.size.height) * 2 + 1);
       state.raycaster.setFromCamera(state.pointer, state.camera);
     },
   };
@@ -60,20 +62,31 @@ function SizeProbe() {
   useEffect(() => {
     window.__boothSizes = () => {
       // % of the cabinet's projected width (the cabinet face, at the opening)
-      const fz = BOOTH.frontZ + CABINET.proud;
+      const fz = FACE_Z;
       const ca = new Vector3(-CABINET_FACE.w / 2, BOOTH.height / 2, fz).project(camera);
       const cb = new Vector3(CABINET_FACE.w / 2, BOOTH.height / 2, fz).project(camera);
       const cab = cb.x - ca.x;
       const out: Record<string, number> = {};
       for (const w of lineup) {
         const st = STAGING[w.slug];
-        const y = st.plinth.h + st.object.h / 2;
+        const y = st.base.h + st.object.h / 2;
         const z = st.z + st.object.d / 2;
         const a = new Vector3(st.x - st.object.w / 2, y, z).project(camera);
         const b = new Vector3(st.x + st.object.w / 2, y, z).project(camera);
         out[w.slug] = +(((b.x - a.x) / cab) * 100).toFixed(1);
       }
       return out;
+    };
+    // the grey card (the 24-patch chart's N5 patch, 18% reflectance) in viewport CSS px, for exposure calibration
+    window.__boothGreyCard = () => {
+      const { checker: ch, ledge } = PROPS;
+      // N5 is row 4, column 4 of the chart; the texture's patch grid (tools/gen-assets.py)
+      const u = 648 / 1116, vTop = 726 / 864;
+      const local = new Vector3((u - 0.5) * ch.w, (1 - vTop) * ch.h, 0.0016);
+      const m = new Matrix4().compose(new Vector3(ch.x, ledge.y + ledge.h, BOOTH.backZ + 0.032), new Quaternion().setFromEuler(new Euler(-ch.lean, ch.yaw, 0)), new Vector3(1, 1, 1));
+      const p = local.applyMatrix4(m).project(camera);
+      const W = window.innerWidth, H = window.innerHeight;
+      return { x: ((p.x + 1) / 2) * W, y: ((1 - p.y) / 2) * H };
     };
   }, [camera]);
   return null;
@@ -143,11 +156,11 @@ export default function BoothCanvas({ onReady }: { onReady: () => void }) {
       booth: BOOTH,
       tray_plate: TRAY,
       plinthChamfer: PLINTH_CHAMFER,
-      plinths: lineup.map((w) => ({
+      bases: lineup.map((w) => ({
         slug: w.slug,
-        position: [LAYOUT.x[w.slug], STAGING[w.slug].plinth.h / 2, LAYOUT.z[w.slug]],
-        size: STAGING[w.slug].plinth,
-        objectBase: [LAYOUT.x[w.slug], STAGING[w.slug].plinth.h, LAYOUT.z[w.slug]],
+        position: [LAYOUT.x[w.slug], STAGING[w.slug].base.h / 2, LAYOUT.z[w.slug]],
+        size: STAGING[w.slug].base,
+        objectBase: [LAYOUT.x[w.slug], STAGING[w.slug].base.h, LAYOUT.z[w.slug]],
         objectSize: STAGING[w.slug].object,
       })),
       props: PROPS,
@@ -155,11 +168,12 @@ export default function BoothCanvas({ onReady }: { onReady: () => void }) {
   }, []);
 
   const perf = perfInfo();
+  const mobile = perf.tier === 'mobile';
 
   return (
     <Canvas
       frameloop="never"
-      shadows="variance"
+      shadows="percentage"
       dpr={typeof window !== 'undefined' ? Math.min(window.devicePixelRatio || 1, perf.dprCap) : 1}
       gl={{ antialias: false, alpha: true, premultipliedAlpha: true, powerPreference: 'high-performance', stencil: false }}
       camera={{ fov: FOV, position: [0, 0.4, 5] }}
@@ -171,9 +185,10 @@ export default function BoothCanvas({ onReady }: { onReady: () => void }) {
       <SizeProbe />
       <CameraRig />
       <LampRig />
-      <BoothRoom />
+      <SoftShadows size={mobile ? 18 : 26} samples={mobile ? 8 : 14} focus={0.2} />
+      <BoothRoom lineup={SLUGS} />
       {lineup.map((w) => (
-        <ObjectSlot key={w.slug} work={w} />
+        <ObjectSlot key={w.slug} work={w} lineup={SLUGS} />
       ))}
       <Suspense fallback={null}>
         <CalibrationProps />
