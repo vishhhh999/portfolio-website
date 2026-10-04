@@ -91,13 +91,20 @@ function plateTexture() {
   g.strokeStyle = '#8d8d8a';
   g.lineWidth = 4;
   g.strokeRect(6, 6, W - 12, H - 12);
+  // Two texts on one plate: the serial is drawn first and the title is fitted into the space left
+  // (measured, so a wide fallback monospace can never run the title into the serial).
   g.fillStyle = '#2a2a28';
-  g.font = '600 46px ui-monospace, "DejaVu Sans Mono", monospace';
   g.textBaseline = 'middle';
-  g.fillText('VM VIEWING BOOTH · 7 ILLUMINANTS', 40, H / 2 + 2);
   g.font = '500 32px ui-monospace, "DejaVu Sans Mono", monospace';
   g.textAlign = 'right';
   g.fillText('SN 0047', W - 40, H / 2 + 2);
+  const room = W - 40 - g.measureText('SN 0047').width - 48 - 40;
+  const title = 'VM VIEWING BOOTH · 7 ILLUMINANTS';
+  let size = 46;
+  g.font = `600 ${size}px ui-monospace, "DejaVu Sans Mono", monospace`;
+  while (g.measureText(title).width > room && size > 18) g.font = `600 ${--size}px ui-monospace, "DejaVu Sans Mono", monospace`;
+  g.textAlign = 'left';
+  g.fillText(title, 40, H / 2 + 2);
   const t = new CanvasTexture(c);
   t.colorSpace = SRGBColorSpace;
   t.anisotropy = 8;

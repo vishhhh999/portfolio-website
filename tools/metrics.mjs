@@ -55,6 +55,7 @@ for (const [label, throttle] of [['unthrottled', false], ['4x CPU + fast 4G', tr
   const p = await b.newPage({ viewport: { width: 1440, height: 900 } });
   await p.goto(BASE + '/work/too-yumm?gpu=high&drift', { waitUntil: 'networkidle' });
   await p.waitForSelector('.booth-stage[data-ready="true"]', { timeout: 60000 });
+  await p.keyboard.press('2'); // relit planes only exist off D50 (B1)
   await p.waitForFunction(() => document.querySelectorAll('[data-lit="true"]').length >= 2, null, { timeout: 60000 }).catch(() => {});
   await p.mouse.move(700, 450);
   for (let i = 0; i < 12; i++) { await p.mouse.wheel(0, i % 6 < 3 ? 900 : -700); await p.waitForTimeout(120); }
@@ -67,6 +68,7 @@ for (const [label, throttle] of [['unthrottled', false], ['4x CPU + fast 4G', tr
 {
   const p = await b.newPage({ viewport: { width: 1440, height: 900 } });
   await p.goto(BASE + '/work/mitooshi?gpu=high', { waitUntil: 'networkidle' });
+  await p.keyboard.press('2');
   await p.evaluate(() => document.querySelector('.proof__image video')?.scrollIntoView({ block: 'center' }));
   await p.waitForTimeout(6000);
   out.videoPlane = await p.evaluate(() => { const v = document.querySelector('.proof__image video'); return v && { lit: v.dataset.lit, playing: !v.paused, muted: v.muted }; });

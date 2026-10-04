@@ -9,10 +9,9 @@ import {
   EffectPass,
   Pass,
   ShaderPass,
-  ToneMappingEffect,
-  ToneMappingMode,
+  SMAAEffect,
 } from 'postprocessing';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useLayoutEffect, useMemo } from 'react';
 import {
   DataTexture,
   HalfFloatType,
@@ -30,6 +29,7 @@ import {
   ShaderMaterial,
   Uniform,
   Vector2,
+  Vector4,
   WebGLRenderTarget,
   type Camera,
   type WebGLRenderer,
@@ -42,6 +42,8 @@ export const postState = {
   bloomIntensity: 0,
   bloomThreshold: 1,
   grain: 0,
+  /** Booth exposure into AgX (per lamp, set by the rig). */
+  exposure: 1,
   matrix: new Matrix3(),
   /** Set by the rig to request a one-off console report after the next frame. */
   diagnose: null as null | Record<string, unknown>,
@@ -84,6 +86,9 @@ function debugQuad() {
   }
   return debugScene;
 }
+
+/** Lets the perf probe resize the composer in the same task as a DPR step. */
+export const postApi = { resize: () => {}, samples: 0 };
 
 /** The proof-strip layer (screen-space planes), registered by ProofLayer when a page has deliverables. */
 export const proofLayer: { scene: Scene | null; camera: Camera | null } = { scene: null, camera: null };
@@ -192,6 +197,61 @@ class ColorMatrixEffect extends Effect {
 }
 
 /**
+ * Tone mapping for the booth only: AgX (Blender / Filament's, as in three.js) with an exposure the
+ * lamp rig sets (calibrated so the D50 grey card reads 18% grey). Outside the booth stage the
+ * pixels are proof-strip photographs, which are display-referred already: they pass through
+ * untouched (clamped), so a relit photo at D50 level 1 is the file, with no tone curve to undo.
+ */
+class BoothToneEffect extends Effect {
+  constructor() {
+    super(
+      'BoothToneEffect',
+      /* glsl */ `
+      uniform float exposure;
+      uniform vec4 box;
+      const mat3 SRGB_TO_2020 = mat3(vec3(0.6274, 0.0691, 0.0164), vec3(0.3293, 0.9195, 0.0880), vec3(0.0433, 0.0113, 0.8956));
+      const mat3 REC2020_TO_SRGB = mat3(vec3(1.6605, -0.1246, -0.0182), vec3(-0.5876, 1.1329, -0.1006), vec3(-0.0728, -0.0083, 1.1187));
+      const mat3 INSET = mat3(vec3(0.856627153315983, 0.137318972929847, 0.11189821299995), vec3(0.0951212405381588, 0.761241990602591, 0.0767994186031903), vec3(0.0482516061458583, 0.101439036467562, 0.811302368396859));
+      const mat3 OUTSET = mat3(vec3(1.1271005818144368, -0.1413297634984383, -0.14132976349843826), vec3(-0.11060664309660323, 1.157823702216272, -0.11060664309660294), vec3(-0.016493938717834573, -0.016493938717834257, 1.2519364065950405));
+      vec3 contrast(vec3 x) {
+        vec3 x2 = x * x; vec3 x4 = x2 * x2;
+        return 15.5 * x4 * x2 - 40.14 * x4 * x + 31.96 * x4 - 6.868 * x2 * x + 0.4298 * x2 + 0.1191 * x - 0.00232;
+      }
+      vec3 agx(vec3 c) {
+        c = INSET * (SRGB_TO_2020 * c);
+        c = clamp((log2(max(c, 1e-10)) + 12.47393) / 16.5, 0.0, 1.0);
+        c = OUTSET * contrast(c);
+        c = pow(max(c, 0.0), vec3(2.2));
+        return clamp(REC2020_TO_SRGB * c, 0.0, 1.0);
+      }
+      void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor) {
+        bool inside = uv.x >= box.x && uv.x <= box.z && uv.y >= box.y && uv.y <= box.w;
+        vec3 c = inside ? agx(inputColor.rgb * exposure) : clamp(inputColor.rgb, 0.0, 1.0);
+        outputColor = vec4(c, inputColor.a);
+      }`,
+      {
+        uniforms: new Map<string, Uniform>([
+          ['exposure', new Uniform(1)],
+          ['box', new Uniform(new Vector4(0, 0, 0, 0))],
+        ]),
+      },
+    );
+  }
+  update() {
+    (this.uniforms.get('exposure') as Uniform<number>).value = postState.exposure;
+    setStageBox(this.uniforms.get('box')!.value as Vector4);
+  }
+}
+
+/** The booth stage in uv space (x0, y0, x1, y1); empty when there is no stage. */
+function setStageBox(box: Vector4) {
+  const r = stageRect();
+  if (!r) return box.set(0, 0, 0, 0);
+  const W = window.innerWidth, H = window.innerHeight;
+  return box.set(r.left / W, 1 - (r.top + r.height) / H, (r.left + r.width) / W, 1 - r.top / H);
+}
+
+/**
  * Last effect: every pixel takes the views' true coverage as alpha (premultiplied),
  * so the cabinet sits on the page with its soft shadow and the photos are cut
  * cleanly, while the page itself (paper) is never touched by any lamp or effect.
@@ -238,8 +298,11 @@ class GrainEffect extends Effect {
       uniform sampler2D grainMap;
       uniform vec2 grainScale;
       uniform vec2 grainOffset;
+      uniform vec4 grainBox; // the booth stage in uv (x0, y0, x1, y1): grain never touches proof images
       void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor) {
         float n = texture2D(grainMap, uv * grainScale + grainOffset).r;
+        float inside = step(grainBox.x, uv.x) * step(uv.x, grainBox.z) * step(grainBox.y, uv.y) * step(uv.y, grainBox.w);
+        n = mix(0.5, n, inside); // 0.5 is neutral under soft light
         outputColor = vec4(inputColor.rgb * n, inputColor.a);
       }`,
       {
@@ -248,6 +311,7 @@ class GrainEffect extends Effect {
           ['grainMap', new Uniform(grainTexture())],
           ['grainScale', new Uniform(new Vector2(1, 1))],
           ['grainOffset', new Uniform(new Vector2())],
+          ['grainBox', new Uniform(new Vector4(0, 0, 0, 0))],
         ]),
       },
     );
@@ -258,6 +322,7 @@ class GrainEffect extends Effect {
   }
   update() {
     (this.uniforms.get('grainOffset')!.value as Vector2).set(Math.random(), Math.random());
+    setStageBox(this.uniforms.get('grainBox')!.value as Vector4);
   }
 }
 
@@ -294,12 +359,17 @@ export function Post() {
   const scene = useThree((s) => s.scene);
   const camera = useThree((s) => s.camera);
   const size = useThree((s) => s.size);
+  const dpr = useThree((s) => s.viewport.dpr);
 
   // mobile tier: 2× MSAA and half-resolution bloom
   const mobile = isMobileTier();
   // ?nobloom: A/B test a lamp's look without bloom
   const noBloom = typeof window !== 'undefined' && window.location.search.includes('nobloom');
-  const composer = useMemo(() => new EffectComposer(gl, { frameBufferType: HalfFloatType, multisampling: mobile ? 2 : 4 }), [gl, mobile]);
+  // MSAA on the composer's render target (the canvas's own antialias does nothing under a post
+  // chain): 4× desktop, 2× mobile, capped at what the GPU supports. SMAA when MSAA is unavailable.
+  const samples = Math.min(mobile ? 2 : 4, gl.capabilities.isWebGL2 ? gl.capabilities.maxSamples : 0);
+  const composer = useMemo(() => new EffectComposer(gl, { frameBufferType: HalfFloatType, multisampling: samples }), [gl, samples]);
+  postApi.samples = samples;
   const fx = useMemo(() => {
     const noise = new GrainEffect();
     noise.blendMode.opacity.value = 0;
@@ -313,7 +383,7 @@ export function Post() {
       sanitize: new ShaderPass(sanitizeMaterial(), 'inputBuffer'),
       bloom,
       matrix: new ColorMatrixEffect(),
-      tone: new ToneMappingEffect({ mode: ToneMappingMode.NEUTRAL }),
+      tone: new BoothToneEffect(),
       noise,
       coverage,
       mask: new ViewMaskEffect(coverage.target),
@@ -326,6 +396,7 @@ export function Post() {
     composer.addPass(new ViewsPass(scene, camera));
     composer.addPass(fx.coverage);
     composer.addPass(fx.sanitize);
+    if (samples < 2) composer.addPass(new EffectPass(camera, new SMAAEffect()));
     const finalPass = new EffectPass(camera, fx.bloom, fx.matrix, fx.tone, fx.noise, fx.mask);
     // dark lamps (UV, AFTER DARK) live in the bottom few 8-bit codes: dither the output so gradients don't contour
     finalPass.dithering = true;
@@ -334,9 +405,15 @@ export function Post() {
       composer.removeAllPasses();
       gl.toneMapping = prev;
     };
-  }, [composer, scene, camera, gl, fx]);
+  }, [composer, scene, camera, gl, fx, samples]);
 
-  useEffect(() => composer.setSize(size.width, size.height), [composer, size.width, size.height]);
+  // Resize every buffer whenever the canvas size or its pixel ratio changes (an adaptive DPR step
+  // changes the drawing buffer without changing the CSS size). Synchronous with the canvas resize,
+  // so no frame is ever drawn into a stale-sized buffer.
+  useLayoutEffect(() => {
+    composer.setSize(size.width, size.height);
+    postApi.resize = () => composer.setSize(size.width, size.height);
+  }, [composer, size.width, size.height, dpr]);
   useEffect(() => () => composer.dispose(), [composer]);
 
   useFrame((_, dt) => {

@@ -221,8 +221,10 @@ html[data-lamp='AFTERDARK'] main a { cursor: pointer; }
 .proof { margin: 0; }
 .proof__sheet { position: relative; padding: 26px 34px 26px 26px; color: var(--ink); }
 .proof__image { position: relative; background: #e9e7e0; }
-.proof__image img, .proof__image video { display: block; width: 100%; height: auto; object-fit: contain; transition: opacity 0ms linear 40ms; }
+.proof__image img, .proof__image video { display: block; width: 100%; height: auto; object-fit: contain; }
+.proof__image img, .proof__image video { transition: opacity 300ms linear; }
 .proof__image [data-lit='true'] { opacity: 0; }
+@media (prefers-reduced-motion: reduce) { .proof__image img, .proof__image video { transition: none; } }
 /* once the lit plane draws, the frame must let the canvas (behind the page) show through */
 .proof__image:has([data-lit='true']) { background: transparent; }
 .proof__crop { position: absolute; width: 18px; height: 18px; }

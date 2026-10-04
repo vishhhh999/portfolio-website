@@ -39,6 +39,10 @@ import { PRINT_FLOORS, proofUniforms } from './proofUniforms';
 import { isMobileTier } from '@/lib/perfTier';
 
 const D50_PRINT = lampById('D50').print;
+
+/** Bumped on resize and DPR steps: cached shadow maps must re-render. */
+export const shadowEpoch = { value: 0 };
+export const invalidateShadows = () => void shadowEpoch.value++;
 const tmpSpill = new Color();
 
 const UP = new Vector3(0, 1, 0);
@@ -127,7 +131,7 @@ export function LampRig() {
   const plane = useMemo(() => new Plane(new Vector3(0, 0, 1), 0), []);
   const tmp = useMemo(() => ({ v: new Vector3(), dir: new Vector3() }), []);
   const lastLamp = useRef<string | null>(null);
-  const shadowKey = useRef<{ lamp: string | null; slug: string | null }>({ lamp: null, slug: null });
+  const shadowKey = useRef<{ lamp: string | null; slug: string | null; focus: string | null; epoch: number }>({ lamp: null, slug: null, focus: null, epoch: -1 });
   const shadowUntil = useRef(0);
   const handWasMoving = useRef(false);
   const lastHandLamp = useRef<string | null>(null);
@@ -141,6 +145,12 @@ export function LampRig() {
     scene.background = null;
   }, [scene]);
   useEffect(() => useBooth.subscribe(() => invalidate()), [invalidate]);
+  const size = useThree((s) => s.size);
+  const dprNow = useThree((s) => s.viewport.dpr);
+  useEffect(() => {
+    invalidateShadows();
+    invalidate();
+  }, [size.width, size.height, dprNow, invalidate]);
   useEffect(() => onScreenFrame(() => invalidate()), [invalidate]);
 
   useEffect(() => {
@@ -187,9 +197,13 @@ export function LampRig() {
     // The booth is static: the shadow map (VSM: a depth pass + two blur passes) re-renders only
     // when something changes it: a lamp strike or switch, samples moving to/from the tray, or the
     // hand lamp moving. Never under D50 (shadow intensity 0). The measured top per-frame cost otherwise.
+    // Anything that moves a caster or the shadow camera re-renders the map for a while: a lamp
+    // change, the tray, a swipe to another sample, a resize or a DPR step (shadowEpoch).
     const nowMs = performance.now();
-    if (lamp !== shadowKey.current.lamp || activeSlug !== shadowKey.current.slug) {
-      shadowKey.current = { lamp, slug: activeSlug };
+    const { focusSlug } = useBooth.getState();
+    const sk = shadowKey.current;
+    if (lamp !== sk.lamp || activeSlug !== sk.slug || focusSlug !== sk.focus || shadowEpoch.value !== sk.epoch) {
+      shadowKey.current = { lamp, slug: activeSlug, focus: focusSlug, epoch: shadowEpoch.value };
       shadowUntil.current = nowMs + 2500;
     }
     k.shadow.autoUpdate = false;
@@ -329,6 +343,7 @@ export function LampRig() {
     postState.bloomIntensity = mobile && lamp === 'UV' ? 0 : P.bloom.intensity * env;
     postState.bloomThreshold = P.bloom.threshold;
     postState.grain = P.grain;
+    postState.exposure = P.exposure;
     postState.matrix.fromArray(P.matrix).transpose(); // fromArray is column-major; presets are row-major
     if (useBooth.getState().lampPicked) proofUniforms.uNeutralize.value.identity();
     else proofUniforms.uNeutralize.value.copy(postState.matrix).invert();

@@ -51,6 +51,8 @@ export type LampPreset = {
   uv: number;
   bloom: { intensity: number; threshold: number };
   grain: number;
+  /** Booth exposure into AgX: D50 calibrated so the grey card reads 18% grey; dark lamps trimmed. */
+  exposure: number;
   /**
    * 3×3 colour matrix (row-major, linear light) for spectral character only:
    * the narrow bands of a fluorescent, the dull blues under tungsten.
@@ -112,7 +114,7 @@ export const LAMPS: LampPreset[] = [
     front: 0.35,
     contact: 0.55, haze: 0,
     screens: SCREENS_ON, uv: 0,
-    bloom: { intensity: 0, threshold: 1 }, grain: 0, matrix: I3,
+    bloom: { intensity: 0, threshold: 1 }, grain: 0, exposure: 1, matrix: I3,
     print: { level: 1, colour: D50, ambient: 0, grad: [0, 1, 0.06] },
     room: [0.2, 0.2, 0.198],
     strike: { duration: 0.22, curve: 'quickFluoro' }, dark: false, continuous: false,
@@ -128,7 +130,7 @@ export const LAMPS: LampPreset[] = [
     front: 0.45,
     contact: 0.6, haze: 0,
     screens: SCREENS_ON, uv: 0,
-    bloom: { intensity: 0, threshold: 1 }, grain: 0,
+    bloom: { intensity: 0, threshold: 1 }, grain: 0, exposure: 1,
     // Triband phosphors: reds lose saturation, greens push, cyan-blue shift.
     matrix: [0.86, 0.12, 0.02, 0.02, 1.0, -0.02, -0.02, 0.07, 0.95],
     print: { level: 0.97, colour: TL84, ambient: 0, grad: [0, 1, 0.14] },
@@ -145,7 +147,7 @@ export const LAMPS: LampPreset[] = [
     front: 0.04,
     contact: 0.45, haze: 0,
     screens: { gain: 0.7, spill: 0, live: false }, uv: 0,
-    bloom: { intensity: 0, threshold: 1 }, grain: 0,
+    bloom: { intensity: 0, threshold: 1 }, grain: 0, exposure: 1,
     // Tungsten has almost no blue: blues go dull and dark, reds and ambers bloom.
     matrix: [1.0, 0.02, -0.02, 0.03, 0.97, 0.0, 0.06, 0.06, 0.8],
     print: { level: 0.95, colour: TUNGSTEN, ambient: 0.05, grad: [0.82, 0.3, 0.62] },
@@ -163,7 +165,7 @@ export const LAMPS: LampPreset[] = [
     front: 0.0,
     contact: 0.3, haze: 0,
     screens: { gain: 0.45, spill: 0.3, live: false }, uv: 1,
-    bloom: { intensity: 0.32, threshold: 0.8 }, grain: 0.03, matrix: I3,
+    bloom: { intensity: 0.32, threshold: 0.8 }, grain: 0.03, exposure: 1, matrix: I3,
     // non-fluorescing print reads near-black: only white ink and the hidden marks show, never a violet wash
     print: { level: 0.012, colour: UV_VIOLET, ambient: 0.004, grad: [0, 1, 0.2] },
     room: [0.02, 0.01, 0.05],
@@ -179,7 +181,7 @@ export const LAMPS: LampPreset[] = [
     front: 0.02,
     contact: 0.7, haze: 1,
     screens: { gain: 0.75, spill: 0, live: false }, uv: 0,
-    bloom: { intensity: 0, threshold: 1 }, grain: 0.02,
+    bloom: { intensity: 0, threshold: 1 }, grain: 0.02, exposure: 1,
     matrix: [0.98, 0.03, -0.01, 0.0, 1.02, -0.02, -0.01, 0.02, 1.01],
     print: { level: 1.3, colour: FLOOD, ambient: 0, grad: [0, 1, 0], spot: { x: 0.5, y: 0.42, r: 0.62, soft: 0.3, outside: 0.05 } },
     room: [0.03, 0.03, 0.035],
@@ -195,7 +197,7 @@ export const LAMPS: LampPreset[] = [
     front: 0.0,
     contact: 0.15, haze: 0,
     screens: { gain: 2.2, spill: 10, live: true }, uv: 0,
-    bloom: { intensity: 0.6, threshold: 0.75 }, grain: 0.035, matrix: I3,
+    bloom: { intensity: 0.6, threshold: 0.75 }, grain: 0.035, exposure: 1, matrix: I3,
     print: { level: 0.07, colour: [0.6, 0.7, 1], ambient: 0.025, grad: [0, -1, 0.3] },
     room: [0.005, 0.005, 0.007],
     strike: { duration: 0.05, curve: 'instant' }, dark: true, continuous: true,
@@ -211,7 +213,7 @@ export const LAMPS: LampPreset[] = [
     contact: 0, haze: 0,
     // devices stay dimly on: small glowing screens in the dark, the hand lamp reveals the rest
     screens: { gain: 0.32, spill: 0.5, live: false }, uv: 0,
-    bloom: { intensity: 0, threshold: 1 }, grain: 0.3, matrix: I3,
+    bloom: { intensity: 0, threshold: 1 }, grain: 0.3, exposure: 1, matrix: I3,
     print: { level: 1.3, colour: kelvinToAdapted(3600), ambient: 0, grad: [0, 1, 0], spot: { x: 0.5, y: 0.5, r: 0.2, soft: 0.55, outside: 0 } },
     room: BLACK,
     strike: { duration: 0.45, curve: 'handLamp' }, dark: true, continuous: true,
