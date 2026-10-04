@@ -30,7 +30,7 @@ import {
 import { kelvinToAdapted } from '@/lib/kelvin';
 import { lampById, strikeChannels, strikeKelvin } from '@/lib/lampPresets';
 import { useBooth } from '@/lib/store';
-import { ceilingMaterial, diffuserMaterial, getBlobMaterial } from './BoothRoom';
+import { ceilingMaterial, diffuserMaterial, getBlobMaterial, lightmapTint } from './BoothRoom';
 import { postState } from './Post';
 import { onScreenFrame, screens } from './screens';
 import { BOOTH, TRAY } from './staging';
@@ -181,6 +181,8 @@ export function LampRig() {
     const onTray = activeSlug !== null;
 
     scene.environmentIntensity = ENV_INTENSITY[lamp] * env;
+    // a baked shell lightmap (if any) is bounce light: the lamp's colour at its bounce level
+    lightmapTint.value.setRGB(...P.fill.sky).multiplyScalar((P.fill.intensity + P.panel.intensity * 0.25) * env);
 
     // ── ceiling panel + its visible diffuser ────────
     const pl = panel.current!;

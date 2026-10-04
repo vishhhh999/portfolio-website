@@ -3,6 +3,7 @@
 import { advance, useFrame, useThree } from '@react-three/fiber';
 import { postApi } from './Post';
 import { invalidateShadows } from './LampRig';
+import { autoHouseLights } from '@/lib/resilience';
 import { useEffect, useRef } from 'react';
 import { useBooth } from '@/lib/store';
 import { perfInfo, perfState } from '@/lib/perfTier';
@@ -43,6 +44,7 @@ export function PerfProbe({ readout }: { readout: boolean }) {
   const samples = useRef<{ t: number; ms: number }[]>([]);
   const overSince = useRef<number | null>(null);
   const stepPending = useRef(false);
+  const slowSince = useRef<number | null>(null);
   const get = useThree((s) => s.get);
   const renderNow = () => advance(performance.now() / 1000, true, get());
   const el = useRef<HTMLDivElement | null>(null);
@@ -134,6 +136,15 @@ export function PerfProbe({ readout }: { readout: boolean }) {
             list.length = 0;
           }
         } else overSince.current = null;
+        // I4: still over 50ms (p95) for 3s with the resolution as low as it goes: house lights
+        const atFloor = info.tier !== 'mobile' || perfState.dpr <= 1;
+        if (p95 > 50 && atFloor && !perfState.lowPower) {
+          slowSince.current ??= now;
+          if (now - slowSince.current >= 3000) {
+            slowSince.current = null;
+            autoHouseLights('speed');
+          }
+        } else slowSince.current = null;
       }
     }
 

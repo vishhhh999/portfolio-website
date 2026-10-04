@@ -45,7 +45,7 @@ for (const slug of SLUGS) {
   check('home in the same session', await active(p), 'Blacklight, UV');
   // the native-lamp chip is a manual pick
   await p.goto(`${BASE}/work/too-yumm`, { waitUntil: 'networkidle' });
-  await p.click('.lampchip');
+  await p.evaluate(() => document.querySelector('.lampchip').click()); // a DOM click: SwiftShader keeps the main thread busy
   await p.waitForTimeout(300);
   check('native lamp chip on too-yumm', await active(p), 'Store light, TL84');
   await ctx.close();

@@ -74,7 +74,8 @@ export function CameraRig() {
     goalTarget.current.set(...goal.target);
     goalPos.current.set(...goal.position);
 
-    const k = reduced || !current.current ? 1 : 1 - Math.exp(-dt * 3.2);
+    // the dolly between the lineup and the tray: ~95% of the way in 0.7s, critically damped
+    const k = reduced || !current.current ? 1 : 1 - Math.exp(-dt * 4.3);
     if (!current.current) current.current = { target: goalTarget.current.clone(), position: goalPos.current.clone(), ox: goal.offset[0], oy: goal.offset[1] };
     const c = current.current;
     c.target.lerp(goalTarget.current, k);

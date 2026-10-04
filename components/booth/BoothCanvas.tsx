@@ -15,6 +15,8 @@ import { LampRig } from './LampRig';
 import { ObjectSlot } from './ObjectSlot';
 import { PerfProbe } from './PerfProbe';
 import { perfInfo } from '@/lib/perfTier';
+import { modelsSettled } from './models';
+import { contextLost, contextRestored } from '@/lib/resilience';
 import { Post } from './Post';
 import { ProofLayer } from './ProofLayer';
 import { lineupShot, trayShot } from './shots';
@@ -130,9 +132,17 @@ function ClockBridge({ onReady }: { onReady: () => void }) {
   }, [get, set]);
   const lamp = useBooth((s) => s.lamp);
   useEffect(() => setContinuous(lampById(lamp).continuous), [lamp]);
+  // Ready (the poster crossfades to the live booth) once three lit frames are drawn and every GLB
+  // is in, so the booth never appears half-lit or half-built; at most 8s after mount regardless.
+  const t0 = useRef(performance.now());
+  const done = useRef(false);
   useFrame(() => {
     frames.current++;
-    if (frames.current === 3) onReady();
+    if (done.current || frames.current < 3) return;
+    if (modelsSettled() || performance.now() - t0.current > 8000) {
+      done.current = true;
+      onReady();
+    } else requestFrames(1);
   }, 2);
   return null;
 }
@@ -142,7 +152,7 @@ function ClockBridge({ onReady }: { onReady: () => void }) {
  * never remounted. It draws the booth into the stage rect and the proof-strip
  * planes into their image rects, on demand, from the page's single clock.
  */
-export default function BoothCanvas({ onReady }: { onReady: () => void }) {
+export default function BoothCanvas({ onReady, lightmap = null }: { onReady: () => void; lightmap?: string | null }) {
   useEffect(() => {
     window.__boothMounts = (window.__boothMounts ?? 0) + 1;
     window.__boothExport = (aspect: number) => ({
@@ -180,13 +190,21 @@ export default function BoothCanvas({ onReady }: { onReady: () => void }) {
       events={stageEvents}
       eventSource={typeof document !== 'undefined' ? document.body : undefined}
       onPointerMissed={() => (document.body.style.cursor = '')}
+      onCreated={({ gl }) => {
+        // I4: a lost context drops to house lights at once; a restored one brings the booth back
+        gl.domElement.addEventListener('webglcontextlost', (e) => {
+          e.preventDefault();
+          contextLost();
+        });
+        gl.domElement.addEventListener('webglcontextrestored', () => contextRestored());
+      }}
     >
       <ClockBridge onReady={onReady} />
       <SizeProbe />
       <CameraRig />
       <LampRig />
       <SoftShadows size={mobile ? 18 : 26} samples={mobile ? 8 : 14} focus={0.2} />
-      <BoothRoom lineup={SLUGS} />
+      <BoothRoom lineup={SLUGS} lightmap={lightmap} />
       {lineup.map((w) => (
         <ObjectSlot key={w.slug} work={w} lineup={SLUGS} />
       ))}

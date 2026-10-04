@@ -49,6 +49,13 @@ export function Providers({ children }: { children: ReactNode }) {
     } else window.scrollTo(0, 0);
     navIntent.smoothTop = false;
     playEvent('route');
+    // the plain crossfade for the page (also Back, and wherever View Transitions are missing)
+    const main = document.getElementById('main');
+    if (main) {
+      main.removeAttribute('data-arrive');
+      void main.offsetWidth;
+      main.setAttribute('data-arrive', '');
+    }
     requestAnimationFrame(() => {
       lenisRef.current?.lenis?.resize();
       measure();

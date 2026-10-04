@@ -27,11 +27,17 @@ function getLoader(gl: WebGLRenderer) {
   return loader;
 }
 
+let pending = 0;
+/** No model still loading (the booth is revealed only once its objects are in: no half-built pop). */
+export const modelsSettled = () => pending === 0;
+
 /** Load (once) and return a GLB. */
 export function loadModel(url: string, gl: WebGLRenderer): Promise<GLTF> {
   let p = cache.get(url);
   if (!p) {
+    pending++;
     p = getLoader(gl).then((l) => l.loadAsync(url));
+    p.finally(() => pending--).catch(() => {});
     cache.set(url, p);
   }
   return p;

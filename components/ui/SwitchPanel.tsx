@@ -7,6 +7,7 @@ import { pickLamp } from '@/lib/lampController';
 import { CONTACT_MAILTO } from '@/lib/site';
 import { bedLevel, enableSound, houseLightsSound, playEvent } from '@/lib/sound';
 import { track } from '@/lib/analytics';
+import { declineAutoHouseLights } from '@/lib/resilience';
 import { useRef } from 'react';
 import { useBooth } from '@/lib/store';
 
@@ -62,6 +63,7 @@ export function SwitchPanel() {
 
   const toggleHouseLights = () => {
     const next = !onIndex;
+    if (!next) declineAutoHouseLights();
     houseLightsSound(next);
     setHouseLights(next); // the visitor's own choice: remembered
     track('House lights toggled', { on: next });

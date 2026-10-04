@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import { preload } from 'react-dom';
+import { avifFor } from '@/content/masters';
 import { getWork, nextWork, works } from '@/content/work';
 import { NextLink } from '@/components/ui/NextLink';
 import { OutboundLink } from '@/components/ui/OutboundLink';
@@ -34,6 +36,10 @@ export default async function WorkPage({ params }: Props) {
   const work = getWork((await params).slug);
   if (!work) notFound();
   const next = nextWork(work.slug);
+  // the first proof is the page's largest paint: fetch it first (AVIF where a master exists)
+  const first = work.deliverables[0];
+  const firstSrc = first ? (first.type === 'video' ? first.poster : avifFor(first.src) ?? first.src) : null;
+  if (firstSrc) preload(firstSrc, { as: 'image', fetchPriority: 'high', type: firstSrc.endsWith('.avif') ? 'image/avif' : undefined });
   const index = works.indexOf(work) + 1;
   const serial = 40 + index * 6;
 

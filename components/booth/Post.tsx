@@ -38,6 +38,7 @@ import {
 } from 'three';
 import { planeEntries, stageRect } from '@/lib/views';
 import { isMobileTier } from '@/lib/perfTier';
+import { loupeState } from '@/lib/loupe';
 
 /** Written by the lamp rig every frame, read here. */
 export const postState = {
@@ -474,6 +475,18 @@ export function Post() {
     fx.noise.blendMode.opacity.value = postState.grain;
     (fx.matrix.uniforms.get('matrix')!.value as Matrix3).copy(postState.matrix);
     composer.render(dt);
+
+    // the spectro loupe: one pixel of what was just drawn (premultiplied; un-premultiplied here)
+    const lp = loupeState.pending;
+    if (lp) {
+      loupeState.pending = null;
+      const ctx = gl.getContext();
+      const k = gl.getPixelRatio();
+      const px = new Uint8Array(4);
+      ctx.readPixels(Math.floor(lp.x * k), Math.floor(ctx.drawingBufferHeight - lp.y * k), 1, 1, ctx.RGBA, ctx.UNSIGNED_BYTE, px);
+      const a = px[3] / 255;
+      lp.resolve(a > 0 ? [Math.round(px[0] / a), Math.round(px[1] / a), Math.round(px[2] / a), px[3]] : null);
+    }
 
     if (postState.diagnose) {
       // Read back the final frame in the same task (no preserveDrawingBuffer needed).

@@ -14,8 +14,10 @@ import { loadModel } from './models';
 import { PLACEHOLDERS } from './placeholders';
 import { RECEDE_DZ, STAGING, TRAY } from './staging';
 import { applyUV, blankInk, createProofInk } from './uvMaterial';
+import { setFocusRect } from './focus';
 import { playEvent } from '@/lib/sound';
 import { track } from '@/lib/analytics';
+import { openProject } from '@/lib/navigate';
 
 const _v = new Vector3();
 /** drei Html places labels in canvas space; the booth camera's projection spans the canvas too. */
@@ -157,12 +159,18 @@ export function ObjectSlot({ work, lineup }: { work: Work; lineup: string[] }) {
     invalidate();
   }, [modelReady, invalidate]);
 
+  const camera = useThree((st) => st.camera);
+  const size = useThree((st) => st.size);
+  const box = useMemo(() => ({ v: new Vector3(), corners: [-1, 1].flatMap((sx) => [0, 1].flatMap((sy) => [-1, 1].map((sz) => [sx, sy, sz] as const))) }), []);
+  useEffect(() => () => setFocusRect(work.slug, null), [work.slug]);
+
   useFrame((_, dt) => {
     const slot = slotRef.current;
     const obj = objRef.current;
     const lift = liftRef.current;
     if (!slot || !obj || !lift) return;
-    const k = reduced ? 1 : 1 - Math.exp(-dt * 5);
+    // on rails: ~95% of the way in 0.65s (the camera's dolly takes ~0.7s)
+    const k = reduced ? 1 : 1 - Math.exp(-dt * 4.6);
 
     const slotZ = z + (activeSlug !== null ? RECEDE_DZ : 0);
     slot.position.z += (slotZ - slot.position.z) * k;
@@ -177,7 +185,8 @@ export function ObjectSlot({ work, lineup }: { work: Work; lineup: string[] }) {
 
     // hover lift: ~120ms to settle (rate 25/s), rim highlight with it; none under reduced motion
     const d = dim.current;
-    const liftGoal = hovered && activeSlug === null ? 1 : 0;
+    const keyed = useBooth.getState().keySlug === work.slug;
+    const liftGoal = (hovered || keyed) && activeSlug === null ? 1 : 0;
     d.lift = reduced ? liftGoal : d.lift + (liftGoal - d.lift) * (1 - Math.exp(-dt * 25));
     if (Math.abs(liftGoal - d.lift) < 1e-3) d.lift = liftGoal;
     lift.position.y = (reduced ? 0 : LIFT) * d.lift;
@@ -207,9 +216,22 @@ export function ObjectSlot({ work, lineup }: { work: Work; lineup: string[] }) {
       Math.abs(tp - d.base) > 1e-3 ||
       Math.abs(liftGoal - d.lift) > 1e-3;
     if (moving) invalidate();
+
+    // where this object is on screen, for the keyboard layer's focusable button (home lineup only)
+    if (activeSlug === null && obj.visible) {
+      obj.updateWorldMatrix(true, false);
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      for (const [sx, sy, sz] of box.corners) {
+        box.v.set((sx * object.w) / 2, sy * object.h, (sz * object.d) / 2).applyMatrix4(obj.matrixWorld).project(camera);
+        const px = ((box.v.x + 1) / 2) * size.width, py = ((1 - box.v.y) / 2) * size.height;
+        x0 = Math.min(x0, px); x1 = Math.max(x1, px); y0 = Math.min(y0, py); y1 = Math.max(y1, py);
+      }
+      setFocusRect(work.slug, { x: x0, y: y0, w: x1 - x0, h: y1 - y0 });
+    } else setFocusRect(work.slug, null);
   });
 
-  const showPlate = hovered && activeSlug === null;
+  const keySlug = useBooth((st) => st.keySlug);
+  const showPlate = (hovered || keySlug === work.slug) && activeSlug === null;
   const Procedural = PLACEHOLDERS[work.slug];
 
   return (
@@ -222,7 +244,7 @@ export function ObjectSlot({ work, lineup }: { work: Work; lineup: string[] }) {
         if (active) return;
         playEvent('select', e.nativeEvent.clientX);
         track('Project opened', { slug: work.slug, from: 'booth' });
-        router.push(`/work/${work.slug}`, { scroll: false });
+        openProject(router, `/work/${work.slug}`);
       }}
       onPointerOver={(e) => {
         e.stopPropagation();

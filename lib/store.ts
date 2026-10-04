@@ -28,6 +28,8 @@ type BoothState = {
   lampPicked: boolean;
   /** Mobile portrait crop: the sample the cabinet is panned to (swipe between samples). */
   focusSlug: string | null;
+  /** A booth object focused from the keyboard (lifts and shows its spec chip, like a hover). */
+  keySlug: string | null;
   setLamp: (lamp: Lamp) => void;
   setStrikeProgress: (p: number) => void;
   setActiveSlug: (slug: string | null) => void;
@@ -35,6 +37,7 @@ type BoothState = {
   setSound: (on: boolean) => void;
   setLampPicked: () => void;
   setFocusSlug: (slug: string | null) => void;
+  setKeySlug: (slug: string | null) => void;
 };
 
 export const useBooth = create<BoothState>((set) => ({
@@ -45,6 +48,7 @@ export const useBooth = create<BoothState>((set) => ({
   sound: false,
   lampPicked: false,
   focusSlug: null,
+  keySlug: null,
   setLamp: (lamp) => set({ lamp }),
   setStrikeProgress: (strikeProgress) => set({ strikeProgress }),
   setActiveSlug: (activeSlug) => set({ activeSlug }),
@@ -57,6 +61,7 @@ export const useBooth = create<BoothState>((set) => ({
   setSound: (sound) => set({ sound }),
   setLampPicked: () => set({ lampPicked: true }),
   setFocusSlug: (focusSlug) => set({ focusSlug }),
+  setKeySlug: (keySlug) => set({ keySlug }),
 }));
 
 export function readHouseLightsPreference(): boolean {

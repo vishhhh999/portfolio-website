@@ -9,7 +9,8 @@ import {
   DoubleSide,
   LinearFilter,
   LinearMipmapLinearFilter,
-  Matrix3,
+  Color,
+  LinearSRGBColorSpace,
   MeshBasicMaterial,
   MeshPhysicalMaterial,
   MeshStandardMaterial,
@@ -21,6 +22,7 @@ import {
   type Material,
   type Mesh,
   type Texture,
+  type WebGLRenderer,
 } from 'three';
 import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLightUniformsLib.js';
 import { isMobileTier } from '@/lib/perfTier';
@@ -135,8 +137,42 @@ export function shellAO() {
   return aoTex;
 }
 
-/** Lightmap tint per lamp (a Blender bake is lit neutral white; the rig colours it). */
-export const lightmapTint = { value: new Matrix3() };
+/**
+ * Lightmap tint per lamp: a Blender bake of the shell is lit neutral white (bake indirect light
+ * only; the realtime lamps still light the shell directly); the rig colours and levels it here.
+ */
+export const lightmapTint = { value: new Color(1, 1, 1) };
+
+/** Uses a baked lightmap (uv1) on a shell material, tinted per lamp through lightmapTint. */
+function applyLightmap(m: MeshStandardMaterial, map: Texture) {
+  m.lightMap = map;
+  m.lightMapIntensity = 1;
+  const prev = m.onBeforeCompile;
+  m.onBeforeCompile = (shader, r) => {
+    prev?.call(m, shader, r);
+    shader.uniforms.uLightmapTint = lightmapTint;
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', '#include <common>\nuniform vec3 uLightmapTint;')
+      .replace('vec3 lightMapIrradiance = lightMapTexel.rgb * lightMapIntensity;', 'vec3 lightMapIrradiance = lightMapTexel.rgb * lightMapIntensity * uLightmapTint;');
+  };
+  m.needsUpdate = true;
+}
+
+let lightmapTex: Texture | null = null;
+/** Loads the baked lightmap once (KTX2 through the model loader's transcoder, or PNG). */
+async function loadLightmap(url: string, gl: WebGLRenderer): Promise<Texture> {
+  if (lightmapTex) return lightmapTex;
+  let t: Texture;
+  if (url.endsWith('.ktx2')) {
+    const { KTX2Loader } = await import('three/examples/jsm/loaders/KTX2Loader.js');
+    t = await new KTX2Loader().setTranscoderPath('/basis/').detectSupport(gl).loadAsync(url);
+  } else t = await new TextureLoader().loadAsync(url);
+  t.channel = 1;
+  t.colorSpace = LinearSRGBColorSpace;
+  t.flipY = false;
+  lightmapTex = t;
+  return t;
+}
 
 let partsCache: ShellPart[] | null = null;
 /** The shell, built once (the same geometry the bake used). */
@@ -283,7 +319,7 @@ function baseMaterialFor(kind: 'plinth' | 'riser' | 'tray', mobile: boolean): Ma
  * edge with the maker's plate on the sill, the calibration shelf, and the soft shadow the cabinet
  * casts on the page. Desktop: a blurred, low-mix reflection on the satin floor.
  */
-export function BoothRoom({ lineup }: { lineup: string[] }) {
+export function BoothRoom({ lineup, lightmap = null }: { lineup: string[]; lightmap?: string | null }) {
   const mobile = isMobileTier();
   const parts = booth(lineup);
   const mats = useMemo(() => shellMaterials(mobile), [mobile]);
@@ -295,6 +331,25 @@ export function BoothRoom({ lineup }: { lineup: string[] }) {
     diffuserMaterial.map = difTex;
     diffuserMaterial.needsUpdate = true;
   }, [difTex]);
+
+  const gl = useThree((st) => st.gl);
+  const invalidate = useThree((st) => st.invalidate);
+  // a Blender lightmap of the shell, when one has been baked (decided at build time)
+  useEffect(() => {
+    if (!lightmap) return;
+    let live = true;
+    loadLightmap(lightmap, gl)
+      .then((t) => {
+        if (!live) return;
+        const lit = [...mats.interior, mats.lip, mats.shelf, mats.hood].filter((m): m is MeshStandardMaterial => (m as MeshStandardMaterial).isMeshStandardMaterial);
+        lit.forEach((m) => applyLightmap(m, t));
+        invalidate();
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [lightmap, gl, mats, invalidate]);
 
   const shell = parts.filter((p) => p.role !== 'base');
   const matFor = (p: ShellPart): Material | Material[] =>

@@ -138,7 +138,8 @@ export function Screen({ w, h, slug, ink }: { w: number; h: number; slug: string
     const tex = screenTexture(slug, w / h, firstStill(slug));
     const material = new MeshPhysicalMaterial({
       color: '#030304',
-      roughness: 0.2,
+      // the display under the glass is matte: the glass (clearcoat) carries the reflection
+      roughness: 0.65,
       metalness: 0,
       emissive: '#ffffff',
       emissiveMap: tex.texture,
