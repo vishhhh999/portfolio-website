@@ -61,7 +61,7 @@ import numpy as np
 from PIL import Image
 
 ROOT, DIR, DRY = sys.argv[1], sys.argv[2], sys.argv[3] == '1'
-ACCEPT, TIE, PSNR_MIN, MAX_EDGE = 10, 2, 42.0, 3000
+ACCEPT, TIE, MAX_EDGE = 10, 2, 3000
 
 def flat(im):
     im = im.convert('RGBA')
@@ -117,9 +117,23 @@ for r in rows:
     else:
         used[r['target']] = r
 
+from PIL import ImageFilter
+
+def blur(a):
+    """Gaussian σ = 2px: removes the masters' fine grain, keeps gradients (where banding lives)."""
+    return np.asarray(Image.fromarray(np.clip(a, 0, 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(2))).astype(np.float64)
+
+def smooth_mask(blurred):
+    """Smooth regions (gentle gradients and flats) of the blurred master: luminance Sobel < 3/255."""
+    l = blurred[..., :3] @ np.array([0.2126, 0.7152, 0.0722])
+    gx = np.zeros_like(l); gy = np.zeros_like(l)
+    gx[1:-1, 1:-1] = (l[:-2, 2:] + 2 * l[1:-1, 2:] + l[2:, 2:] - l[:-2, :-2] - 2 * l[1:-1, :-2] - l[2:, :-2]) / 4
+    gy[1:-1, 1:-1] = (l[2:, :-2] + 2 * l[2:, 1:-1] + l[2:, 2:] - l[:-2, :-2] - 2 * l[:-2, 1:-1] - l[:-2, 2:]) / 4
+    return np.hypot(gx, gy) < 3
+
 def psnr(a, b):
-    mse = np.mean((np.asarray(a, dtype=np.float64) - np.asarray(b, dtype=np.float64)) ** 2)
-    return 99.0 if mse == 0 else 10 * np.log10(255.0 ** 2 / mse)
+    d = (np.asarray(a, dtype=np.float64)[..., :3] - np.asarray(b, dtype=np.float64)[..., :3]) ** 2
+    return 99.0 if d.mean() == 0 else 10 * np.log10(255.0 ** 2 / d.mean())
 
 def encode(r):
     src = Image.open(os.path.join(DIR, r['master'])).convert('RGBA')
@@ -128,18 +142,24 @@ def encode(r):
         src = src.resize((round(src.width * s), round(src.height * s)), Image.LANCZOS)
     alpha = src.split()[3].getextrema()[0] < 255
     out = src if alpha else src.convert('RGB')
-    ref = np.asarray(out)
-    q, best = 74, None
-    while q <= 95:
+    ref = np.asarray(out).astype(np.float64)
+    rb = blur(ref[..., :3])
+    mask = smooth_mask(rb)
+    # Banding is a low-frequency error: compare the blurred images in smooth regions. The lowest
+    # quality whose gradients stay within 3 levels (99.9th percentile) and 8 levels (worst pixel)
+    # of the master, with the whole image >= 36 dB. Fine grain is allowed to soften; steps are not.
+    q, best = 50, None
+    while q <= 92:
         buf = io.BytesIO()
         out.save(buf, 'AVIF', quality=q, subsampling='4:4:4', speed=6)
-        back = Image.open(io.BytesIO(buf.getvalue())).convert(out.mode)
-        p = psnr(ref, back)
-        best = (q, buf.getvalue(), p)
-        if p >= PSNR_MIN: break
-        q += 4
+        back = np.asarray(Image.open(io.BytesIO(buf.getvalue())).convert(out.mode)).astype(np.float64)
+        e = np.abs(blur(back[..., :3]) - rb)[mask] if mask.any() else np.zeros(1)
+        p999, worst, pa = float(np.percentile(e, 99.9)), float(e.max()), psnr(ref, back)
+        best = (q, buf.getvalue(), p999, pa, float(mask.mean()), worst)
+        if p999 <= 3.0 and worst <= 8.0 and pa >= 36.0: break
+        q += 6
     wbuf = io.BytesIO()
-    out.save(wbuf, 'WEBP', quality=92, method=6, alpha_quality=100)
+    out.save(wbuf, 'WEBP', quality=86, method=6, alpha_quality=100)
     return best, wbuf.getvalue(), out.size, alpha
 
 todo = []
@@ -156,13 +176,13 @@ with ProcessPoolExecutor(max_workers=os.cpu_count() or 2) as pool:
     for r, (best, webp, dims, alpha) in zip(todo, pool.map(encode, todo)):
         base = os.path.splitext(r['target'])[0]
         tgt = next((t for t in targets if t['path'] == r['target']), None)
-        r.update(before=tgt['size'] if tgt else 0, avif=len(best[1]), webp=len(webp), q=best[0], psnr=round(best[2], 1), out_dims=dims, alpha=alpha)
+        r.update(before=tgt['size'] if tgt else 0, avif=len(best[1]), webp=len(webp), q=best[0], p999=round(best[2], 1), worst=round(best[5], 1), psnr_all=round(best[3], 1), smooth=round(best[4] * 100), out_dims=dims, alpha=alpha)
         if not DRY:
             os.makedirs(os.path.join(ROOT, os.path.dirname(base)), exist_ok=True)
             open(os.path.join(ROOT, base + '.avif'), 'wb').write(best[1])
             open(os.path.join(ROOT, base + '.webp'), 'wb').write(webp)
         avif.append(base[len('public'):] + '.webp')
-        print(f"{r['status']:13} {r['master']} -> {r['target']}  q{best[0]} PSNR {best[2]:.1f}dB", file=sys.stderr, flush=True)
+        print(f"{r['status']:13} {r['master']} -> {r['target']}  q{best[0]} gradient p99.9 {best[2]:.1f} worst {best[5]:.0f} levels, all {best[3]:.1f}dB ({best[4] * 100:.0f}% smooth)", file=sys.stderr, flush=True)
 
 matched_targets = {r.get('target') for r in rows if r.get('target')}
 print(json.dumps({'rows': rows, 'avif': sorted(avif), 'untouched': [t['path'] for t in targets if t['path'] not in matched_targets]}))
@@ -189,8 +209,8 @@ let md = `# Masters report (${TAG})\n\n`;
 md += `Source: \`${TAG}.zip\` from the GitHub release, ${data.rows.length} PNG masters.\n\n`;
 md += `| | count |\n|---|---|\n| matched and re-encoded | ${m.length} |\n| still indexed (colour type 3), not used | ${by('still-indexed').length} |\n| unmatched | ${by('unmatched').length} |\n| ties | ${by('tie').length} |\n| conflicts | ${by('conflict').length} |\n| current images with no master | ${data.untouched.length} |\n\n`;
 if (m.length) md += `Payload of the matched images: ${kb(sum('before'))} before (WebP from 256-colour sources) → ${kb(sum('avif'))} AVIF (served first) / ${kb(sum('webp'))} WebP fallback.\n\n`;
-md += `## Matched\n\n| master | replaces | match | AVIF q | PSNR | before | AVIF | WebP |\n|---|---|---|---|---|---|---|---|\n`;
-for (const r of m) md += `| ${r.master} | ${r.target} | ${r.why} | ${r.q} | ${r.psnr} dB | ${kb(r.before)} | ${kb(r.avif)} | ${kb(r.webp)} |\n`;
+md += `## Matched\n\nAVIF quality is the lowest at which smooth regions (gentle gradients and flats, where banding would show) stay within 3 levels (99.9th percentile) and 8 levels (worst pixel) of the master after a 2px blur (which removes the masters' fine grain but keeps every step), with the whole image at 36 dB PSNR or better. WebP fallback at quality 86.\n\n| master | replaces | match | AVIF q | gradient error p99.9 / worst (levels) | all PSNR | before | AVIF | WebP |\n|---|---|---|---|---|---|---|---|---|\n`;
+for (const r of m) md += `| ${r.master} | ${r.target} | ${r.why} | ${r.q} | ${r.p999} / ${r.worst} | ${r.psnr_all} dB | ${kb(r.before)} | ${kb(r.avif)} | ${kb(r.webp)} |\n`;
 for (const [title, s] of [['Still indexed (not used)', 'still-indexed'], ['Unmatched', 'unmatched'], ['Ties', 'tie'], ['Conflicts', 'conflict']]) {
   const list = by(s);
   md += `\n## ${title}\n\n` + (list.length ? list.map((r) => `- ${r.master}${r.target ? ` → ${r.target}` : ''}: ${r.why}`).join('\n') + '\n' : 'None.\n');

@@ -5,6 +5,7 @@ import { litPlanesEnabled } from '@/lib/gpuTier';
 import { useBooth } from '@/lib/store';
 import type { Deliverable } from '@/lib/types';
 import { registerPlane } from '@/lib/views';
+import { avifFor } from '@/content/masters';
 
 const BAR = ['#009ee0', '#e2007a', '#ffed00', '#1e1e1e', '#e2231a', '#009640', '#2d2e83', '#f3f3f2', '#a0a0a0', '#555555'];
 
@@ -120,8 +121,22 @@ function ProofFrame({ d, index, serial, onPlay }: { d: Deliverable; index: numbe
               </button>
             </>
           ) : (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img ref={ref} src={d.src} alt={d.alt} width={d.width ?? 1600} height={d.height ?? 1200} loading={index < 3 ? 'eager' : 'lazy'} decoding="async" data-lit={lit} style={{ aspectRatio: `${aspectOf(d)}` }} />
+            <picture>
+              {avifFor(d.src) && <source srcSet={avifFor(d.src)!} type="image/avif" />}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                ref={ref}
+                src={d.src}
+                alt={d.alt}
+                width={d.width ?? 1600}
+                height={d.height ?? 1200}
+                loading={index < 3 ? 'eager' : 'lazy'}
+                fetchPriority={index === 0 ? 'high' : 'auto'}
+                decoding="async"
+                data-lit={lit}
+                style={{ aspectRatio: `${aspectOf(d)}` }}
+              />
+            </picture>
           )}
         </div>
       </div>
