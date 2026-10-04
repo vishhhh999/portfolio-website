@@ -9,7 +9,7 @@
  * Also records the CPU core count and the GPU renderer string for the ?perf readout.
  * Override with ?tier=mobile / ?tier=desktop (e.g. to emulate the phone budget on a desktop).
  *
- * The mobile budget (see BoothCanvas / Post / LampRig / ProofLayer):
+ * The mobile budget (see BoothCanvas / Post / LampRig):
  *   DPR capped at 1.5 and stepped down adaptively · bloom at half resolution · one screen-spill
  *   area light instead of one per screen · 1024² shadow map · 2× MSAA.
  */

@@ -10,6 +10,7 @@ import { SwitchPanel } from '@/components/ui/SwitchPanel';
 import { Shortcuts } from '@/components/ui/Shortcuts';
 import { Loupe } from '@/components/ui/Loupe';
 import { Notice } from '@/components/ui/Notice';
+import { TorchOverlay } from '@/components/ui/TorchOverlay';
 import { IndexNavLink } from '@/components/ui/IndexNavLink';
 import { JsonLd, personLd } from '@/lib/jsonld';
 
@@ -42,6 +43,7 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
       <Shortcuts />
       <Loupe />
       <Notice />
+      <TorchOverlay />
       <main id="main">{children}</main>
       <footer className="footer">
         <a href={CONTACT_MAILTO}>Book a viewing ↗</a>

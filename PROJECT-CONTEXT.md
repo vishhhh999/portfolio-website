@@ -33,7 +33,7 @@ The full original concept, phases and locked rules are in `BRIEF.md` in the repo
 | 7 | AFTER DARK | Total black; the cursor becomes a hand lamp | All |
 
 - **I:** House lights. A mode of the current page, never a page: the booth goes and the page shows its flat version, at the same URL.
-- **Project images are never relit** (Vishesh's decision, batch 06): under D50, TL84, A, UV, FLOOD and SCREEN the case-study images and videos are the plain files. Only the 3D booth changes. AFTER DARK is the one exception: the hand lamp's torch reveals them as a pure luminance mask (multiplier exactly 1.0 at the centre, never above, no tone mapping, bloom, colour matrix or tint).
+- **Project images are never relit** (Vishesh's decision, batch 06): under D50, TL84, A, UV, FLOOD and SCREEN the case-study images and videos are the plain files. Only the 3D booth changes. AFTER DARK is the one exception: the hand lamp's torch reveals them: an overlay above the untouched page images darkens everything outside the torch (smooth falloff, dithered), fully transparent in the core, so the core is the file's own pixels (multiplier exactly 1.0; no tone mapping, bloom, colour matrix or tint can reach an image).
 
 ---
 
@@ -191,7 +191,6 @@ The data shape is in `lib/types.ts`. Key fields:
 | `environment.ts` | Reflection environment per lamp (PMREM) |
 | `LampRig.tsx` | All seven lamp rigs, strike animation, shadow invalidation |
 | `Post.tsx` | Post chain: scissored views, AgX tone mapping only inside the booth, bloom, colour matrix, grain only in the stage box, MSAA with SMAA fallback, SSAO on desktop, loupe pixel reads |
-| `ProofLayer.tsx` | AFTER DARK only: the torch as a luminance mask over the untouched image, drawn straight to the screen after the post chain (`Post.tsx`) |
 | `PerfProbe.tsx` | Frame timing, resolution step-down, slow GPU → automatic house lights |
 | `BoothHost.tsx` | Mounts the canvas lazily after first paint; WebGL capability check |
 | `BoothFocus.tsx`, `focus.ts` | Keyboard focus and the hover spec plate for samples |
@@ -215,7 +214,8 @@ The data shape is in `lib/types.ts`. Key fields:
 | UV caption | `UvCaption.tsx` | Approved UV notes as fluorescent-ink text under the first proof, UV lamp only |
 | Native lamp chip | `NativeLampChip.tsx` | Offers a project's native lamp without forcing it |
 | Spec plate | `SpecPlate.tsx` | |
-| Proof strip | `ProofStrip.tsx` | Plain `<picture>` (AVIF) under every lamp; registers a torch plane only under AFTER DARK; palette bar from `content/palettes.ts` (hover for hex) |
+| Proof strip | `ProofStrip.tsx` | Plain `<picture>` (AVIF) under every lamp, never redrawn; palette bar from `content/palettes.ts` (hover for hex) |
+| AFTER DARK torch | `TorchOverlay.tsx`, `lib/torch.ts` | A 2D overlay above the page that darkens around the hand lamp (position from the lamp rig); transparent in the core, so the visitor sees the file's own pixels |
 | Slug line | `SlugLine.tsx` | |
 | Spectro loupe | `Loupe.tsx`, `lib/loupe.ts` | Hold Alt or press L. Reads the real pixel under the cursor and shows hex, CIE L\*a\*b\* (D50) and the lamp. Desktop with a fine pointer only. |
 | Shortcuts overlay | `Shortcuts.tsx` | Press `?` |

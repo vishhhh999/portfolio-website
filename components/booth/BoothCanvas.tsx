@@ -20,7 +20,6 @@ import { modelsSettled } from './models';
 import { contextLost, contextRestored } from '@/lib/resilience';
 import { Post } from './Post';
 import { ModelRef } from './ModelRef';
-import { ProofLayer } from './ProofLayer';
 import { lineupShot, trayShot } from './shots';
 import { BOOTH, CABINET_FACE, FACE_Z, FOCAL_MM, FOV, PLINTH_CHAMFER, PROPS, SENSOR_HEIGHT_MM, STAGING, TRAY, lineupLayout } from './staging';
 
@@ -53,8 +52,10 @@ function stageEvents(store: Parameters<typeof createPointerEvents>[0]) {
     compute(event: { clientX: number; clientY: number; target: EventTarget | null }, state: RootState) {
       const r = stageRect();
       const t = event.target as Element | null;
-      // events bubble to <body>; ignore any that started on real page UI over the booth
-      const onUi = !!t?.closest?.('a, button, input, .panel, .masthead, .work__body, .footer, .houselights, .page');
+      // events bubble to <body>; ignore any that started on real page UI over the booth. The masthead's
+      // empty space is not UI: on project pages the raised samples sit under it and must stay clickable
+      // (its links and buttons are caught by "a, button").
+      const onUi = !!t?.closest?.('a, button, input, .panel, .work__body, .footer, .houselights, .page');
       const inside =
         !onUi && r && event.clientX >= r.left && event.clientX <= r.left + r.width && event.clientY >= r.top && event.clientY <= r.top + r.height;
       if (!r || !inside) state.pointer.set(9, 9);
@@ -277,7 +278,6 @@ export default function BoothCanvas({ onReady, lightmap = null }: { onReady: () 
           <Suspense fallback={null}>
             <CalibrationProps />
           </Suspense>
-          <ProofLayer />
         </>
       )}
       <Post />

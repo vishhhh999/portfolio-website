@@ -37,6 +37,7 @@ import { BOOTH, TRAY } from './staging';
 import { boothEnvironment, ENV_INTENSITY } from './environment';
 import { uvUniforms } from './uvMaterial';
 import { PRINT_FLOORS, proofUniforms } from './proofUniforms';
+import { torch } from '@/lib/torch';
 import { isMobileTier } from '@/lib/perfTier';
 
 const D50_PRINT = lampById('D50').print;
@@ -357,6 +358,14 @@ export function LampRig() {
         printHand.pos.addScaledVector(printHand.vel, step);
         if (printHand.vel.lengthSq() > 1e-2) handMoving = true;
         proofUniforms.uSpot.value.set(printHand.pos.x, printHand.pos.y, r, pr.spot.soft);
+        // the page's torch overlay (C2) in viewport CSS px
+        torch.x = printHand.pos.x / dpr;
+        torch.y = (H - printHand.pos.y) / dpr;
+        torch.r = r / dpr;
+        torch.soft = pr.spot.soft;
+        torch.outside = pr.spot.outside;
+        torch.level = Math.min(1, env);
+        torch.fromRig = true;
         proofUniforms.uCookie.value = gobo;
         proofUniforms.uUseCookie.value = 1;
       } else {

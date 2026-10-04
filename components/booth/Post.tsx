@@ -36,7 +36,7 @@ import {
   type Camera,
   type WebGLRenderer,
 } from 'three';
-import { planeEntries, stageRect } from '@/lib/views';
+import { stageRect } from '@/lib/views';
 import { isMobileTier } from '@/lib/perfTier';
 import { loupeState } from '@/lib/loupe';
 
@@ -108,8 +108,6 @@ const boothScissor = new Vector4();
 /** Lets the perf probe resize the composer in the same task as a DPR step. */
 export const postApi = { resize: () => {}, samples: 0 };
 
-/** The AFTER DARK proof planes (screen space), registered by ProofLayer; drawn after the post chain. */
-export const proofLayer: { scene: Scene | null; camera: Camera | null } = { scene: null, camera: null };
 
 /**
  * Renders every view into the composer's input buffer: the booth scene
@@ -495,16 +493,6 @@ export function Post() {
     gl.setClearColor(0x000000, 0);
     gl.clear(true, true, false);
     composer.render(dt);
-    // AFTER DARK proof planes (C2): drawn straight onto the screen after the post chain, so no tone
-    // mapping, bloom, colour matrix, grain or tint ever touches a case-study image
-    if (proofLayer.scene && proofLayer.camera && planeEntries().size) {
-      const ac = gl.autoClear;
-      gl.autoClear = false;
-      gl.setRenderTarget(null);
-      gl.render(proofLayer.scene, proofLayer.camera);
-      gl.autoClear = ac;
-    }
-
     // A2 test hook: the mean luminance of the stage as presented, one entry per frame
     const cap = window.__boothCapture;
     if (cap?.on) {

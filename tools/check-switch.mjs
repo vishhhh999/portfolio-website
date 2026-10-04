@@ -57,18 +57,25 @@ async function measure(name, act, target) {
 await measure('next on the tray (→ /work/jsw-sports)', () => p.evaluate(() => document.querySelector('a.next')?.click()), '/work/jsw-sports');
 await p.waitForTimeout(1500);
 // a sample in the header, clicked on the canvas where it is drawn (the raised back samples stay
-// visible, dimmed, behind the tray): the first one whose centre is inside the stage, clear of the masthead
-const pick = await p.evaluate(() => {
+// visible, dimmed, behind the tray): scan its projected box with the pointer until the booth offers
+// a pointer cursor (a real hit on the sample), then click there
+let pick = null;
+const cand = await p.evaluate(() => {
   const st = window.__boothStageRect?.();
   const boxes = window.__boothBoxes?.().boxes ?? {};
-  for (const slug of ['mitooshi', 'sonde', 'jsw-sports', 'house-of-hex']) {
-    const b = boxes[slug];
-    if (!b || !st) continue;
-    const x = (b.x0 + b.x1) / 2, y = (b.y0 + b.y1) / 2;
-    if (x > st.left + 10 && x < st.right - 10 && y > 110 && y < st.bottom - 10) return { slug, x, y };
-  }
-  return null;
+  return ['mitooshi', 'sonde', 'house-of-hex'].map((slug) => ({ slug, b: boxes[slug], st: st && { top: st.top, bottom: st.bottom } })).filter((c) => c.b && c.st);
 });
+for (const c of cand) {
+  for (let i = 1; i < 5 && !pick; i++)
+    for (let j = 1; j < 5 && !pick; j++) {
+      const x = c.b.x0 + ((c.b.x1 - c.b.x0) * i) / 5, y = Math.max(c.st.top + 4, c.b.y0 + ((c.b.y1 - c.b.y0) * j) / 5);
+      if (y > c.st.bottom - 4) continue;
+      await p.mouse.move(x, y);
+      await p.waitForTimeout(120);
+      if (await p.evaluate(() => document.body.style.cursor === 'pointer')) pick = { slug: c.slug, x, y };
+    }
+  if (pick) break;
+}
 if (pick) await measure(`booth sample in the header (→ /work/${pick.slug})`, () => p.mouse.click(pick.x, pick.y), `/work/${pick.slug}`);
-else console.log(`${label} booth sample in the header: none clickable in view on this build`);
+else console.log(`${label} booth sample in the header: no sample under the pointer anywhere in its box`);
 await b.close();

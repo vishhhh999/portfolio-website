@@ -23,7 +23,8 @@ p.setDefaultTimeout(600000);
 let fails = 0;
 const key = (k) => p.evaluate((k) => window.dispatchEvent(new KeyboardEvent('keydown', { key: k })), k);
 for (const [slug, idx] of CASES) {
-  await p.goto(`${BASE}/work/${slug}`, { waitUntil: 'networkidle' });
+  // ?gpu=high: a software renderer is the low tier, where proofs stay plain DOM images (no torch planes)
+  await p.goto(`${BASE}/work/${slug}?gpu=high`, { waitUntil: 'networkidle' });
   await p.waitForSelector('.booth-stage[data-ready="true"]', { timeout: 600000 });
   await key('1');
   const r0 = await p.evaluate((i) => {
@@ -81,9 +82,19 @@ for (const [slug, idx] of CASES) {
       prev = Math.min(prev, ratio);
     }
   }
-  const okCore = maxd <= 1, okFall = rises === 0;
+  // the torch must really be there: outside its radius the image is dark (ratio to D50 well below 1)
+  const outs = [];
+  for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+    const x = w / 2 + dx * R * 1.15, y = h / 2 + dy * R * 1.15;
+    if (x < 0 || y < 0 || x >= w || y >= h) continue;
+    const dl = lum(px(D.data, x, y));
+    if (dl >= 25) outs.push(lum(px(A.data, x, y)) / dl);
+  }
+  const dark = outs.length ? Math.max(...outs) : null;
+  const okDark = dark !== null && dark < 0.15;
+  const okCore = maxd <= 1, okFall = rises === 0 && okDark;
   if (!okCore || !okFall) fails++;
-  console.log(`${okCore && okFall ? 'PASS' : 'FAIL'} ${slug} proof ${idx + 1}: core matches the file (max channel diff ${maxd}), falloff ${rises ? `${rises} rise(s) (rings)` : 'monotonic, no rings'}`);
+  console.log(`${okCore && okFall ? 'PASS' : 'FAIL'} ${slug} proof ${idx + 1}: core matches the file (max channel diff ${maxd}), falloff ${rises ? `${rises} rise(s) (rings)` : 'monotonic, no rings'}, outside the torch ${dark === null ? 'not measurable' : `${(dark * 100).toFixed(1)}% of the file`}${okDark ? '' : ' (no torch drawn!)'}`);
 }
 await b.close();
 process.exit(fails ? 1 : 0);

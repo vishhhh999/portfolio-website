@@ -1,10 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { litPlanesEnabled } from '@/lib/gpuTier';
 import { useBooth } from '@/lib/store';
 import type { Deliverable } from '@/lib/types';
-import { registerPlane } from '@/lib/views';
 import { avifFor } from '@/content/masters';
 
 import { PALETTES } from '@/content/palettes';
@@ -49,7 +47,6 @@ type StripPart = 'all' | 'hero' | 'rest';
 
 function ProofFrame({ d, index, serial, onPlay }: { d: Deliverable; index: number; serial: number; onPlay: (d: Deliverable) => void }) {
   const ref = useRef<HTMLImageElement & HTMLVideoElement>(null);
-  const [lit, setLit] = useState(false);
   const lamp = useBooth((s) => s.lamp);
 
   // React sets `muted` as a property after mount, which can block autoplay: set it and start playback explicitly.
@@ -71,21 +68,8 @@ function ProofFrame({ d, index, serial, onPlay }: { d: Deliverable; index: numbe
     return () => io.disconnect();
   }, [d]);
 
-  // C: case-study images keep their authored colour under every lamp: the plain <img>/<video>, no
-  // WebGL plane, matrix, dither or grain. AFTER DARK is the one exception: the hand lamp's torch
-  // reveals them (a pure luminance mask, ProofLayer). The plane exists only while AFTER DARK is on,
-  // and goes the moment another lamp is picked (the DOM frame is back at once, no fade).
-  const houseLights = useBooth((s) => s.houseLights);
-  const torch = lamp === 'AFTERDARK' && !houseLights;
-  useEffect(() => {
-    const el = ref.current;
-    if (!el || !torch || !litPlanesEnabled()) return;
-    const off = registerPlane({ el, kind: d.type, src: d.src, onReady: () => setLit(true) });
-    return () => {
-      setLit(false);
-      off();
-    };
-  }, [d, torch]);
+  // C: case-study images keep their authored colour under every lamp: the plain <img>/<video>,
+  // never redrawn. Under AFTER DARK the page's TorchOverlay darkens around the hand lamp, above them.
 
   const slug = `VM_PROOF_${String(serial).padStart(4, '0')} · ${lamp === 'AFTERDARK' ? 'AFTER DARK' : lamp} · 2026-10`;
 
@@ -107,7 +91,7 @@ function ProofFrame({ d, index, serial, onPlay }: { d: Deliverable; index: numbe
         <div className="proof__image">
           {d.type === 'video' ? (
             <>
-              <video ref={ref} poster={d.poster} muted loop playsInline autoPlay preload="metadata" aria-label={d.alt} data-lit={lit} style={{ aspectRatio: `${aspectOf(d)}` }}>
+              <video ref={ref} poster={d.poster} muted loop playsInline autoPlay preload="metadata" aria-label={d.alt} style={{ aspectRatio: `${aspectOf(d)}` }}>
                 {d.sources?.map((s) => <source key={s.src} src={s.src} type={s.type} />)}
                 <source src={d.src} type="video/mp4" />
               </video>
@@ -128,7 +112,7 @@ function ProofFrame({ d, index, serial, onPlay }: { d: Deliverable; index: numbe
                 loading={index < 3 ? 'eager' : 'lazy'}
                 fetchPriority={index === 0 ? 'high' : 'auto'}
                 decoding="async"
-                data-lit={lit}
+               
                 style={{ aspectRatio: `${aspectOf(d)}` }}
               />
             </picture>

@@ -19,6 +19,7 @@ const check = (label, got, want) => {
 for (const slug of SLUGS) {
   const ctx = await b.newContext({ viewport: { width: 1440, height: 900 } });
   const p = await ctx.newPage();
+  p.setDefaultTimeout(600000);
   await p.goto(`${BASE}/work/${slug}`, { waitUntil: 'networkidle' });
   await p.waitForTimeout(1500); // anything that would switch the lamp after load has had its chance
   // archive-only projects have no booth, so no lamp panel at all (B4)
@@ -28,6 +29,7 @@ for (const slug of SLUGS) {
 {
   const ctx = await b.newContext({ viewport: { width: 1440, height: 900 } });
   const p = await ctx.newPage();
+  p.setDefaultTimeout(600000);
   await p.goto(`${BASE}/work/too-yumm`, { waitUntil: 'networkidle' });
   await p.keyboard.press('4'); // UV
   await p.waitForTimeout(300);
