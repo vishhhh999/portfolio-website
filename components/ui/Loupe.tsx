@@ -60,7 +60,9 @@ export function Loupe() {
   const pos = useRef({ x: 0, y: 0 });
   const el = useRef<HTMLDivElement>(null);
   const active = on || held;
-  const fine = typeof window !== 'undefined' && matchMedia('(pointer: fine)').matches;
+  // decided after mount (the server can't know the pointer): no hydration mismatch
+  const [fine, setFine] = useState(false);
+  useEffect(() => setFine(matchMedia('(pointer: fine)').matches), []);
 
   useEffect(() => {
     if (!fine) return;

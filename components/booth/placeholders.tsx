@@ -74,7 +74,7 @@ const aluminium = (o?: MatOpts, tint = '#C3C4C6') =>
 /** Space-grey anodised (tablet and phone bodies). */
 const graphite = (o?: MatOpts) => withUV(new MeshPhysicalMaterial({ color: '#4A4B4F', metalness: 1, roughness: 0.38, anisotropy: 0.3, envMapIntensity: 1 }), o);
 /** Black glass bezel: the front of every device, around the screen. */
-const blackGlass = () => withUV(new MeshPhysicalMaterial({ color: '#08090A', metalness: 0, roughness: 0.08, clearcoat: 1, clearcoatRoughness: 0.03, envMapIntensity: 1 }));
+const blackGlass = () => withUV(new MeshPhysicalMaterial({ color: '#08090A', metalness: 0, roughness: 0.3, clearcoat: 0.5, clearcoatRoughness: 0.12, envMapIntensity: 0.7 }));
 
 let keyboardNormal: Texture | null = null;
 /**

@@ -24,14 +24,11 @@ import {
   type Texture,
   type WebGLRenderer,
 } from 'three';
-import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLightUniformsLib.js';
 import { isMobileTier } from '@/lib/perfTier';
 import { useBooth } from '@/lib/store';
 import { shellParts, type ShellPart } from './shell';
 import { BOOTH, CABINET, CABINET_FACE, COVE, DIFFUSER, PLINTH_GREY, PROPS, STAGING, TRAY } from './staging';
 import { applyUV } from './uvMaterial';
-
-RectAreaLightUniformsLib.init();
 
 /** Munsell N7 booth grey for the walls; the floor a satin step darker; plinths a warmer N8. */
 export const BOOTH_GREY = '#A8A8A6';
@@ -288,7 +285,7 @@ function shellMaterials(mobile: boolean): ShellMats {
     frame: new MeshPhysicalMaterial({ color: '#161618', metalness: 0.55, roughness: 0.4, clearcoat: 0.35, clearcoatRoughness: 0.3, envMapIntensity: 1 }),
     housing: new MeshStandardMaterial({ color: '#1B1B1A', roughness: 0.62, metalness: 0.3 }),
     // the lamp hood: satin N6, like the light housing of a real booth (not a black slab)
-    hood: new MeshStandardMaterial({ color: '#8C8C8A', roughness: 0.5, metalness: 0.1, roughnessMap: rough, side: DoubleSide }),
+    hood: new MeshStandardMaterial({ color: '#B4B4B2', roughness: 0.6, metalness: 0.05, roughnessMap: rough, side: DoubleSide, emissive: '#2a2a29' }),
     lip: new MeshStandardMaterial({ color: '#A2A2A0', roughness: 0.7, roughnessMap: rough, aoMap: ao }),
     shelf: new MeshStandardMaterial({ color: PLINTH_GREY, roughness: 0.88, roughnessMap: rough, aoMap: ao }),
   };

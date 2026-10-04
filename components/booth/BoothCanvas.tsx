@@ -2,7 +2,8 @@
 
 import { advance, Canvas, events as createPointerEvents, useFrame, useThree, type RootState } from '@react-three/fiber';
 import { SoftShadows } from '@react-three/drei';
-import { Suspense, useEffect, useRef } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
+import { loadLTC } from '@/lib/ltc';
 import { Euler, Matrix4, Quaternion, Vector3 } from 'three';
 import { lineup } from '@/content/work';
 import { attachRenderer, requestFrames, setContinuous } from '@/lib/clock';
@@ -18,6 +19,7 @@ import { perfInfo } from '@/lib/perfTier';
 import { modelsSettled } from './models';
 import { contextLost, contextRestored } from '@/lib/resilience';
 import { Post } from './Post';
+import { ModelRef } from './ModelRef';
 import { ProofLayer } from './ProofLayer';
 import { lineupShot, trayShot } from './shots';
 import { BOOTH, CABINET_FACE, FACE_Z, FOCAL_MM, FOV, PLINTH_CHAMFER, PROPS, SENSOR_HEIGHT_MM, STAGING, TRAY, lineupLayout } from './staging';
@@ -37,6 +39,8 @@ declare global {
 }
 
 const SLUGS = lineup.map((w) => w.slug);
+/** ?modelref=<slug>: one GLB alone, like its Blender reference render (tools/model-ref.mjs). */
+const MODEL_REF = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('modelref') : null;
 const LAYOUT = lineupLayout(SLUGS);
 
 /** Booth pointer events only inside the stage rect (the camera's projection spans the whole canvas). */
@@ -177,6 +181,12 @@ export default function BoothCanvas({ onReady, lightmap = null }: { onReady: () 
     });
   }, []);
 
+  // the area lights' lookup tables arrive as a texture before anything renders
+  const [ltc, setLtc] = useState(false);
+  useEffect(() => {
+    void loadLTC().then(() => setLtc(true));
+  }, []);
+
   const perf = perfInfo();
   const mobile = perf.tier === 'mobile';
 
@@ -199,19 +209,25 @@ export default function BoothCanvas({ onReady, lightmap = null }: { onReady: () 
         gl.domElement.addEventListener('webglcontextrestored', () => contextRestored());
       }}
     >
-      <ClockBridge onReady={onReady} />
-      <SizeProbe />
-      <CameraRig />
-      <LampRig />
-      <SoftShadows size={mobile ? 18 : 26} samples={mobile ? 8 : 14} focus={0.2} />
-      <BoothRoom lineup={SLUGS} lightmap={lightmap} />
-      {lineup.map((w) => (
-        <ObjectSlot key={w.slug} work={w} lineup={SLUGS} />
-      ))}
-      <Suspense fallback={null}>
-        <CalibrationProps />
-      </Suspense>
-      <ProofLayer />
+      {ltc && <ClockBridge onReady={onReady} />}
+      {!ltc ? null : MODEL_REF ? (
+        <ModelRef slug={MODEL_REF} />
+      ) : (
+        <>
+          <SizeProbe />
+          <CameraRig />
+          <LampRig />
+          <SoftShadows size={mobile ? 18 : 26} samples={mobile ? 8 : 14} focus={0.2} />
+          <BoothRoom lineup={SLUGS} lightmap={lightmap} />
+          {lineup.map((w) => (
+            <ObjectSlot key={w.slug} work={w} lineup={SLUGS} />
+          ))}
+          <Suspense fallback={null}>
+            <CalibrationProps />
+          </Suspense>
+          <ProofLayer />
+        </>
+      )}
       <Post />
       <PerfProbe readout={typeof window !== 'undefined' && window.location.search.includes('perf')} />
     </Canvas>

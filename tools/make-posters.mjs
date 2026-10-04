@@ -12,13 +12,14 @@ const OUT = new URL('../public/booth/', import.meta.url).pathname;
 mkdirSync(OUT, { recursive: true });
 
 const browser = await pw.chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
-for (const [name, w, h] of [['16x10', 1440, 900], ['16x9', 1920, 1080], ['portrait', 390, 844]]) {
+for (const [name, w, h] of [['16x10', 1440, 900], ['16x9', 1920, 1080], ['portrait', 390, 844]].filter(([n]) => !process.argv[2] || process.argv[2].split(',').includes(n))) {
   const page = await browser.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: name === 'portrait' ? 2 : 1, reducedMotion: 'reduce' });
+  page.setDefaultTimeout(600000);
   await page.goto(BASE + '/?gpu=high', { waitUntil: 'networkidle' });
-  await page.waitForSelector('.booth-stage[data-ready="true"]', { timeout: 60000 });
-  await page.waitForTimeout(2500);
+  await page.waitForSelector('.booth-stage[data-ready="true"]', { timeout: 600000 });
+  await page.waitForTimeout(4000);
   // keep the layout (the camera frames the cabinet into .booth-frame): hide the copy, don't remove it
-  await page.addStyleTag({ content: '.masthead,.hero__copy,.panel,.footer,.booth-poster,.booth-stage::after{visibility:hidden!important}' });
+  await page.addStyleTag({ content: '.masthead,.hero__copy,.panel,.footer,.booth-poster,.booth-swipe,.booth-focus,.booth-stage::after{visibility:hidden!important}' });
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}poster-${name}.png` });
   console.log('poster', name);
