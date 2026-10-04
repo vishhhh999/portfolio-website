@@ -7,7 +7,7 @@ import { focusRects, onFocusRects } from './focus';
 import { useBooth } from '@/lib/store';
 import { playEvent } from '@/lib/sound';
 import { track } from '@/lib/analytics';
-import { openProject } from '@/lib/navigate';
+import { openProject, warmProject } from '@/lib/navigate';
 
 /**
  * The keyboard layer over the booth (I5): one real button per object, laid exactly over it, so the
@@ -60,6 +60,7 @@ export function BoothFocus({ samples }: { samples: FrameSample[] }) {
           aria-label={`${s.title}: ${s.meta}. Open the project`}
           onFocus={(e) => {
             setKeySlug(s.slug);
+            warmProject(router, s.slug);
             const r = e.currentTarget.getBoundingClientRect();
             playEvent('hover', r.left + r.width / 2);
           }}

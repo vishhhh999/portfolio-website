@@ -7,6 +7,7 @@ import { readLampPreference, useBooth } from '@/lib/store';
 import { playEvent, restoreSoundPreference } from '@/lib/sound';
 import { attachLenis, startClock } from '@/lib/clock';
 import { measure } from '@/lib/views';
+import { houseLightsOnLoad } from '@/lib/houseLights';
 
 /** Set just before a "next project" navigation: scroll up smoothly while the next sample slides onto the tray. */
 export const navIntent = { smoothTop: false };
@@ -24,6 +25,8 @@ export function Providers({ children }: { children: ReactNode }) {
   useLayoutEffect(() => {
     const lamp = readLampPreference();
     if (lamp !== 'D50') useBooth.setState({ lamp, lampPicked: true, strikeProgress: 1 });
+    // house lights mode as the pre-paint script set it from the stored preference
+    if (houseLightsOnLoad()) useBooth.setState({ houseLights: true });
     restoreSoundPreference();
   }, []);
 

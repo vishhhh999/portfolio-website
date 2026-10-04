@@ -6,7 +6,7 @@ export const metadata: Metadata = { title: 'Sample not found', robots: { index: 
 /**
  * 404 (I3): the booth under UV, an empty plinth where the sample should stand, the copy glowing like
  * fluorescent ink. Pure CSS (no WebGL): instant, and nothing shifts while it loads. A visitor who
- * chose house lights gets the plain version (the pre-paint script marks <html>).
+ * chose house lights gets the plain version (the pre-paint script marks <html data-house-lights>).
  */
 export default function NotFound() {
   return (
@@ -30,7 +30,7 @@ export default function NotFound() {
         <p>Nothing on this plinth, under any light.</p>
         <p className="nf__links">
           <Link href="/">Back to the booth →</Link>
-          <Link href="/house-lights">House lights (the index) →</Link>
+          <Link href="/house-lights">The index →</Link>
         </p>
       </div>
     </main>

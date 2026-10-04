@@ -9,7 +9,7 @@ Source: `masters-v1.zip` from the GitHub release, 89 PNG masters.
 | unmatched | 0 |
 | ties | 2 |
 | conflicts | 0 |
-| current images with no master | 10 |
+| current images with no master | 8 |
 
 Payload of the matched images: 11592 KB before (WebP from 256-colour sources) → 10276 KB AVIF (served first) / 15595 KB WebP fallback.
 
@@ -130,8 +130,11 @@ None.
 - public/work/house-of-hex/01-poster.webp
 - public/work/indo-thai/01-poster.webp
 - public/work/mitooshi/03-poster.webp
-- public/work/mitooshi/04.webp
 - public/work/mitooshi/05-poster.webp
-- public/work/mitooshi/06.webp
 - public/work/mitooshi/07-poster.webp
 - public/work/shunya/01-poster.webp
+
+## No master needed
+
+- public/work/mitooshi/04.webp: two-colour dot pattern; the indexed palette does not harm it
+- public/work/mitooshi/06.webp: two-colour dot pattern; the indexed palette does not harm it

@@ -17,6 +17,8 @@ export const proofUniforms = {
   uBuffer: { value: new Vector2(1, 1) },
   /** Minimum luminance of the print light (relative to D50 = 1) so work stays readable under dark lamps. */
   uFloor: { value: 0 },
+  /** AFTER DARK torch strength on proofs (the strike envelope), never above 1. */
+  uTorchLevel: { value: 1 },
   /** UV glow on prints: 0 until the visitor picks UV themselves. */
   uProofUV: { value: 0 },
   /** Cancels the post colour matrix while the photos stay D50-faithful (identity once a lamp is picked). */

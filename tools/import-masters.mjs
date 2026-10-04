@@ -207,6 +207,12 @@ const m = by('matched');
 const sum = (k) => m.reduce((a, r) => a + (r[k] || 0), 0);
 let md = `# Masters report (${TAG})\n\n`;
 md += `Source: \`${TAG}.zip\` from the GitHub release, ${data.rows.length} PNG masters.\n\n`;
+// K1: images that need no master: two-colour dot-pattern squares, which a 256-colour palette cannot harm
+const NOT_NEEDED = {
+  'public/work/mitooshi/04.webp': 'two-colour dot pattern; the indexed palette does not harm it',
+  'public/work/mitooshi/06.webp': 'two-colour dot pattern; the indexed palette does not harm it',
+};
+data.untouched = data.untouched.filter((p) => !(p in NOT_NEEDED));
 md += `| | count |\n|---|---|\n| matched and re-encoded | ${m.length} |\n| still indexed (colour type 3), not used | ${by('still-indexed').length} |\n| unmatched | ${by('unmatched').length} |\n| ties | ${by('tie').length} |\n| conflicts | ${by('conflict').length} |\n| current images with no master | ${data.untouched.length} |\n\n`;
 if (m.length) md += `Payload of the matched images: ${kb(sum('before'))} before (WebP from 256-colour sources) → ${kb(sum('avif'))} AVIF (served first) / ${kb(sum('webp'))} WebP fallback.\n\n`;
 md += `## Matched\n\nAVIF quality is the lowest at which smooth regions (gentle gradients and flats, where banding would show) stay within 3 levels (99.9th percentile) and 8 levels (worst pixel) of the master after a 2px blur (which removes the masters' fine grain but keeps every step), with the whole image at 36 dB PSNR or better. WebP fallback at quality 86.\n\n| master | replaces | match | AVIF q | gradient error p99.9 / worst (levels) | all PSNR | before | AVIF | WebP |\n|---|---|---|---|---|---|---|---|---|\n`;
@@ -216,5 +222,6 @@ for (const [title, s] of [['Still indexed (not used)', 'still-indexed'], ['Unmat
   md += `\n## ${title}\n\n` + (list.length ? list.map((r) => `- ${r.master}${r.target ? ` → ${r.target}` : ''}: ${r.why}`).join('\n') + '\n' : 'None.\n');
 }
 md += `\n## Current images with no master\n\n` + (data.untouched.length ? data.untouched.map((p) => `- ${p}`).join('\n') + '\n' : 'None.\n');
+md += `\n## No master needed\n\n` + Object.entries(NOT_NEEDED).map(([p, why]) => `- ${p}: ${why}`).join('\n') + '\n';
 if (!dry) writeFileSync(report, md);
 console.log(dry ? md : `report: tools/masters-report.md`);

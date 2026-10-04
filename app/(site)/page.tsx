@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { lineup } from '@/content/work';
 import { BoothFrame } from '@/components/booth/BoothFrame';
 import { STAGING } from '@/components/booth/staging';
+import { HouseIndex } from '@/components/ui/HouseIndex';
 
 export default function Home() {
   return (
@@ -21,6 +22,10 @@ export default function Home() {
             .sort((a, b) => STAGING[a.slug].x - STAGING[b.slug].x)
             .map((w) => ({ slug: w.slug, title: w.title, meta: w.disciplines.join(' · ') }))}
         />
+      </section>
+      {/* house lights mode: the flat index in place of the booth, same URL (shown by <html data-house-lights>) */}
+      <section className="houselights houselights--inline" aria-label="Index">
+        <HouseIndex heading="h2" />
       </section>
       {/* Crawlable, keyboard-reachable lineup. The canvas is presentational only. */}
       <nav aria-label="Work" className="sr-only">

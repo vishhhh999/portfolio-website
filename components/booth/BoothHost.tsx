@@ -3,8 +3,7 @@
 import dynamic from 'next/dynamic';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { autoHouseLights, failsPerformanceCaveat, setNavigator } from '@/lib/resilience';
+import { autoHouseLights, failsPerformanceCaveat } from '@/lib/resilience';
 import { isInLineup } from '@/content/work';
 import { lampById } from '@/lib/lampPresets';
 import { useBooth } from '@/lib/store';
@@ -38,8 +37,9 @@ export function BoothHost({ lightmap = null }: { lightmap?: string | null }) {
   const [ready, setReady] = useState(false);
   const [hasViews, setHasViews] = useState(false);
   const stageRef = useRef<HTMLDivElement>(null);
-  const router = useRouter();
-  useEffect(() => setNavigator((href) => router.replace(href)), [router]);
+  // house lights (a mode of this page): no stage is registered, so the canvas draws nothing
+  const houseLights = useBooth((s) => s.houseLights);
+  const live = mode !== 'off' && !houseLights;
 
   // Project pages: the sample goes on the tray. The lamp is never changed by a route: it stays
   // whatever the visitor picked (D50 until they pick); the native lamp is offered as a chip.
@@ -48,9 +48,9 @@ export function BoothHost({ lightmap = null }: { lightmap?: string | null }) {
   }, [pathname, mode, setActiveSlug]);
 
   useEffect(() => {
-    if (mode === 'off' || !stageRef.current) return;
+    if (!live || !stageRef.current) return;
     return registerStage(stageRef.current);
-  }, [mode]);
+  }, [live, mode]);
 
   useEffect(() => {
     const update = () => setHasViews(viewCount() > 0);
@@ -84,7 +84,7 @@ export function BoothHost({ lightmap = null }: { lightmap?: string | null }) {
       <div className="booth-canvas" data-visible={hasViews} aria-hidden="true">
         {mounted && <BoothCanvas onReady={() => setReady(true)} lightmap={lightmap} />}
       </div>
-      {mode !== 'off' && (
+      {live && (
         <div ref={stageRef} className="booth-stage" data-mode={mode} data-ready={ready} aria-hidden="true">
           {mode === 'full' && (
             <picture className="booth-poster">

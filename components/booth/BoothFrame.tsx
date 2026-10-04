@@ -23,6 +23,33 @@ export function BoothFrame({ samples }: { samples: FrameSample[] }) {
   const current = samples[index];
 
   useEffect(() => (ref.current ? registerFrame(ref.current) : undefined), []);
+  // D1: the cabinet's height at the full content width, capped at 78svh and at the room left on the
+  // first screen above the floating lamp bar. Wider than the cabinet → the camera centres it.
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const fit = () => {
+      if (window.innerWidth < 700) {
+        el.style.height = '';
+        return;
+      }
+      const clear = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--panel-clear')) || 0;
+      const top = el.getBoundingClientRect().top + window.scrollY;
+      const byWidth = el.clientWidth / (CABINET_FACE.w / CABINET_FACE.h);
+      const room = window.innerHeight - top - clear - 14;
+      el.style.height = `${Math.round(Math.max(300, Math.min(byWidth, window.innerHeight * 0.78, room)))}px`;
+      el.style.maxHeight = 'none';
+    };
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(document.body);
+    window.addEventListener('resize', fit);
+    document.fonts?.ready.then(fit);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', fit);
+    };
+  }, []);
   // start on the centre sample
   useEffect(() => {
     if (!useBooth.getState().focusSlug && samples.length) setFocus(samples[Math.floor(samples.length / 2)].slug);

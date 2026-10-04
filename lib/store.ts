@@ -22,7 +22,10 @@ type BoothState = {
   /** 0 → 1 while a lamp strikes. Driven by the lamp controller. */
   strikeProgress: number;
   activeSlug: string | null;
+  /** House lights mode (lib/houseLights.ts sets it; <html data-house-lights> mirrors it). */
   houseLights: boolean;
+  /** One quiet line when the booth stepped aside on its own (resilience), or null. */
+  notice: string | null;
   sound: boolean;
   /** The visitor has picked a lamp themselves. Until then proof-strip photos stay D50-faithful. */
   lampPicked: boolean;
@@ -33,7 +36,6 @@ type BoothState = {
   setLamp: (lamp: Lamp) => void;
   setStrikeProgress: (p: number) => void;
   setActiveSlug: (slug: string | null) => void;
-  setHouseLights: (on: boolean) => void;
   setSound: (on: boolean) => void;
   setLampPicked: () => void;
   setFocusSlug: (slug: string | null) => void;
@@ -45,6 +47,7 @@ export const useBooth = create<BoothState>((set) => ({
   strikeProgress: 1,
   activeSlug: null,
   houseLights: false,
+  notice: null,
   sound: false,
   lampPicked: false,
   focusSlug: null,
@@ -52,22 +55,9 @@ export const useBooth = create<BoothState>((set) => ({
   setLamp: (lamp) => set({ lamp }),
   setStrikeProgress: (strikeProgress) => set({ strikeProgress }),
   setActiveSlug: (activeSlug) => set({ activeSlug }),
-  setHouseLights: (houseLights) => {
-    try {
-      localStorage.setItem(HOUSE_LIGHTS_KEY, houseLights ? '1' : '0');
-    } catch {}
-    set({ houseLights });
-  },
   setSound: (sound) => set({ sound }),
   setLampPicked: () => set({ lampPicked: true }),
   setFocusSlug: (focusSlug) => set({ focusSlug }),
   setKeySlug: (keySlug) => set({ keySlug }),
 }));
 
-export function readHouseLightsPreference(): boolean {
-  try {
-    return localStorage.getItem(HOUSE_LIGHTS_KEY) === '1';
-  } catch {
-    return false;
-  }
-}

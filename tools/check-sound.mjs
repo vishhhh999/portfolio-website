@@ -9,15 +9,16 @@ const pw = require(process.env.PLAYWRIGHT || 'playwright');
 const BASE = process.env.BASE || 'http://localhost:3100';
 const b = await pw.chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--autoplay-policy=no-user-gesture-required'] });
 const p = await b.newPage({ viewport: { width: 1440, height: 900 } });
+p.setDefaultTimeout(600000);
 const audio = [];
 p.on('request', (r) => { if (/\.(wav|mp3|ogg|opus|m4a|webm|flac)(\?|$)/i.test(r.url()) || r.resourceType() === 'media') audio.push(r.url()); });
 let ok = true;
 const check = (label, pass, detail = '') => { if (!pass) ok = false; console.log(`${pass ? 'PASS' : 'FAIL'} ${label}${detail ? ': ' + detail : ''}`); };
-await p.goto(BASE + '/about', { waitUntil: 'networkidle' }); // no booth on /about: the test needs no WebGL
+await p.goto(BASE + '/', { waitUntil: 'networkidle' }); // the lamp panel (and its sound switch) exists only where there is a booth (B4)
 check('sound off by default', (await p.textContent('.sound'))?.toLowerCase().includes('off'));
 await p.waitForTimeout(1500);
 check('no audio downloaded while off', audio.length === 0, audio.join(', '));
-await p.click('.sound', { force: true });
+await p.evaluate(() => document.querySelector('.sound').click()); // a DOM click: SwiftShader keeps the main thread busy
 await p.waitForTimeout(1200);
 const level = async () => p.evaluate(() => Number(getComputedStyle(document.querySelector('.sound__meter')).getPropertyValue('--level')) || 0);
 check('sound on after a click', (await p.textContent('.sound'))?.toLowerCase().includes('on'));

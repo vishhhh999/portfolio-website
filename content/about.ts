@@ -49,5 +49,4 @@ export const about = {
   ],
   portrait: { src: '/about/portrait.webp', avif: '/about/portrait.avif', width: 1254, height: 1254, alt: 'Portrait of Vishesh Mahendru' },
   cv: '/Vishesh-Mahendru-CV.pdf',
-  cta: 'Open to remote / on-site design roles',
 };

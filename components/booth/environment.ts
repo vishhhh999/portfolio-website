@@ -22,13 +22,14 @@ import { BOOTH, DIFFUSER } from './staging';
  * built from the lamp rig's own fixtures, so screens, foil, glossy card and bezels reflect the
  * real booth: the diffuser as a bright soft panel overhead (its tubes for TL84), the key light as
  * a hot spot where it hangs, N7 walls glowing with bounce, the room beyond the opening. One per
- * lamp, made on first use and cached. UV and AFTER DARK are near black.
+ * lamp, made on first use and cached. UV and AFTER DARK are near black; SCREEN too (G: the only
+ * light under SCREEN is the screens' own area lights, so nothing glows without a visible source).
  */
 const cache = new Map<Lamp, WebGLRenderTarget>();
 let pmrem: PMREMGenerator | null = null;
 
 /** How strongly each lamp's environment lights the booth's materials (scene.environmentIntensity). */
-export const ENV_INTENSITY: Record<Lamp, number> = { D50: 0.55, TL84: 0.5, A: 0.4, UV: 0.08, FLOOD: 0.35, SCREEN: 0.2, AFTERDARK: 0.03 };
+export const ENV_INTENSITY: Record<Lamp, number> = { D50: 0.55, TL84: 0.5, A: 0.4, UV: 0.08, FLOOD: 0.35, SCREEN: 0.04, AFTERDARK: 0.03 };
 
 function emissive(colour: Color) {
   return new MeshBasicMaterial({ color: colour, side: BackSide, toneMapped: false });
@@ -67,14 +68,6 @@ function buildScene(P: LampPreset) {
     const s = new Mesh(new SphereGeometry(P.id === 'A' ? 0.05 : 0.035, 16, 8), new MeshBasicMaterial({ color: new Color(...P.keyLight.colour).multiplyScalar(Math.min(40, P.keyLight.intensity * 2.4)), toneMapped: false }));
     s.position.set(...P.keyLight.position);
     scene.add(s);
-  }
-  // SCREEN: the devices' glow along the back tier
-  if (P.id === 'SCREEN') {
-    for (const [x, c] of [[-0.21, '#1457FF'], [0.22, '#4A3AFF'], [0.61, '#EF421B']] as const) {
-      const q = new Mesh(new PlaneGeometry(0.22, 0.14), new MeshBasicMaterial({ color: new Color(c).multiplyScalar(1.4), toneMapped: false }));
-      q.position.set(x, 0.38, -0.2);
-      scene.add(q);
-    }
   }
   return scene;
 }

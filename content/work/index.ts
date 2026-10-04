@@ -40,19 +40,12 @@ function withImport(w: Work): Work {
   };
 }
 
-/** The approved UV notes are also printed on the project's first proof image. */
-function inkFirstProof(w: Work): Work {
-  const notes = w.uvNotes.filter((n) => n.proof).map((n) => ({ text: n.text, at: n.proof! }));
-  if (!notes.length || !w.deliverables[0]) return w;
-  return { ...w, deliverables: [{ ...w.deliverables[0], inkNotes: notes }, ...w.deliverables.slice(1)] };
-}
-
 /**
  * Every project. Order here is the booth lineup order, left to right:
  * packaging on the flanks, brand + web centre stage. Archive-only
  * projects (inLineup: false) are listed last.
  */
-export const works: Work[] = [tooYumm, jswSports, mitooshi, sonde, houseOfHex, bengalT20, sook, shunya, indoThai].map(withImport).map(correct).map(inkFirstProof);
+export const works: Work[] = [tooYumm, jswSports, mitooshi, sonde, houseOfHex, bengalT20, sook, shunya, indoThai].map(withImport).map(correct);
 
 /** The 7 objects on the booth floor. */
 export const lineup: Work[] = works.filter((w) => w.inLineup);

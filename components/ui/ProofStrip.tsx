@@ -1,13 +1,11 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { litPlanesEnabled } from '@/lib/gpuTier';
 import { useBooth } from '@/lib/store';
 import type { Deliverable } from '@/lib/types';
-import { registerPlane } from '@/lib/views';
 import { avifFor } from '@/content/masters';
 
-const BAR = ['#009ee0', '#e2007a', '#ffed00', '#1e1e1e', '#e2231a', '#009640', '#2d2e83', '#f3f3f2', '#a0a0a0', '#555555'];
+import { PALETTES } from '@/content/palettes';
 
 function RegTarget({ className }: { className: string }) {
   return (
@@ -49,7 +47,6 @@ type StripPart = 'all' | 'hero' | 'rest';
 
 function ProofFrame({ d, index, serial, onPlay }: { d: Deliverable; index: number; serial: number; onPlay: (d: Deliverable) => void }) {
   const ref = useRef<HTMLImageElement & HTMLVideoElement>(null);
-  const [lit, setLit] = useState(false);
   const lamp = useBooth((s) => s.lamp);
 
   // React sets `muted` as a property after mount, which can block autoplay: set it and start playback explicitly.
@@ -71,27 +68,8 @@ function ProofFrame({ d, index, serial, onPlay }: { d: Deliverable; index: numbe
     return () => io.disconnect();
   }, [d]);
 
-  // D50 is pixel-exact: the plain <img>/<video>, no WebGL plane, no grain, matrix or bloom.
-  // A relit plane only exists while the visitor has another lamp on; the DOM frame crossfades
-  // out over it (300ms) once it has drawn, and back in before the plane goes on returning to D50.
-  const relit = lamp !== 'D50';
-  useEffect(() => {
-    const el = ref.current;
-    if (!el || !relit || !litPlanesEnabled()) return;
-    const off = registerPlane({
-      el,
-      kind: d.type,
-      src: d.src,
-      fluorMask: d.fluorMask,
-      uvInk: d.uvInk,
-      inkNotes: d.inkNotes,
-      onReady: () => setLit(true),
-    });
-    return () => {
-      setLit(false);
-      window.setTimeout(off, 320); // keep the plane under the fading-in DOM frame
-    };
-  }, [d, relit]);
+  // C: case-study images keep their authored colour under every lamp: the plain <img>/<video>,
+  // never redrawn. Under AFTER DARK the page's TorchOverlay darkens around the hand lamp, above them.
 
   const slug = `VM_PROOF_${String(serial).padStart(4, '0')} · ${lamp === 'AFTERDARK' ? 'AFTER DARK' : lamp} · 2026-10`;
 
@@ -104,15 +82,16 @@ function ProofFrame({ d, index, serial, onPlay }: { d: Deliverable; index: numbe
         <span className="proof__crop proof__crop--br" aria-hidden="true" />
         <RegTarget className="proof__reg--top" />
         <RegTarget className="proof__reg--bottom" />
-        <span className="proof__bar" aria-hidden="true">
-          {BAR.map((c) => (
-            <i key={c} style={{ background: c }} />
+        {/* C4: this image's own palette (tools/extract-palettes.mjs), lightest first; hover for the hex */}
+        <span className="proof__bar">
+          {(PALETTES[d.type === 'video' ? d.poster ?? '' : d.src] ?? []).map((c) => (
+            <i key={c.hex} style={{ background: c.hex }} data-hex={c.hex} title={c.hex} aria-label={`Colour ${c.hex}`} />
           ))}
         </span>
         <div className="proof__image">
           {d.type === 'video' ? (
             <>
-              <video ref={ref} poster={d.poster} muted loop playsInline autoPlay preload="metadata" aria-label={d.alt} data-lit={lit} style={{ aspectRatio: `${aspectOf(d)}` }}>
+              <video ref={ref} poster={d.poster} muted loop playsInline autoPlay preload="metadata" aria-label={d.alt} style={{ aspectRatio: `${aspectOf(d)}` }}>
                 {d.sources?.map((s) => <source key={s.src} src={s.src} type={s.type} />)}
                 <source src={d.src} type="video/mp4" />
               </video>
@@ -133,7 +112,7 @@ function ProofFrame({ d, index, serial, onPlay }: { d: Deliverable; index: numbe
                 loading={index < 3 ? 'eager' : 'lazy'}
                 fetchPriority={index === 0 ? 'high' : 'auto'}
                 decoding="async"
-                data-lit={lit}
+               
                 style={{ aspectRatio: `${aspectOf(d)}` }}
               />
             </picture>
