@@ -9,6 +9,8 @@ import { Providers } from '@/components/ui/Providers';
 import { SwitchPanel } from '@/components/ui/SwitchPanel';
 import { Shortcuts } from '@/components/ui/Shortcuts';
 import { Loupe } from '@/components/ui/Loupe';
+import { Notice } from '@/components/ui/Notice';
+import { IndexNavLink } from '@/components/ui/IndexNavLink';
 import { JsonLd, personLd } from '@/lib/jsonld';
 
 /**
@@ -16,8 +18,9 @@ import { JsonLd, personLd } from '@/lib/jsonld';
  * baked: decided at build time, so the client never requests a file that is not there.
  */
 function boothLightmap(): string | null {
-  for (const name of ['lightmap.ktx2', 'lightmap.png']) {
-    if (existsSync(path.join(process.cwd(), 'public/models/booth-shell', name))) return `/models/booth-shell/${name}`;
+  // the KTX2 converted from Vishesh's bake (public/booth/lightmap.exr or .png, J) or an older location
+  for (const rel of ['booth/lightmap.ktx2', 'models/booth-shell/lightmap.ktx2', 'models/booth-shell/lightmap.png']) {
+    if (existsSync(path.join(process.cwd(), 'public', rel))) return `/${rel}`;
   }
   return null;
 }
@@ -30,7 +33,7 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
       <header className="masthead">
         <Link href="/" className="wordmark">Vishesh Mahendru</Link>
         <nav aria-label="Site" className="sitenav">
-          <Link href="/house-lights">Index</Link>
+          <IndexNavLink>Index</IndexNavLink>
           <Link href="/about">About</Link>
           <Link href="/archive">Archive</Link>
         </nav>
@@ -38,6 +41,7 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
       <SwitchPanel />
       <Shortcuts />
       <Loupe />
+      <Notice />
       <main id="main">{children}</main>
       <footer className="footer">
         <a href={CONTACT_MAILTO}>Book a viewing ↗</a>
