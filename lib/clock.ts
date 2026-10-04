@@ -1,12 +1,11 @@
 'use client';
 
-import gsap from 'gsap';
 import type Lenis from 'lenis';
 import { useBooth } from './store';
 import { anyVideoVisible, anyViewVisible, getScroll, setScroll, viewCount } from './views';
 
 /**
- * One clock for the whole page. GSAP's ticker drives, in this order:
+ * One clock for the whole page. A single requestAnimationFrame loop drives, in this order:
  *   1. Lenis (moves the page)
  *   2. the view system's scroll value (the same number Lenis just used)
  *   3. the canvas, via R3F's advance(), only when something needs drawing
@@ -73,12 +72,28 @@ function tick(time: number) {
   render(time);
 }
 
+/** Per-tick callbacks that run before the render (tweens). Return false to unsubscribe. */
+const tickers = new Set<(time: number) => boolean | void>();
+export function addTicker(fn: (time: number) => boolean | void) {
+  tickers.add(fn);
+  pending = Math.max(pending, 1);
+  return () => tickers.delete(fn);
+}
+
+function frame(ms: number) {
+  const time = ms / 1000;
+  for (const fn of tickers) if (fn(time) === false) tickers.delete(fn);
+  if (tickers.size) pending = Math.max(pending, 1); // a running tween draws every frame
+  if (tickers.size) pending = Math.max(pending, 1); // a running tween draws every frame
+  tick(time);
+  requestAnimationFrame(frame);
+}
+
 let started = false;
 export function startClock() {
   if (started || typeof window === 'undefined') return;
   started = true;
-  gsap.ticker.lagSmoothing(0);
-  gsap.ticker.add(tick);
+  requestAnimationFrame(frame);
   lastActivity = performance.now();
   for (const ev of ['pointermove', 'pointerdown', 'wheel', 'touchstart', 'touchmove', 'keydown'] as const) {
     window.addEventListener(ev, markActivity, { passive: true });

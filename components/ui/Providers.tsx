@@ -2,7 +2,8 @@
 
 import { ReactLenis, type LenisRef } from 'lenis/react';
 import { usePathname } from 'next/navigation';
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, type ReactNode } from 'react';
+import { readLampPreference, useBooth } from '@/lib/store';
 import { attachLenis, startClock } from '@/lib/clock';
 import { measure } from '@/lib/views';
 
@@ -10,12 +11,19 @@ import { measure } from '@/lib/views';
 export const navIntent = { smoothTop: false };
 
 /**
- * Lenis smooth scroll on the page's single clock (lib/clock.ts): GSAP's
- * ticker runs Lenis, then the canvas, in that order, every tick.
+ * Lenis smooth scroll on the page's single clock (lib/clock.ts): the shared
+ * clock runs Lenis, then the canvas, in that order, every tick.
  */
 export function Providers({ children }: { children: ReactNode }) {
   const lenisRef = useRef<LenisRef>(null);
   const pathname = usePathname();
+
+  // The visitor's lamp pick for this session, applied before the first paint after hydration
+  // (server HTML is always D50, so hydration matches). A route never changes it.
+  useLayoutEffect(() => {
+    const lamp = readLampPreference();
+    if (lamp !== 'D50') useBooth.setState({ lamp, lampPicked: true, strikeProgress: 1 });
+  }, []);
 
   useEffect(() => {
     attachLenis(() => lenisRef.current?.lenis);

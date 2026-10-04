@@ -60,18 +60,32 @@ export function onViewsChanged(cb: () => void) {
   return () => void listeners.delete(cb);
 }
 
+/**
+ * Every rect is re-derived from the live DOM whenever anything could move it: the body or any
+ * registered element resizing, the window resizing (including a scrollbar appearing, which
+ * changes clientWidth but not innerWidth), and web fonts finishing loading (the headline
+ * re-wraps and pushes the booth frame down).
+ */
 function ensureObserver() {
   if (ro || typeof ResizeObserver === 'undefined') return;
   ro = new ResizeObserver(() => measure());
   ro.observe(document.body);
   window.addEventListener('resize', measure);
+  document.fonts?.ready.then(measure);
+  document.fonts?.addEventListener?.('loadingdone', measure);
 }
+const observe = (el: HTMLElement) => {
+  ro?.observe(el);
+  return () => ro?.unobserve(el);
+};
 
 export function registerStage(el: HTMLElement) {
   ensureObserver();
   stage = { el, rect: docRect(el) };
+  const off = observe(el);
   changed();
   return () => {
+    off();
     if (stage?.el === el) stage = null;
     changed();
   };
@@ -80,8 +94,10 @@ export function registerStage(el: HTMLElement) {
 export function registerFrame(el: HTMLElement) {
   ensureObserver();
   frame = { el, rect: docRect(el) };
+  const off = observe(el);
   changed();
   return () => {
+    off();
     if (frame?.el === el) frame = null;
     changed();
   };

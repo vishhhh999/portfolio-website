@@ -19,14 +19,19 @@ import {
   LinearFilter,
   RedFormat,
   RepeatWrapping,
+  Material,
   Matrix3,
+  Mesh,
+  MeshBasicMaterial,
+  Object3D,
   NoToneMapping,
+  PlaneGeometry,
+  Scene,
   ShaderMaterial,
   Uniform,
   Vector2,
   WebGLRenderTarget,
   type Camera,
-  type Scene,
   type WebGLRenderer,
 } from 'three';
 import { planeEntries, stageRect } from '@/lib/views';
@@ -41,6 +46,44 @@ export const postState = {
   /** Set by the rig to request a one-off console report after the next frame. */
   diagnose: null as null | Record<string, unknown>,
 };
+
+const VIEW_DEBUG = typeof window !== 'undefined' && window.location.search.includes('viewdebug');
+let debugScene: Scene | null = null;
+const MAGENTA = new MeshBasicMaterial({ color: 0xff00ff, toneMapped: false });
+/** The booth's opaque geometry in flat magenta (transparent layers such as the page shadow left out). */
+function renderSilhouette(renderer: WebGLRenderer, scene: Scene, camera: Camera) {
+  const hidden: Object3D[] = [];
+  scene.traverse((o) => {
+    const m = (o as Mesh).material as Material | undefined;
+    if (o.visible && m && !Array.isArray(m) && m.transparent) {
+      o.visible = false;
+      hidden.push(o);
+    }
+  });
+  scene.overrideMaterial = MAGENTA;
+  renderer.render(scene, camera);
+  scene.overrideMaterial = null;
+  for (const o of hidden) o.visible = true;
+}
+
+/** A full-viewport magenta quad (whatever viewport is set: here, the stage rect). */
+function debugQuad() {
+  if (!debugScene) {
+    debugScene = new Scene();
+    const m = new Mesh(
+      new PlaneGeometry(2, 2),
+      new ShaderMaterial({
+        vertexShader: 'void main() { gl_Position = vec4(position.xy, 0.0, 1.0); }',
+        fragmentShader: 'void main() { gl_FragColor = vec4(1.0, 0.0, 1.0, 1.0); }',
+        depthTest: false,
+        depthWrite: false,
+      }),
+    );
+    m.frustumCulled = false;
+    debugScene.add(m);
+  }
+  return debugScene;
+}
 
 /** The proof-strip layer (screen-space planes), registered by ProofLayer when a page has deliverables. */
 export const proofLayer: { scene: Scene | null; camera: Camera | null } = { scene: null, camera: null };
@@ -77,8 +120,16 @@ class ViewsPass extends Pass {
       inputBuffer.scissor.set(x, Math.max(0, y), w, Math.min(h, H - Math.max(0, y)));
       inputBuffer.scissorTest = true;
       renderer.setRenderTarget(inputBuffer);
-      renderer.clear(true, true, false); // scene background fills the stage only
-      renderer.render(this.booth, this.boothCamera);
+      if (VIEW_DEBUG) {
+        // ?viewdebug: the stage rect as a solid colour, and ?viewdebug=cabinet the booth's opaque silhouette,
+        // so tools/check-views.mjs can compare what is drawn with the DOM rects
+        renderer.clear(true, true, false);
+        if (window.location.search.includes('viewdebug=cabinet')) renderSilhouette(renderer, this.booth, this.boothCamera);
+        else renderer.render(debugQuad(), this.boothCamera);
+      } else {
+        renderer.clear(true, true, false); // scene background fills the stage only
+        renderer.render(this.booth, this.boothCamera);
+      }
       inputBuffer.viewport.set(0, 0, inputBuffer.width, H);
       inputBuffer.scissorTest = false;
       renderer.setRenderTarget(inputBuffer);

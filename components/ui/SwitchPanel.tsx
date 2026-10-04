@@ -3,7 +3,7 @@
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { LAMPS, lampById } from '@/lib/lampPresets';
-import { switchLamp } from '@/lib/lampController';
+import { pickLamp } from '@/lib/lampController';
 import { CONTACT_MAILTO } from '@/lib/site';
 import { enableSound, playClick } from '@/lib/sound';
 import { useBooth } from '@/lib/store';
@@ -28,8 +28,7 @@ export function SwitchPanel() {
 
   const flip = (id: (typeof LAMPS)[number]['id']) => {
     playClick();
-    useBooth.getState().setLampPicked(); // the visitor's own choice: proofs follow the lamp from now on
-    switchLamp(id);
+    pickLamp(id); // the visitor's own choice: remembered for the session, proofs follow it
   };
 
   const toggleHouseLights = () => {

@@ -1,14 +1,25 @@
 'use client';
 
 import { create } from 'zustand';
-import type { Lamp } from './types';
+import { LAMP_IDS, type Lamp } from './types';
 
 /** v2: the pre-paint script in app/layout.tsx reads the same key. */
 export const HOUSE_LIGHTS_KEY = 'vm:houseLights:v2';
+/** The visitor's own lamp pick, for this session (sessionStorage). Also read by the pre-paint script. */
+export const LAMP_KEY = 'vm:lamp:v1';
+
+/** The lamp the visitor picked this session, or D50. Routes never choose a lamp. */
+export function readLampPreference(): Lamp {
+  try {
+    const v = sessionStorage.getItem(LAMP_KEY);
+    if (v && (LAMP_IDS as readonly string[]).includes(v)) return v as Lamp;
+  } catch {}
+  return 'D50';
+}
 
 type BoothState = {
   lamp: Lamp;
-  /** 0 → 1 while a lamp strikes. Driven by GSAP in Phase 2. */
+  /** 0 → 1 while a lamp strikes. Driven by the lamp controller. */
   strikeProgress: number;
   activeSlug: string | null;
   houseLights: boolean;

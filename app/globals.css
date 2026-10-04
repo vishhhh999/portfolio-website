@@ -194,6 +194,14 @@ html[data-lamp='AFTERDARK'] main a { cursor: pointer; }
 .calib__rows dt { opacity: 0.55; }
 .calib__rows dd { margin: 0; font-family: var(--sans); text-transform: none; letter-spacing: 0; font-size: 14px; }
 .calib__foot { border-top: 1.5px solid var(--ink); align-items: center; opacity: 0.85; }
+.lampchip {
+  display: flex; align-items: center; gap: 8px; width: 100%; padding: 9px 12px; border: 0; border-top: 1px solid var(--rule);
+  background: transparent; color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit; text-align: left; cursor: pointer;
+}
+.lampchip:hover:not(:disabled) { background: #f0eee6; }
+.lampchip:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+.lampchip:disabled { cursor: default; opacity: 0.7; }
+.lampchip__led { width: 8px; height: 8px; border-radius: 50%; background: var(--lamp); box-shadow: 0 0 0 1px #0004, 0 0 6px var(--lamp); flex: none; }
 .calib__stamp { border: 1.5px solid #b3261e; color: #b3261e; padding: 2px 8px; transform: rotate(-4deg); font-weight: 600; letter-spacing: 0.14em; }
 
 /* Proof strip: 6 frames, each a printed proof with crop marks, registration targets and a colour bar */

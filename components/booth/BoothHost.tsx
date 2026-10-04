@@ -3,9 +3,8 @@
 import dynamic from 'next/dynamic';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
-import { getWork, isInLineup } from '@/content/work';
+import { isInLineup } from '@/content/work';
 import { lampById } from '@/lib/lampPresets';
-import { switchLamp } from '@/lib/lampController';
 import { useBooth } from '@/lib/store';
 import { onViewsChanged, registerStage, viewCount } from '@/lib/views';
 
@@ -38,12 +37,10 @@ export function BoothHost() {
   const [hasViews, setHasViews] = useState(false);
   const stageRef = useRef<HTMLDivElement>(null);
 
-  // Project pages: the sample goes on the tray under the lamp it was designed for.
+  // Project pages: the sample goes on the tray. The lamp is never changed by a route: it stays
+  // whatever the visitor picked (D50 until they pick); the native lamp is offered as a chip.
   useEffect(() => {
-    const slug = mode === 'header' ? pathname.split('/')[2] : null;
-    setActiveSlug(slug);
-    const work = slug ? getWork(slug) : null;
-    if (work) switchLamp(work.nativeLamp);
+    setActiveSlug(mode === 'header' ? pathname.split('/')[2] : null);
   }, [pathname, mode, setActiveSlug]);
 
   useEffect(() => {

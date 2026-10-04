@@ -16,9 +16,9 @@ npm run build      # production build (also typechecks)
 |---|---|
 | `app/(site)/layout.tsx` | Persistent booth canvas + switch panel. The canvas mounts once and survives every route change. |
 | `components/booth/` | WebGL: `BoothCanvas`, `BoothRoom` (+ calibration props), `LampRig` (all seven lamps), `Post` (bloom, colour matrix, tone map, grain), `CameraRig`, `ObjectSlot`, `staging.ts` (plinths, layout), `uvMaterial.ts` (fluorMask / uvInk chunk), `screens.ts`, `placeholders.tsx`. |
-| `components/ui/` | DOM: `SwitchPanel` (keys 1–7, `I` = house lights), `Providers` (Lenis on GSAP's ticker), `SlugLine`. |
+| `components/ui/` | DOM: `SwitchPanel` (keys 1–7, `I` = house lights), `Providers` (Lenis on the shared rAF clock), `SlugLine`. |
 | `content/work/*.ts` | One typed file per project. Lineup order in `content/work/index.ts`. |
-| `lib/` | `store.ts` (Zustand `useBooth`), `lampPresets.ts` (every lamp: rig, strike curve, colour matrix), `lampController.ts` (strikes via GSAP), `sound.ts`, `kelvin.ts`, `site.ts`, `types.ts`. |
+| `lib/` | `store.ts` (Zustand `useBooth`), `lampPresets.ts` (every lamp: rig, strike curve, colour matrix), `lampController.ts` (strikes on the shared clock), `sound.ts`, `kelvin.ts`, `site.ts`, `types.ts`. |
 
 ## Tools
 

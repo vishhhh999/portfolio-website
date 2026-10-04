@@ -1,5 +1,6 @@
 import { lampById } from '@/lib/lampPresets';
 import type { Work } from '@/lib/types';
+import { NativeLampChip } from './NativeLampChip';
 
 /** The spec plate, styled as a booth calibration label. */
 export function SpecPlate({ work, serial }: { work: Work; serial: number }) {
@@ -25,6 +26,7 @@ export function SpecPlate({ work, serial }: { work: Work; serial: number }) {
           </div>
         ))}
       </dl>
+      {work.inLineup && work.nativeLamp !== 'D50' && <NativeLampChip lamp={work.nativeLamp} />}
       <footer className="calib__foot">
         <span>Checked under D50 · TL84 · A · UV-A</span>
         <span className="calib__stamp" aria-hidden="true">PASS</span>

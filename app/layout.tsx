@@ -30,10 +30,11 @@ export const metadata: Metadata = {
 export const viewport: Viewport = { themeColor: '#A8A8A6' };
 
 /**
- * Runs before first paint: a visitor who chose house lights never sees the booth flash on /.
- * Same key as lib/store.ts. Only the visitor's own toggle ever sets it.
+ * Runs before first paint: the visitor's lamp pick for this session is on <html data-lamp> before
+ * anything renders, and a visitor who chose house lights never sees the booth flash on /.
+ * Same keys as lib/store.ts. Only the visitor's own choices ever set them.
  */
-const HOUSE_LIGHTS_BOOT = `(function(){try{if(location.pathname==='/'&&localStorage.getItem('vm:houseLights:v2')==='1'){document.documentElement.setAttribute('data-house-lights-redirect','');location.replace('/house-lights'+location.search+location.hash);}}catch(e){}})();`;
+const HOUSE_LIGHTS_BOOT = `(function(){try{var l=sessionStorage.getItem('vm:lamp:v1');if(l)document.documentElement.setAttribute('data-lamp',l);}catch(e){}try{if(location.pathname==='/'&&localStorage.getItem('vm:houseLights:v2')==='1'){document.documentElement.setAttribute('data-house-lights-redirect','');location.replace('/house-lights'+location.search+location.hash);}}catch(e){}})();`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
