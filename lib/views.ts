@@ -74,6 +74,10 @@ function ensureObserver() {
   ro.observe(document.body);
   window.addEventListener('resize', measure);
   document.fonts?.ready.then(measure);
+  // a page loaded in a hidden tab was laid out (and drawn) before it was ever seen: re-measure,
+  // which also requests a frame, the moment it becomes visible
+  document.addEventListener('visibilitychange', () => !document.hidden && measure());
+  window.addEventListener('pageshow', measure);
   document.fonts?.addEventListener?.('loadingdone', measure);
 }
 const observe = (el: HTMLElement) => {
@@ -166,7 +170,21 @@ export function anyVideoVisible() {
 
 export const viewCount = () => (stage ? 1 : 0) + planes.size;
 
+declare global {
+  interface Window {
+    /** Every registered view in viewport CSS px (tools/check-smear.mjs). */
+    __boothViews?: () => { kind: string; left: number; top: number; width: number; height: number }[];
+  }
+}
+
 if (typeof window !== 'undefined') {
+  window.__boothViews = () => {
+    const out: { kind: string; left: number; top: number; width: number; height: number }[] = [];
+    const s = stageRect();
+    if (s) out.push({ kind: 'stage', ...s });
+    for (const id of planes.keys()) out.push({ kind: 'plane', ...planeRect(id)! });
+    return out;
+  };
   window.__boothStageRect = () => {
     const r = stageRect() ?? { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight };
     return new DOMRect(r.left, r.top, r.width, r.height);

@@ -1,31 +1,38 @@
 'use client';
 
 import type { useRouter } from 'next/navigation';
+import { useBooth } from './store';
+import { avifFor } from '@/content/masters';
+import { getWork, isInLineup } from '@/content/work';
 
 type Router = ReturnType<typeof useRouter>;
 
-const reduced = () => typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
-
 /**
- * Booth → project (I1). The camera dollies into the sample over ~700ms (the booth reacts to the new
- * route on its own); the page itself crossfades through the View Transitions API where it exists.
- * The canvas is its own transition group shown live (globals.css), so the dolly is never a frozen
- * snapshot. Elsewhere, and under reduced motion, the route's plain crossfade (Providers) is used.
+ * Opening a project from the booth (home → project, project → project). The booth reacts on the
+ * click itself: the sample is set on the tray in the same task, so the canvas animates from the
+ * very next frame (the old sample goes back to its base, the new one slides onto the tray, ~700ms,
+ * on the shared clock). The route follows; the page crossfades in underneath (Providers).
+ *
+ * No View Transitions here: a view transition shows a frozen snapshot until the new route has
+ * rendered, which is exactly the multi-second freeze with no animation that A3 reported.
  */
 export function openProject(router: Router, href: string) {
-  const doc = document as Document & { startViewTransition?: (cb: () => Promise<void>) => unknown };
-  if (!doc.startViewTransition || reduced()) {
-    router.push(href, { scroll: false });
-    return;
+  const slug = new URL(href, location.href).pathname.split('/')[2];
+  if (slug && isInLineup(slug)) useBooth.getState().setActiveSlug(slug);
+  router.push(href, { scroll: false });
+}
+
+const warmed = new Set<string>();
+/** Hover (or focus) on a sample: fetch its route and its first proof before the click. */
+export function warmProject(router: Router, slug: string) {
+  if (warmed.has(slug)) return;
+  warmed.add(slug);
+  router.prefetch(`/work/${slug}`);
+  const first = getWork(slug)?.deliverables[0];
+  const src = first ? (first.type === 'video' ? first.poster : avifFor(first.src) ?? first.src) : null;
+  if (src) {
+    const img = new Image();
+    img.decoding = 'async';
+    img.src = src;
   }
-  doc.startViewTransition(
-    () =>
-      new Promise<void>((resolve) => {
-        const target = new URL(href, location.href).pathname;
-        router.push(href, { scroll: false });
-        const t0 = performance.now();
-        const wait = () => (location.pathname === target || performance.now() - t0 > 1500 ? requestAnimationFrame(() => resolve()) : requestAnimationFrame(wait));
-        wait();
-      }),
-  );
 }

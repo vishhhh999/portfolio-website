@@ -31,6 +31,8 @@ declare global {
   interface Window {
     /** Projected width of every sample (object only, no plinth) as % of the viewport width, from the live camera. */
     __boothSizes?: () => Record<string, number>;
+    /** F1: every sample's projected box (viewport px) and the smallest 3D clearance between any two samples (m). */
+    __boothBoxes?: () => { boxes: Record<string, { x0: number; y0: number; x1: number; y1: number }>; minGap: { m: number; a: string; b: string } };
     __boothMounts?: number;
     /** Staging + camera data for tools/export-camera.mjs (Blender scene). */
     __boothExport?: (aspect: number) => unknown;
@@ -82,6 +84,38 @@ function SizeProbe() {
         out[w.slug] = +(((b.x - a.x) / cab) * 100).toFixed(1);
       }
       return out;
+    };
+    window.__boothBoxes = () => {
+      const W = window.innerWidth, H = window.innerHeight;
+      const boxes: Record<string, { x0: number; y0: number; x1: number; y1: number }> = {};
+      const aabb: Record<string, [number, number, number, number, number, number]> = {};
+      for (const w of lineup) {
+        const st = STAGING[w.slug];
+        const { w: ow, h: oh, d: od } = st.object;
+        const y0 = st.base.h;
+        aabb[w.slug] = [st.x - ow / 2, y0, st.z - od / 2, st.x + ow / 2, y0 + oh, st.z + od / 2];
+        let x0 = Infinity, yy0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+        for (const cx of [st.x - ow / 2, st.x + ow / 2])
+          for (const cy of [y0, y0 + oh])
+            for (const cz of [st.z - od / 2, st.z + od / 2]) {
+              const v = new Vector3(cx, cy, cz).project(camera);
+              const px = ((v.x + 1) / 2) * W, py = ((1 - v.y) / 2) * H;
+              x0 = Math.min(x0, px); x1 = Math.max(x1, px); yy0 = Math.min(yy0, py); y1 = Math.max(y1, py);
+            }
+        boxes[w.slug] = { x0, y0: yy0, x1, y1 };
+      }
+      let minGap = { m: Infinity, a: '', b: '' };
+      const slugs = Object.keys(aabb);
+      for (let i = 0; i < slugs.length; i++)
+        for (let j = i + 1; j < slugs.length; j++) {
+          const A = aabb[slugs[i]], B = aabb[slugs[j]];
+          const dx = Math.max(0, A[0] - B[3], B[0] - A[3]);
+          const dy = Math.max(0, A[1] - B[4], B[1] - A[4]);
+          const dz = Math.max(0, A[2] - B[5], B[2] - A[5]);
+          const d = Math.hypot(dx, dy, dz);
+          if (d < minGap.m) minGap = { m: +d.toFixed(3), a: slugs[i], b: slugs[j] };
+        }
+      return { boxes, minGap };
     };
     // the grey card (the 24-patch chart's N5 patch, 18% reflectance) in viewport CSS px, for exposure calibration
     window.__boothGreyCard = () => {
@@ -140,12 +174,30 @@ function ClockBridge({ onReady }: { onReady: () => void }) {
   // is in, so the booth never appears half-lit or half-built; at most 8s after mount regardless.
   const t0 = useRef(performance.now());
   const done = useRef(false);
+  const scene = useThree((s) => s.scene);
+  const camera = useThree((s) => s.camera);
+  const gl = useThree((s) => s.gl);
   useFrame(() => {
     frames.current++;
     if (done.current || frames.current < 3) return;
     if (modelsSettled() || performance.now() - t0.current > 8000) {
       done.current = true;
       onReady();
+      // A3: compile every program the scene can need (hidden pieces included: the haze cone, the
+      // tray-shot neighbours) once, while idle, so no lamp or route change ever compiles a shader
+      const idle = window.requestIdleCallback ?? ((cb: () => void) => window.setTimeout(cb, 200));
+      idle(() => {
+        const hidden: { visible: boolean }[] = [];
+        scene.traverse((o) => {
+          if (!o.visible) {
+            hidden.push(o);
+            o.visible = true;
+          }
+        });
+        // synchronous, so no frame can ever be drawn while the hidden pieces are switched on
+        gl.compile(scene, camera);
+        hidden.forEach((o) => (o.visible = false));
+      });
     } else requestFrames(1);
   }, 2);
   return null;

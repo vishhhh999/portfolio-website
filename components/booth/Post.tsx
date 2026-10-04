@@ -40,6 +40,13 @@ import { planeEntries, stageRect } from '@/lib/views';
 import { isMobileTier } from '@/lib/perfTier';
 import { loupeState } from '@/lib/loupe';
 
+declare global {
+  interface Window {
+    /** tools/check-flicker.mjs: when on, every presented frame's mean stage luminance is recorded. */
+    __boothCapture?: { on: boolean; lums: number[] };
+  }
+}
+
 /** Written by the lamp rig every frame, read here. */
 export const postState = {
   bloomIntensity: 0,
@@ -92,13 +99,16 @@ function debugQuad() {
   return debugScene;
 }
 
+/** Rendered once per frame with the scissor off, only to resolve the MSAA buffer in full. */
+const EMPTY = new Scene();
+
 /** The booth's scissor in buffer px this frame (the normal pass for SSAO uses the same). */
 const boothScissor = new Vector4();
 
 /** Lets the perf probe resize the composer in the same task as a DPR step. */
 export const postApi = { resize: () => {}, samples: 0 };
 
-/** The proof-strip layer (screen-space planes), registered by ProofLayer when a page has deliverables. */
+/** The AFTER DARK proof planes (screen space), registered by ProofLayer; drawn after the post chain. */
 export const proofLayer: { scene: Scene | null; camera: Camera | null } = { scene: null, camera: null };
 
 /**
@@ -148,10 +158,15 @@ class ViewsPass extends Pass {
       renderer.setRenderTarget(inputBuffer);
     } else boothScissor.set(0, 0, 0, 0);
 
-    // proof planes neither test nor write depth: the booth's depth stays intact for SSAO
-    if (proofLayer.scene && proofLayer.camera && planeEntries().size) {
-      renderer.render(proofLayer.scene, proofLayer.camera);
-    }
+    // A1: with MSAA, three resolves the multisampled buffer into its texture only at the end of a
+    // render() call, and the resolve (a blit) obeys the scissor that was active. The booth renders
+    // with the stage scissor, and a frame with nothing on screen only clears, so everywhere outside
+    // the current stage the texture kept old frames: trails as the stage moved, and old views
+    // (the home cabinet, proofs at old positions) under the page. One empty render with the
+    // scissor off resolves the whole buffer, every frame.
+    inputBuffer.scissorTest = false;
+    renderer.setRenderTarget(inputBuffer);
+    renderer.render(EMPTY, this.boothCamera);
     renderer.autoClear = autoClear;
   }
 }
@@ -474,7 +489,44 @@ export function Post() {
     fx.bloom.luminanceMaterial.threshold = postState.bloomThreshold;
     fx.noise.blendMode.opacity.value = postState.grain;
     (fx.matrix.uniforms.get('matrix')!.value as Matrix3).copy(postState.matrix);
+    // every presented frame starts fully transparent: no pixel of an earlier frame can survive
+    gl.setRenderTarget(null);
+    gl.setScissorTest(false);
+    gl.setClearColor(0x000000, 0);
+    gl.clear(true, true, false);
     composer.render(dt);
+    // AFTER DARK proof planes (C2): drawn straight onto the screen after the post chain, so no tone
+    // mapping, bloom, colour matrix, grain or tint ever touches a case-study image
+    if (proofLayer.scene && proofLayer.camera && planeEntries().size) {
+      const ac = gl.autoClear;
+      gl.autoClear = false;
+      gl.setRenderTarget(null);
+      gl.render(proofLayer.scene, proofLayer.camera);
+      gl.autoClear = ac;
+    }
+
+    // A2 test hook: the mean luminance of the stage as presented, one entry per frame
+    const cap = window.__boothCapture;
+    if (cap?.on) {
+      const r = stageRect();
+      const ctx = gl.getContext();
+      const k = gl.getPixelRatio();
+      if (r) {
+        const x0 = Math.max(0, Math.floor(r.left * k)), x1 = Math.min(ctx.drawingBufferWidth, Math.floor((r.left + r.width) * k));
+        const yTop = Math.max(0, r.top * k), yBot = Math.min(ctx.drawingBufferHeight, (r.top + r.height) * k);
+        const w = x1 - x0, h = Math.floor(yBot - yTop);
+        if (w > 0 && h > 0) {
+          const buf = new Uint8Array(w * h * 4);
+          ctx.readPixels(x0, Math.floor(ctx.drawingBufferHeight - yBot), w, h, ctx.RGBA, ctx.UNSIGNED_BYTE, buf);
+          let sum = 0, n = 0;
+          for (let i = 0; i < buf.length; i += 4 * 37) {
+            sum += 0.2126 * buf[i] + 0.7152 * buf[i + 1] + 0.0722 * buf[i + 2];
+            n++;
+          }
+          cap.lums.push(+(sum / n).toFixed(2));
+        }
+      }
+    }
 
     // the spectro loupe: one pixel of what was just drawn (premultiplied; un-premultiplied here)
     const lp = loupeState.pending;
