@@ -177,7 +177,9 @@ export function ObjectSlot({ work, lineup }: { work: Work; lineup: string[] }) {
   const box = useMemo(() => ({ v: new Vector3(), corners: [-1, 1].flatMap((sx) => [0, 1].flatMap((sy) => [-1, 1].map((sz) => [sx, sy, sz] as const))) }), []);
   useEffect(() => () => setFocusRect(work.slug, null), [work.slug]);
 
-  useFrame((_, dt) => {
+  useFrame((_, rawDt) => {
+    // a non-monotonic or stalled clock never jumps or inverts the motion: 0 ≤ dt ≤ 100ms
+    const dt = Math.min(0.1, Math.max(0, rawDt || 0));
     const slot = slotRef.current;
     const obj = objRef.current;
     const lift = liftRef.current;

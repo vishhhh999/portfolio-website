@@ -56,11 +56,19 @@ async function measure(name, act, target) {
 
 await measure('next on the tray (→ /work/jsw-sports)', () => p.evaluate(() => document.querySelector('a.next')?.click()), '/work/jsw-sports');
 await p.waitForTimeout(1500);
-// a sample in the header, clicked on the canvas where it is drawn (the back row stays visible, dimmed)
-const at = await p.evaluate(() => {
-  const b = window.__boothBoxes?.().boxes.sonde;
-  return b ? { x: (b.x0 + b.x1) / 2, y: (b.y0 + b.y1) / 2 } : null;
+// a sample in the header, clicked on the canvas where it is drawn (the raised back samples stay
+// visible, dimmed, behind the tray): the first one whose centre is inside the stage, clear of the masthead
+const pick = await p.evaluate(() => {
+  const st = window.__boothStageRect?.();
+  const boxes = window.__boothBoxes?.().boxes ?? {};
+  for (const slug of ['mitooshi', 'sonde', 'jsw-sports', 'house-of-hex']) {
+    const b = boxes[slug];
+    if (!b || !st) continue;
+    const x = (b.x0 + b.x1) / 2, y = (b.y0 + b.y1) / 2;
+    if (x > st.left + 10 && x < st.right - 10 && y > 110 && y < st.bottom - 10) return { slug, x, y };
+  }
+  return null;
 });
-if (at && at.y > 0 && at.y < 980) await measure('booth sample in the header (→ /work/sonde)', () => p.mouse.click(at.x, at.y), '/work/sonde');
-else console.log(`${label} booth sample in the header: not measurable on this build (no __boothBoxes or off screen)`);
+if (pick) await measure(`booth sample in the header (→ /work/${pick.slug})`, () => p.mouse.click(pick.x, pick.y), `/work/${pick.slug}`);
+else console.log(`${label} booth sample in the header: none clickable in view on this build`);
 await b.close();

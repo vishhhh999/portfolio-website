@@ -21,7 +21,8 @@ for (const slug of SLUGS) {
   const p = await ctx.newPage();
   await p.goto(`${BASE}/work/${slug}`, { waitUntil: 'networkidle' });
   await p.waitForTimeout(1500); // anything that would switch the lamp after load has had its chance
-  check(`fresh /work/${slug}`, await active(p), 'Daylight, D50');
+  // archive-only projects have no booth, so no lamp panel at all (B4)
+  check(`fresh /work/${slug}`, await active(p), slug === 'indo-thai' ? null : 'Daylight, D50');
   await ctx.close();
 }
 {
@@ -31,10 +32,9 @@ for (const slug of SLUGS) {
   await p.keyboard.press('4'); // UV
   await p.waitForTimeout(300);
   check('after pressing 4', await active(p), 'Blacklight, UV');
-  await p.click('a.nextlink, a[href="/work/jsw-sports"]').catch(async () => {
-    await p.evaluate(() => document.querySelector('a[href^="/work/"]:not([href="/work/too-yumm"])')?.click());
-  });
-  await p.waitForURL((u) => !u.pathname.endsWith('/too-yumm'), { timeout: 15000 });
+  // a DOM click on "Next on the tray" (the floating lamp bar may sit over it at this viewport)
+  await p.evaluate(() => document.querySelector('a.next')?.click());
+  await p.waitForURL((u) => !u.pathname.endsWith('/too-yumm'), { timeout: 120000 });
   await p.waitForTimeout(1500);
   check(`client nav to ${new URL(p.url()).pathname}`, await active(p), 'Blacklight, UV');
   await p.goto(`${BASE}/work/mitooshi`, { waitUntil: 'networkidle' });

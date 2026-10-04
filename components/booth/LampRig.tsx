@@ -176,7 +176,9 @@ export function LampRig() {
     return () => window.removeEventListener('pointermove', onMove);
   }, [gl, invalidate]);
 
-  useFrame((_, dt) => {
+  useFrame((_, rawDt) => {
+    // a non-monotonic or stalled clock never jumps or inverts the motion: 0 ≤ dt ≤ 100ms
+    const dt = Math.min(0.1, Math.max(0, rawDt || 0));
     const { lamp, strikeProgress, activeSlug } = useBooth.getState();
     const P = lampById(lamp);
     const ch = strikeChannels(P.strike.curve, strikeProgress);

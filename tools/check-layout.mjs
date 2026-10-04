@@ -42,7 +42,8 @@ for (const [W, H] of [[390, 844], [725, 960], [1024, 768], [1280, 800], [1568, 9
   for (let y = Math.max(0, Math.round(f.top)); y < Math.min(info.height, Math.round(f.bottom)); y += 2)
     for (let x = 0; x < info.width; x++) {
       const i = (y * info.width + x) * 3;
-      if (data[i] > 200 && data[i + 1] < 60 && data[i + 2] > 200) {
+      // magenta under any tone curve (as tools/check-views.mjs): red and blue high and close, green well below
+      if (data[i] > 120 && data[i + 2] > 120 && Math.abs(data[i] - data[i + 2]) < 40 && data[i + 1] < 0.7 * Math.min(data[i], data[i + 2])) {
         L = Math.min(L, x);
         R = Math.max(R, x + 1);
       }

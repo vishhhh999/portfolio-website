@@ -27,6 +27,8 @@ await p.waitForTimeout(2500);
 await p.evaluate((s) => fetch(`/work/${s}`).catch(() => {}), slug);
 await p.clock.install();
 await p.clock.pauseAt(Date.now() + 1000);
+// let the booth settle on the virtual clock first, so the first frames after the click have true 60Hz deltas
+for (let i = 0; i < 20; i++) await p.clock.runFor(1000 / 60);
 const frames = [];
 const STEP = 1000 / 60;
 await p.evaluate((s) => document.querySelector(`.booth-focus__item[data-slug="${s}"]`)?.click(), slug);

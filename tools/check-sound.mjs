@@ -13,7 +13,7 @@ const audio = [];
 p.on('request', (r) => { if (/\.(wav|mp3|ogg|opus|m4a|webm|flac)(\?|$)/i.test(r.url()) || r.resourceType() === 'media') audio.push(r.url()); });
 let ok = true;
 const check = (label, pass, detail = '') => { if (!pass) ok = false; console.log(`${pass ? 'PASS' : 'FAIL'} ${label}${detail ? ': ' + detail : ''}`); };
-await p.goto(BASE + '/about', { waitUntil: 'networkidle' }); // no booth on /about: the test needs no WebGL
+await p.goto(BASE + '/', { waitUntil: 'networkidle' }); // the lamp panel (and its sound switch) exists only where there is a booth (B4)
 check('sound off by default', (await p.textContent('.sound'))?.toLowerCase().includes('off'));
 await p.waitForTimeout(1500);
 check('no audio downloaded while off', audio.length === 0, audio.join(', '));

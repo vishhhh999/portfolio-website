@@ -58,7 +58,9 @@ export function CameraRig() {
   const focusSlug = useBooth((s) => s.focusSlug);
   useEffect(() => invalidate(), [activeSlug, focusSlug, size.width, size.height, invalidate]);
 
-  useFrame((_, dt) => {
+  useFrame((_, rawDt) => {
+    // a non-monotonic or stalled clock never jumps or inverts the motion: 0 ≤ dt ≤ 100ms
+    const dt = Math.min(0.1, Math.max(0, rawDt || 0));
     // The booth renders into the stage rect, so its aspect is the stage's, not the canvas's.
     const r = stageRect() ?? { left: 0, top: 0, width: size.width, height: size.height };
     const aspect = r.height > 0 ? r.width / r.height : size.width / size.height;
