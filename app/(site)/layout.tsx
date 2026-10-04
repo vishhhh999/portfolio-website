@@ -1,5 +1,7 @@
 import Link from 'next/link';
-import { CONTACT_EMAIL, CONTACT_MAILTO } from '@/lib/site';
+import { CONTACT_MAILTO, SOCIALS } from '@/lib/site';
+import { CopyEmail } from '@/components/ui/CopyEmail';
+import { OutboundLink } from '@/components/ui/OutboundLink';
 import { BoothHost } from '@/components/booth/BoothHost';
 import { Providers } from '@/components/ui/Providers';
 import { SwitchPanel } from '@/components/ui/SwitchPanel';
@@ -22,7 +24,14 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
       <main id="main">{children}</main>
       <footer className="footer">
         <a href={CONTACT_MAILTO}>Book a viewing ↗</a>
-        <span className="mono">{CONTACT_EMAIL}</span>
+        <CopyEmail />
+        <nav className="footer__social" aria-label="Social">
+          {SOCIALS.map((s) => (
+            <OutboundLink key={s.label} href={s.href} name={s.label}>
+              {s.label} ↗
+            </OutboundLink>
+          ))}
+        </nav>
         <span className="mono footer__legal">© {new Date().getFullYear()} · India, working worldwide</span>
       </footer>
     </Providers>

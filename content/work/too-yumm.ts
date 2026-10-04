@@ -1,20 +1,19 @@
 import type { Work } from '@/lib/types';
 import { placeholderDeliverables, placeholderFallbacks } from './_placeholder';
 
-// TODO(vish): confirm year, role, scope, Behance URL.
 const work: Work = {
   slug: 'too-yumm',
   title: 'Too Yumm',
   disciplines: ['Packaging', 'Brand'],
   year: 2025,
-  role: 'TBC',
-  scope: 'TBC',
+  role: '',
+  scope: '',
   inLineup: true,
   nativeLamp: 'TL84',
   glb: '',
   object: 'Standing pouch',
   fallbacks: placeholderFallbacks('too-yumm'),
-  // UV notes: none until approved by Vishesh (drafts in content/uv-notes-draft.md)
+  // UV notes: the approved set is applied in corrections.ts
   uvNotes: [],
   deliverables: (() => {
     const d = placeholderDeliverables('too-yumm', 'Too Yumm');

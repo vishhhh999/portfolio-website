@@ -45,8 +45,8 @@ export type LampPreset = {
   contact: number;
   /** FLOOD's volumetric haze cone, 0–1. */
   haze: number;
-  /** Device screens: emissive gain and spill-light intensity; live = video plays (SCREEN only). */
-  screens: { gain: number; spill: number; live: boolean };
+  /** Device screens: emissive gain and spill-light intensity. */
+  screens: { gain: number; spill: number };
   /** Fluorescence level (UV material chunk). */
   uv: number;
   bloom: { intensity: number; threshold: number };
@@ -84,7 +84,7 @@ export type LampPreset = {
 const I3 = [1, 0, 0, 0, 1, 0, 0, 0, 1];
 const BLACK: RGB = [0, 0, 0];
 const OFF_KEY = { intensity: 0, colour: BLACK, position: [0, 0.82, 0.6] as Vec3, target: [0, 0, 0] as Vec3, angle: 0.8, penumbra: 1, decay: 2, shadowRadius: 4, shadowIntensity: 0 };
-const SCREENS_ON = { gain: 0.85, spill: 0, live: false };
+const SCREENS_ON = { gain: 0.85, spill: 0 };
 
 /** Partial chromatic adaptation: the eye half-adjusts to a lamp left on, so off-D50 lamps read tinted, not monochrome. */
 const adapt = (k: number, amount: number): RGB => {
@@ -146,7 +146,7 @@ export const LAMPS: LampPreset[] = [
     fill: { intensity: 0.13, sky: TUNGSTEN, ground: [0.3, 0.22, 0.15] },
     front: 0.04,
     contact: 0.45, haze: 0,
-    screens: { gain: 0.7, spill: 0, live: false }, uv: 0,
+    screens: { gain: 0.7, spill: 0 }, uv: 0,
     bloom: { intensity: 0, threshold: 1 }, grain: 0, exposure: 1,
     // Tungsten has almost no blue: blues go dull and dark, reds and ambers bloom.
     matrix: [1.0, 0.02, -0.02, 0.03, 0.97, 0.0, 0.06, 0.06, 0.8],
@@ -164,7 +164,7 @@ export const LAMPS: LampPreset[] = [
     fill: { intensity: 0.13, sky: UV_VIOLET, ground: [0.08, 0.03, 0.16] },
     front: 0.0,
     contact: 0.3, haze: 0,
-    screens: { gain: 0.45, spill: 0.3, live: false }, uv: 1,
+    screens: { gain: 0.45, spill: 0.3 }, uv: 1,
     bloom: { intensity: 0.32, threshold: 0.8 }, grain: 0.03, exposure: 1, matrix: I3,
     // non-fluorescing print reads near-black: only white ink and the hidden marks show, never a violet wash
     print: { level: 0.012, colour: UV_VIOLET, ambient: 0.004, grad: [0, 1, 0.2] },
@@ -180,7 +180,7 @@ export const LAMPS: LampPreset[] = [
     fill: { intensity: 0.06, sky: FLOOD, ground: [0.1, 0.1, 0.11] },
     front: 0.02,
     contact: 0.7, haze: 1,
-    screens: { gain: 0.75, spill: 0, live: false }, uv: 0,
+    screens: { gain: 0.75, spill: 0 }, uv: 0,
     bloom: { intensity: 0, threshold: 1 }, grain: 0.02, exposure: 1,
     matrix: [0.98, 0.03, -0.01, 0.0, 1.02, -0.02, -0.01, 0.02, 1.01],
     print: { level: 1.3, colour: FLOOD, ambient: 0, grad: [0, 1, 0], spot: { x: 0.5, y: 0.42, r: 0.62, soft: 0.3, outside: 0.05 } },
@@ -196,7 +196,7 @@ export const LAMPS: LampPreset[] = [
     fill: { intensity: 0.012, sky: [0.6, 0.65, 0.8], ground: BLACK },
     front: 0.0,
     contact: 0.15, haze: 0,
-    screens: { gain: 2.2, spill: 10, live: true }, uv: 0,
+    screens: { gain: 2.2, spill: 10 }, uv: 0,
     bloom: { intensity: 0.6, threshold: 0.75 }, grain: 0.035, exposure: 1, matrix: I3,
     print: { level: 0.07, colour: [0.6, 0.7, 1], ambient: 0.025, grad: [0, -1, 0.3] },
     room: [0.005, 0.005, 0.007],
@@ -212,7 +212,7 @@ export const LAMPS: LampPreset[] = [
     front: 0.0,
     contact: 0, haze: 0,
     // devices stay dimly on: small glowing screens in the dark, the hand lamp reveals the rest
-    screens: { gain: 0.32, spill: 0.5, live: false }, uv: 0,
+    screens: { gain: 0.32, spill: 0.5 }, uv: 0,
     bloom: { intensity: 0, threshold: 1 }, grain: 0.3, exposure: 1, matrix: I3,
     print: { level: 1.3, colour: kelvinToAdapted(3600), ambient: 0, grad: [0, 1, 0], spot: { x: 0.5, y: 0.5, r: 0.2, soft: 0.55, outside: 0 } },
     room: BLACK,

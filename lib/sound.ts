@@ -76,3 +76,6 @@ export async function enableSound(on: boolean) {
   }
   sync();
 }
+
+/** Named one-shot events (the full set lands with the procedural sound engine). `x` pans by screen position. */
+export function playEvent(_name: string, _x?: number) {}

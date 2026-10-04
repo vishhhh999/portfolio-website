@@ -4,7 +4,7 @@ import { Html, RoundedBox } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
 import { useRouter } from 'next/navigation';
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Color, Mesh, MeshBasicMaterial, MeshStandardMaterial, type Group } from 'three';
+import { Color, Mesh, MeshStandardMaterial, type Group } from 'three';
 import type { Work } from '@/lib/types';
 import { useBooth } from '@/lib/store';
 import { useReducedMotion } from '@/lib/useReducedMotion';
@@ -61,16 +61,17 @@ export function ObjectSlot({ work }: { work: Work }) {
   type Dimmable = { mat: MeshStandardMaterial; base: Color };
   const objMats = useRef<Dimmable[]>([]);
   const plinthMats = useRef<Dimmable[]>([]);
-  const screenMats = useRef<MeshBasicMaterial[]>([]);
+  const screenMats = useRef<MeshStandardMaterial[]>([]);
   const dim = useRef({ obj: 0, plinth: 0 });
 
   useLayoutEffect(() => {
     const objs: Dimmable[] = [];
-    const screensHere: MeshBasicMaterial[] = [];
+    const screensHere: MeshStandardMaterial[] = [];
     objRef.current?.traverse((o) => {
-      if (!(o instanceof Mesh)) return;
-      if (o.material instanceof MeshStandardMaterial) objs.push({ mat: o.material, base: o.material.color.clone() });
-      if (o.material instanceof MeshBasicMaterial && o.material.map && !o.material.transparent) screensHere.push(o.material);
+      if (!(o instanceof Mesh) || !(o.material instanceof MeshStandardMaterial)) return;
+      // screens dim through their emissive level (the rig reads userData.dim), not their colour
+      if (o.material.emissiveMap) screensHere.push(o.material);
+      else objs.push({ mat: o.material, base: o.material.color.clone() });
     });
     objMats.current = objs;
     screenMats.current = screensHere;

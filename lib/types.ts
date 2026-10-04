@@ -5,6 +5,8 @@ export type UvNote = {
   text: string;
   /** Object-local position in metres, origin at base centre. */
   anchor: [number, number, number];
+  /** Where the same note sits on the project's first proof image (0–1 from the top left). */
+  proof?: [number, number];
 };
 
 export type Deliverable = {
@@ -21,6 +23,8 @@ export type Deliverable = {
   height?: number;
   /** Extra encodings for video deliverables, tried before `src` (e.g. WebM VP9, then the MP4 in src). */
   sources?: { src: string; type: string }[];
+  /** UV notes printed on this proof in invisible ink (the first proof of each project). */
+  inkNotes?: { text: string; at: [number, number] }[];
 };
 
 export type Work = {
@@ -30,11 +34,12 @@ export type Work = {
   description?: string[];
   /** Headed case sections that follow the intro, imported as written. */
   sections?: { heading: string; body: string[] }[];
-  /** The shipped site, for web projects. */
+  /** The shipped site, for web projects (import only; shown through `links`). */
   live?: string;
   client?: string;
   clientType?: string;
-  credits?: string;
+  /** Outbound link buttons (new tab). Only projects with a real destination have one. */
+  links?: { label: string; href: string }[];
   disciplines: string[];
   year: number;
   role: string;
@@ -48,7 +53,6 @@ export type Work = {
   uvNotes: UvNote[];
   /** Six is the target; when the live site has fewer, the real ones are shown rather than padded with placeholders. */
   deliverables: Deliverable[];
-  behance?: string;
   /** false = archive only: not on the booth floor, listed in /archive and /house-lights. */
   inLineup: boolean;
   /** Hero object description, used for alt text and the house-lights index. */

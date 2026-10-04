@@ -32,7 +32,7 @@ import { lampById, strikeEnvelope, strikeKelvin } from '@/lib/lampPresets';
 import { useBooth } from '@/lib/store';
 import { ceilingMaterial, diffuserMaterial, getBlobMaterial } from './BoothRoom';
 import { postState } from './Post';
-import { onScreenFrame, sampleScreens, screens, screenSource } from './screens';
+import { onScreenFrame, screens } from './screens';
 import { BOOTH, TRAY } from './staging';
 import { uvUniforms } from './uvMaterial';
 import { PRINT_FLOORS, proofUniforms } from './proofUniforms';
@@ -269,15 +269,12 @@ export function LampRig() {
       (hazeMat.uniforms.uColour.value as Color).copy(k.color);
     }
 
-    // ── screens: always on; live video + spill only in SCREEN ──
-    const src = screenSource(P.screens.live);
-    if (P.screens.live) sampleScreens();
+    // ── screens: always on (the logo as an emissive layer under glass); spill only where the lamp says ──
     let spillSum = 0;
     const spillColour = tmpSpill.setRGB(0, 0, 0);
     for (const s of screens) {
       const keep = 1 - ((s.material.userData.dim as number | undefined) ?? 0);
-      if (s.material.map !== src) s.material.map = src;
-      s.material.color.setScalar(P.screens.gain * (0.35 + 0.65 * env) * keep);
+      s.material.emissiveIntensity = P.screens.gain * (0.35 + 0.65 * env) * keep;
       if (s.light) {
         s.light.intensity = P.screens.spill * env * keep;
         s.light.color.copy(s.colour);
@@ -286,8 +283,8 @@ export function LampRig() {
       spillColour.add(s.colour);
     }
     if (spill.current) {
-      // the three screens' area together, from one light across the back row
-      spill.current.intensity = screens.size ? (P.screens.spill * env * spillSum * 0.45) : 0;
+      // the screens' area together, from one light across the back row
+      spill.current.intensity = screens.size ? P.screens.spill * env * spillSum * 0.45 : 0;
       spill.current.color.copy(screens.size ? spillColour.multiplyScalar(1 / screens.size) : spillColour);
     }
 

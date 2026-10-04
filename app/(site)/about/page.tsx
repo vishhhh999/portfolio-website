@@ -1,6 +1,9 @@
 import type { Metadata } from 'next';
-import { about, type Copy } from '@/content/about';
-import { CONTACT_EMAIL, CONTACT_MAILTO, SITE_HOST, SITE_URL } from '@/lib/site';
+import { about } from '@/content/about';
+import { CopyEmail } from '@/components/ui/CopyEmail';
+import { CvLink, PassStamp } from '@/components/ui/AboutBits';
+import { OutboundLink } from '@/components/ui/OutboundLink';
+import { CONTACT_EMAIL, SOCIALS } from '@/lib/site';
 
 export const metadata: Metadata = {
   title: 'About',
@@ -8,13 +11,9 @@ export const metadata: Metadata = {
   alternates: { canonical: '/about' },
 };
 
-/** Renders copy; a placeholder shows up visibly marked so it can't ship unnoticed. */
-function C({ v }: { v: Copy }) {
-  return typeof v === 'string' ? <>{v}</> : <mark className="tbc">[TBC: {v.tbc}]</mark>;
-}
-
 /** The about page as a colour lab's certificate of calibration. */
 export default function AboutPage() {
+  const { award, education } = about;
   return (
     <section className="page about">
       <article className="cert" aria-labelledby="cert-name">
@@ -24,11 +23,23 @@ export default function AboutPage() {
         </header>
 
         <div className="cert__body">
-          <p className="mono cert__issued">This is to certify that</p>
-          <h1 id="cert-name">{about.name}</h1>
-          <p className="cert__discipline">
-            {about.discipline} · {about.location}
-          </p>
+          <div className="cert__top">
+            <div>
+              <p className="mono cert__issued">This is to certify that</p>
+              <h1 id="cert-name">{about.name}</h1>
+              <p className="cert__discipline">
+                {about.discipline} · {about.location}
+              </p>
+            </div>
+            <figure className="cert__portrait">
+              <picture>
+                <source srcSet={about.portrait.avif} type="image/avif" />
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={about.portrait.src} alt={about.portrait.alt} width={about.portrait.width} height={about.portrait.height} fetchPriority="high" decoding="async" />
+              </picture>
+              <figcaption className="mono">Specimen · photographed in daylight</figcaption>
+            </figure>
+          </div>
 
           <dl className="cert__fields">
             <div>
@@ -45,54 +56,65 @@ export default function AboutPage() {
 
           <section className="cert__section" aria-labelledby="cert-what">
             <h2 id="cert-what">What I do</h2>
-            {about.summary.map((p, i) => (
-              <p key={i}>
-                <C v={p} />
-              </p>
+            {about.summary.map((p) => (
+              <p key={p.slice(0, 24)}>{p}</p>
             ))}
-            <p className="cert__statement">
-              <C v={about.statement} />
-            </p>
           </section>
 
           <section className="cert__section" aria-labelledby="cert-exp">
             <h2 id="cert-exp">Readings on record</h2>
             <ol className="cert__log">
               {about.experience.map((e) => (
-                <li key={`${e.role}-${e.years}`}>
+                <li key={`${e.role}-${e.where}-${e.years}`}>
                   <span className="mono">{e.years}</span>
                   <span>
-                    {e.role}
-                    {e.where ? ` · ${e.where}` : ''}
+                    {e.role} · {e.where}
                   </span>
                 </li>
               ))}
             </ol>
-            <p className="cert__note">
-              <C v={about.experienceNote} />
-            </p>
             <dl className="cert__fields">
               <div>
                 <dt>Education</dt>
                 <dd>
-                  {about.education.degree} · <C v={about.education.school} /> · {about.education.years}
+                  {education.degree} · {education.school} · {education.years}
                 </dd>
               </div>
               <div>
-                <dt>Award</dt>
+                <dt>Test result</dt>
                 <dd>
-                  {about.award.title} · <C v={about.award.body} />
+                  {award.level} · {award.name} · {award.year} · {award.category}
                 </dd>
+              </div>
+              <div>
+                <dt>Instruments</dt>
+                <dd>{about.tools.join(' · ')}</dd>
               </div>
             </dl>
           </section>
 
+          <section className="cert__section" aria-labelledby="cert-clients">
+            <h2 id="cert-clients">Clients</h2>
+            <ul className="cert__clients" role="list">
+              {about.clients.map((c) => (
+                <li key={c}>{c}</li>
+              ))}
+            </ul>
+          </section>
+
           <section className="cert__section cert__contact" aria-labelledby="cert-contact">
             <h2 id="cert-contact">Book a viewing</h2>
-            <p>
-              <a href={CONTACT_MAILTO}>{CONTACT_EMAIL}</a>
-              <br />
-              <a href={SITE_URL}>{SITE_HOST}</a>
+            <p className="cert__cta">
+              <a href={`mailto:${CONTACT_EMAIL}`}>{about.cta} ↗</a>
+            </p>
+            <CopyEmail />
+            <p className="cert__links">
+              <CvLink href={about.cv} />
+              {SOCIALS.map((s) => (
+                <OutboundLink key={s.label} href={s.href} name={s.label}>
+                  {s.label} ↗
+                </OutboundLink>
+              ))}
             </p>
           </section>
         </div>
@@ -102,7 +124,7 @@ export default function AboutPage() {
             <span className="cert__line" aria-hidden="true" />
             <span className="mono">Checked under D50 · TL84 · A · UV-A</span>
           </span>
-          <span className="calib__stamp" aria-hidden="true">PASS</span>
+          <PassStamp />
         </footer>
       </article>
     </section>

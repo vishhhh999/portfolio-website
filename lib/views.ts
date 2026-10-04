@@ -21,6 +21,8 @@ export type PlaneSpec = {
   src: string;
   fluorMask?: string;
   uvInk?: string;
+  /** Approved notes drawn as UV ink on this photo. */
+  inkNotes?: { text: string; at: [number, number] }[];
   /** Called once the plane has drawn, so the DOM element can be visually hidden. */
   onReady?: () => void;
 };

@@ -12,7 +12,7 @@ const BASE = process.env.BASE || 'http://localhost:3100';
 const WIDTH = Number(process.env.WIDTH || 390);
 
 const slugs = readdirSync(new URL('../content/work/', import.meta.url))
-  .filter((f) => f.endsWith('.ts') && !f.startsWith('_') && !['index.ts', 'imported.ts'].includes(f))
+  .filter((f) => f.endsWith('.ts') && !f.startsWith('_') && !['index.ts', 'imported.ts', 'corrections.ts'].includes(f))
   .map((f) => f.replace(/\.ts$/, ''));
 const routes = ['/', ...slugs.map((s) => `/work/${s}`), '/archive', '/about', '/house-lights'];
 

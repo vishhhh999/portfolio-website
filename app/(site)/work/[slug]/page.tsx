@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getWork, nextWork, works } from '@/content/work';
 import { NextLink } from '@/components/ui/NextLink';
+import { OutboundLink } from '@/components/ui/OutboundLink';
 import { ProofStrip } from '@/components/ui/ProofStrip';
 import { SlugLine } from '@/components/ui/SlugLine';
 import { SpecPlate } from '@/components/ui/SpecPlate';
@@ -65,8 +66,16 @@ export default async function WorkPage({ params }: Props) {
                   </section>
                 ))}
               </>
-            ) : (
-              <p className="work__tbc">Case copy imports from the live site (TBC).</p>
+            ) : null}
+            {work.uvNotes.length > 0 && (
+              <section className="sr-only" aria-label="Proofer's notes, printed in UV ink">
+                <h2>Proofer&apos;s notes (visible under the UV lamp)</h2>
+                <ul>
+                  {work.uvNotes.map((n) => (
+                    <li key={n.text}>{n.text}</li>
+                  ))}
+                </ul>
+              </section>
             )}
           </div>
         </div>
@@ -74,14 +83,11 @@ export default async function WorkPage({ params }: Props) {
         <ProofStrip deliverables={work.deliverables} serialBase={serial} part="rest" />
 
         <div className="work__links">
-          {work.live && (
-            <a href={work.live} target="_blank" rel="noreferrer" className="proofset">Live site ↗</a>
-          )}
-          {work.behance ? (
-            <a href={work.behance} target="_blank" rel="noreferrer" className="proofset">Full proof set ↗</a>
-          ) : (
-            <span className="proofset proofset--tbc">Full proof set ↗ · link TBC</span>
-          )}
+          {work.links?.map((l) => (
+            <OutboundLink key={l.href} href={l.href} name={`${work.slug}: ${l.label}`} className="proofset">
+              {l.label} ↗
+            </OutboundLink>
+          ))}
           <NextLink href={`/work/${next.slug}`}>
             <span className="mono">Next on the tray</span> {next.title} →
           </NextLink>

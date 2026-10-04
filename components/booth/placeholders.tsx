@@ -6,14 +6,20 @@ import { useLayoutEffect, useMemo, useRef, type ReactNode } from 'react';
 import {
   Color,
   ExtrudeGeometry,
-  MeshBasicMaterial,
-  PlaneGeometry,
+  MeshPhysicalMaterial,
   Shape,
   type Material,
   type RectAreaLight,
   type Texture,
 } from 'three';
-import { getPosterTexture, REGIONS, screens, type ScreenRegion } from './screens';
+import { screens, screenTexture } from './screens';
+import { getWork } from '@/content/work';
+
+/** A project's first still (a video's poster), for screens without logo files. */
+export const firstStill = (slug: string) => {
+  const d = getWork(slug)?.deliverables[0];
+  return d ? (d.type === 'video' ? d.poster ?? '' : d.src) : '';
+};
 import { applyUV, type InkProjection } from './uvMaterial';
 
 /**
@@ -55,36 +61,49 @@ export function BoothMat({ color, roughness = 0.7, metalness = 0, fluor = 0, ink
   return <meshStandardMaterial ref={ref as never} color={color} roughness={roughness} metalness={metalness} />;
 }
 
-/** Self-lit device screen: a region of the screen still/video + a RectAreaLight that spills its colour. */
-function Screen({ w, h, region, ink }: { w: number; h: number; region: ScreenRegion; ink?: Texture }) {
+/**
+ * A device screen: the project's logo on its brand colour as an emissive layer, under a glass
+ * layer (clearcoat) that reflects the booth when the room lamps are on. Offset 1.2mm in front of
+ * the bezel so the two surfaces can never z-fight; the spill light faces out of the glass.
+ */
+export function Screen({ w, h, slug, still, ink }: { w: number; h: number; slug: string; still: string; ink?: Texture }) {
   const lightRef = useRef<RectAreaLight>(null);
-  const { geometry, material } = useMemo(() => {
-    const geometry = new PlaneGeometry(w, h);
-    const uv = geometry.attributes.uv;
-    for (let i = 0; i < uv.count; i++) uv.setX(i, region[0] + uv.getX(i) * (region[1] - region[0]));
-    const material = new MeshBasicMaterial({ map: getPosterTexture() });
+  const { tex, material } = useMemo(() => {
+    const tex = screenTexture(slug, w / h, still);
+    const material = new MeshPhysicalMaterial({
+      color: '#050506',
+      roughness: 0.18,
+      metalness: 0,
+      emissive: '#ffffff',
+      emissiveMap: tex.texture,
+      emissiveIntensity: 0.85,
+      clearcoat: 1,
+      clearcoatRoughness: 0.04,
+    });
     if (ink) applyUV(material, { inkProj: { map: ink, box: [-w * 0.46, -h * 0.46, w * 0.46, h * 0.46] } });
-    return { geometry, material };
-  }, [w, h, region, ink]);
+    return { tex, material };
+  }, [w, h, slug, still, ink]);
 
   const mobile = isMobileTier();
   useLayoutEffect(() => {
     if (!mobile && !lightRef.current) return;
-    const entry = { material, light: mobile ? null : lightRef.current, region, colour: new Color(0.3, 0.3, 0.4) };
+    const entry = { material, light: mobile ? null : lightRef.current, colour: tex.colour };
     screens.add(entry);
     return () => void screens.delete(entry);
-  }, [material, region, mobile]);
+  }, [material, tex, mobile]);
 
   return (
-    <group>
-      <mesh geometry={geometry} material={material} />
+    <group position={[0, 0, 0.0012]}>
+      <mesh material={material}>
+        <planeGeometry args={[w, h]} />
+      </mesh>
       {/* RectAreaLight emits along its local -Z; flip it to face out of the screen. */}
       {!mobile && <rectAreaLight ref={lightRef} width={w} height={h} intensity={0} rotation={[0, Math.PI, 0]} position={[0, 0, 0.001]} />}
     </group>
   );
 }
 
-function Laptop({ inkTex }: { inkTex: Texture }) {
+function Laptop({ inkTex, slug }: { inkTex: Texture; slug: string }) {
   const w = 0.3, d = 0.21, t = 0.014;
   return (
     <group position={[0, 0, 0.02]}>
@@ -96,7 +115,7 @@ function Laptop({ inkTex }: { inkTex: Texture }) {
           <BoothMat color={alu} roughness={0.32} metalness={0.7} />
         </RoundedBox>
         <group position={[0, d / 2 + 0.004, 0.0037]}>
-          <Screen w={w * 0.92} h={d * 0.86} region={REGIONS.laptop} ink={inkTex} />
+          <Screen w={w * 0.92} h={d * 0.86} slug={slug} still={firstStill(slug)} ink={inkTex} />
         </group>
       </group>
     </group>
@@ -124,7 +143,7 @@ function TabletOnEasel({ inkTex }: { inkTex: Texture }) {
           <BoothMat color="#2E2F33" roughness={0.3} metalness={0.4} />
         </RoundedBox>
         <group position={[0, h / 2, 0.0002]}>
-          <Screen w={w * 0.92} h={h * 0.88} region={REGIONS.tablet} ink={inkTex} />
+          <Screen w={w * 0.92} h={h * 0.88} slug="sonde" still={firstStill('sonde')} ink={inkTex} />
         </group>
       </group>
     </group>
@@ -146,7 +165,7 @@ function PhoneInStand({ inkTex }: { inkTex: Texture }) {
           <BoothMat color="#0B0C0E" roughness={0.2} metalness={0.3} />
         </RoundedBox>
         <group position={[0, h / 2, 0.0002]}>
-          <Screen w={w * 0.9} h={h * 0.93} region={REGIONS.phone} ink={inkTex} />
+          <Screen w={w * 0.9} h={h * 0.93} slug="house-of-hex" still={firstStill('house-of-hex')} ink={inkTex} />
         </group>
       </group>
     </group>
@@ -223,8 +242,8 @@ export const PLACEHOLDERS: Record<string, Placeholder> = {
     </RoundedBox>
   ),
   'jsw-sports': (inkTex) => <OpenBook inkTex={inkTex} />,
-  mitooshi: (inkTex) => <Laptop inkTex={inkTex} />,
-  'indo-thai': (inkTex) => <Laptop inkTex={inkTex} />,
+  mitooshi: (inkTex) => <Laptop inkTex={inkTex} slug="mitooshi" />,
+  'indo-thai': (inkTex) => <Laptop inkTex={inkTex} slug="indo-thai" />,
   sonde: (inkTex) => <TabletOnEasel inkTex={inkTex} />,
   'house-of-hex': (inkTex) => <PhoneInStand inkTex={inkTex} />,
   'bengal-t20': (inkTex) => (

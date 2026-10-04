@@ -207,3 +207,61 @@ export function createInkTexture(notes: string[], aspect: number, seed = 1) {
   if (typeof document !== 'undefined' && document.fonts) void document.fonts.ready.then(draw);
   return tex;
 }
+
+/**
+ * Approved notes as invisible ink on a proof photograph: each note is a dot at its position, a
+ * short leader and a mono caps label, white on black (the shader adds it as cyan glow under UV).
+ */
+export function createProofInk(notes: { text: string; at: [number, number] }[], aspect: number) {
+  const W = 1600;
+  const H = Math.round(W / aspect);
+  const c = document.createElement('canvas');
+  c.width = W;
+  c.height = H;
+  const tex = new CanvasTexture(c);
+  const draw = () => {
+    const g = c.getContext('2d')!;
+    const mono = monoFamily();
+    const u = Math.min(W, H) / 100;
+    g.fillStyle = '#000';
+    g.fillRect(0, 0, W, H);
+    g.strokeStyle = g.fillStyle = '#fff';
+    g.lineWidth = Math.max(1.5, u * 0.18);
+    // registration marks in the corners, as a proofer would
+    for (const [x, y] of [[0.04, 0.06], [0.96, 0.06], [0.04, 0.94], [0.96, 0.94]]) {
+      g.beginPath();
+      g.arc(W * x, H * y, u * 1.2, 0, Math.PI * 2);
+      g.moveTo(W * x - u * 2, H * y);
+      g.lineTo(W * x + u * 2, H * y);
+      g.moveTo(W * x, H * y - u * 2);
+      g.lineTo(W * x, H * y + u * 2);
+      g.stroke();
+    }
+    const size = Math.max(18, Math.min(34, u * 3));
+    g.font = `500 ${size}px ${mono}`;
+    g.textBaseline = 'middle';
+    for (const n of notes) {
+      const px = n.at[0] * W, py = n.at[1] * H;
+      const right = n.at[0] < 0.5;
+      const lx = px + (right ? 1 : -1) * W * 0.05;
+      g.beginPath();
+      g.arc(px, py, u * 0.6, 0, Math.PI * 2);
+      g.fill();
+      g.beginPath();
+      g.moveTo(px, py);
+      g.lineTo(lx, py - size);
+      g.stroke();
+      g.textAlign = right ? 'left' : 'right';
+      const w = g.measureText(n.text).width;
+      const pad = size * 0.35;
+      g.fillStyle = '#000';
+      g.fillRect(right ? lx - pad : lx - w - pad, py - size * 1.6, w + pad * 2, size * 1.2);
+      g.fillStyle = '#fff';
+      g.fillText(n.text, lx, py - size);
+    }
+    tex.needsUpdate = true;
+  };
+  draw();
+  if (typeof document !== 'undefined' && document.fonts) void document.fonts.ready.then(draw);
+  return tex;
+}

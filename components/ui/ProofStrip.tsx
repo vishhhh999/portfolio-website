@@ -83,6 +83,7 @@ function ProofFrame({ d, index, serial, onPlay }: { d: Deliverable; index: numbe
       src: d.src,
       fluorMask: d.fluorMask,
       uvInk: d.uvInk,
+      inkNotes: d.inkNotes,
       onReady: () => setLit(true),
     });
     return () => {

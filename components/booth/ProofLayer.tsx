@@ -20,7 +20,7 @@ import {
 import { onViewsChanged, planeEntries, planeRect } from '@/lib/views';
 import { proofLayer } from './Post';
 import { proofUniforms } from './proofUniforms';
-import { uvUniforms } from './uvMaterial';
+import { createProofInk, uvUniforms } from './uvMaterial';
 
 const black = (() => {
   const t = new DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1, RGBAFormat);
@@ -168,7 +168,7 @@ export function ProofLayer() {
       for (const [id, spec] of entries) {
         if (objs.current.has(id)) continue;
         // created lazily, once the frame comes within a viewport of the screen (see useFrame)
-        objs.current.set(id, { mesh: null, ready: false, announced: false, hasUV: !!(spec.fluorMask || spec.uvInk) });
+        objs.current.set(id, { mesh: null, ready: false, announced: false, hasUV: !!(spec.fluorMask || spec.uvInk || spec.inkNotes?.length) });
       }
       invalidate();
     };
@@ -198,7 +198,11 @@ export function ProofLayer() {
       }
       obj.map = map;
       obj.base = printMaterial(map, null, null, false);
-      if (obj.hasUV) obj.uvMaps = [load(spec.fluorMask, true), load(spec.uvInk)];
+      if (obj.hasUV) {
+        const r = spec.el.getBoundingClientRect();
+        const ink = spec.inkNotes?.length ? createProofInk(spec.inkNotes, r.width / Math.max(1, r.height)) : load(spec.uvInk);
+        obj.uvMaps = [load(spec.fluorMask, true), ink];
+      }
       obj.mesh = new Mesh(geo, obj.base);
       obj.mesh.visible = false;
       obj.mesh.frustumCulled = false;
