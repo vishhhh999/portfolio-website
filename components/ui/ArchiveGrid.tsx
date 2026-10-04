@@ -4,6 +4,14 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import type { ArchivePiece, ArchiveSeries } from '@/content/archive';
 import { playEvent } from '@/lib/sound';
 
+/** Column width: 4 columns on desktop, 2 on phones (globals.css .archive). */
+const SIZES = '(max-width: 760px) 50vw, (max-width: 1100px) 33vw, 25vw';
+/** The 480w/960w copies from tools/archive-sizes.mjs: /archive/07.webp → /archive/sized/07-480.avif … */
+const sized = (src: string, ext: 'avif' | 'webp') => {
+  const base = src.replace(/^\/archive\/(.+)\.webp$/, '/archive/sized/$1');
+  return `${base}-480.${ext} 480w, ${base}-960.${ext} 960w`;
+};
+
 /**
  * The archive contact sheet: every piece, lazy-loaded, at its real aspect ratio.
  * One filter (the series), kept in the URL so a filtered view can be linked.
@@ -57,14 +65,24 @@ export function ArchiveView({
       </div>
 
       <ol className="archive">
-        {shown.map((p) => (
+        {shown.map((p, i) => (
           <li key={p.n} id={`a${String(p.n).padStart(2, '0')}`} className="archive__item">
             <figure className="archive__fig">
               <span className="archive__frame" style={{ aspectRatio: `${p.width ?? 1} / ${p.height ?? 1}` }}>
                 <picture>
-                  {p.avif && <source srcSet={p.avif} type="image/avif" />}
+                  <source srcSet={sized(p.src, 'avif')} sizes={SIZES} type="image/avif" />
+                  <source srcSet={sized(p.src, 'webp')} sizes={SIZES} type="image/webp" />
+                  {/* the first row is above the fold: no lazy loading, so it is the fast LCP */}
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={p.src} alt={p.alt} width={p.width} height={p.height} loading="lazy" decoding="async" />
+                  <img
+                    src={p.src}
+                    alt={p.alt}
+                    width={p.width}
+                    height={p.height}
+                    loading={i < 4 ? 'eager' : 'lazy'}
+                    fetchPriority={i < 2 ? 'high' : undefined}
+                    decoding="async"
+                  />
                 </picture>
               </span>
               <figcaption className="archive__caption mono">
