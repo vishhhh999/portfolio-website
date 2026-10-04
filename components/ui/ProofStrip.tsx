@@ -7,7 +7,7 @@ import type { Deliverable } from '@/lib/types';
 import { registerPlane } from '@/lib/views';
 import { avifFor } from '@/content/masters';
 
-const BAR = ['#009ee0', '#e2007a', '#ffed00', '#1e1e1e', '#e2231a', '#009640', '#2d2e83', '#f3f3f2', '#a0a0a0', '#555555'];
+import { PALETTES } from '@/content/palettes';
 
 function RegTarget({ className }: { className: string }) {
   return (
@@ -71,27 +71,21 @@ function ProofFrame({ d, index, serial, onPlay }: { d: Deliverable; index: numbe
     return () => io.disconnect();
   }, [d]);
 
-  // D50 is pixel-exact: the plain <img>/<video>, no WebGL plane, no grain, matrix or bloom.
-  // A relit plane only exists while the visitor has another lamp on; the DOM frame crossfades
-  // out over it (300ms) once it has drawn, and back in before the plane goes on returning to D50.
-  const relit = lamp !== 'D50';
+  // C: case-study images keep their authored colour under every lamp: the plain <img>/<video>, no
+  // WebGL plane, matrix, dither or grain. AFTER DARK is the one exception: the hand lamp's torch
+  // reveals them (a pure luminance mask, ProofLayer). The plane exists only while AFTER DARK is on,
+  // and goes the moment another lamp is picked (the DOM frame is back at once, no fade).
+  const houseLights = useBooth((s) => s.houseLights);
+  const torch = lamp === 'AFTERDARK' && !houseLights;
   useEffect(() => {
     const el = ref.current;
-    if (!el || !relit || !litPlanesEnabled()) return;
-    const off = registerPlane({
-      el,
-      kind: d.type,
-      src: d.src,
-      fluorMask: d.fluorMask,
-      uvInk: d.uvInk,
-      inkNotes: d.inkNotes,
-      onReady: () => setLit(true),
-    });
+    if (!el || !torch || !litPlanesEnabled()) return;
+    const off = registerPlane({ el, kind: d.type, src: d.src, onReady: () => setLit(true) });
     return () => {
       setLit(false);
-      window.setTimeout(off, 320); // keep the plane under the fading-in DOM frame
+      off();
     };
-  }, [d, relit]);
+  }, [d, torch]);
 
   const slug = `VM_PROOF_${String(serial).padStart(4, '0')} · ${lamp === 'AFTERDARK' ? 'AFTER DARK' : lamp} · 2026-10`;
 
@@ -104,9 +98,10 @@ function ProofFrame({ d, index, serial, onPlay }: { d: Deliverable; index: numbe
         <span className="proof__crop proof__crop--br" aria-hidden="true" />
         <RegTarget className="proof__reg--top" />
         <RegTarget className="proof__reg--bottom" />
-        <span className="proof__bar" aria-hidden="true">
-          {BAR.map((c) => (
-            <i key={c} style={{ background: c }} />
+        {/* C4: this image's own palette (tools/extract-palettes.mjs), lightest first; hover for the hex */}
+        <span className="proof__bar">
+          {(PALETTES[d.type === 'video' ? d.poster ?? '' : d.src] ?? []).map((c) => (
+            <i key={c.hex} style={{ background: c.hex }} data-hex={c.hex} title={c.hex} aria-label={`Colour ${c.hex}`} />
           ))}
         </span>
         <div className="proof__image">

@@ -8,6 +8,7 @@ import { OutboundLink } from '@/components/ui/OutboundLink';
 import { ProofStrip } from '@/components/ui/ProofStrip';
 import { SlugLine } from '@/components/ui/SlugLine';
 import { SpecPlate } from '@/components/ui/SpecPlate';
+import { UvCaption } from '@/components/ui/UvCaption';
 import { JsonLd, workLd } from '@/lib/jsonld';
 
 type Props = { params: Promise<{ slug: string }> };
@@ -49,7 +50,7 @@ export default async function WorkPage({ params }: Props) {
       {work.inLineup && <div className="work__stage" aria-hidden="true" />}
       <div className="work__body rail g12">
         <header className="work__head">
-          <SlugLine id={serial} lamp={work.inLineup ? work.nativeLamp : 'ARCHIVE'} />
+          <SlugLine id={serial} archive={!work.inLineup} />
           <h1>{work.title}</h1>
           <p className="work__meta">
             {work.role} · {work.year}
@@ -58,6 +59,7 @@ export default async function WorkPage({ params }: Props) {
 
         {/* work first: the opening deliverable sits straight under the title */}
         <ProofStrip deliverables={work.deliverables} serialBase={serial} part="hero" />
+        <UvCaption notes={work.uvNotes.map((n) => n.text)} />
 
         <div className="work__intro g12">
           <SpecPlate work={work} serial={serial} />

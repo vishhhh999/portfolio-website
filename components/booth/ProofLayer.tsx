@@ -2,98 +2,49 @@
 
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
-import {
-  DataTexture,
-  Mesh,
-  NearestFilter,
-  OrthographicCamera,
-  RepeatWrapping,
-  PlaneGeometry,
-  RGBAFormat,
-  Scene,
-  ShaderMaterial,
-  SRGBColorSpace,
-  TextureLoader,
-  VideoTexture,
-  type Texture,
-} from 'three';
+import { Mesh, NearestFilter, OrthographicCamera, RepeatWrapping, PlaneGeometry, Scene, ShaderMaterial, TextureLoader, VideoTexture, type Texture } from 'three';
 import { onViewsChanged, planeEntries, planeRect } from '@/lib/views';
 import { proofLayer } from './Post';
 import { proofUniforms } from './proofUniforms';
-import { createProofInk, uvUniforms } from './uvMaterial';
-
-const black = (() => {
-  const t = new DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1, RGBAFormat);
-  t.needsUpdate = true;
-  return t;
-})();
 
 /**
- * A printed photograph under the booth's lamp. The image is display-referred and the post chain
- * leaves proof pixels untone-mapped (tone mapping is the booth's only), so at D50 level 1 this
- * outputs the file itself. The active lamp's print model lights it (colour, falloff, pool or hand
- * lamp), and the same fluorMask / uvInk slots as the 3D objects glow under UV. Last, a ±0.5/255
- * blue-noise dither: relighting never adds banding of its own (it does not smooth the source).
+ * The AFTER DARK torch over a case-study image (C2). The image keeps its authored colour: no tone
+ * mapping, bloom, colour matrix or tint ever touches it (these planes are drawn straight to the
+ * screen after the booth's post chain). The torch is a pure luminance mask: a soft circle with a
+ * smooth falloff, applied in linear light, multiplier exactly 1.0 at the centre and never above,
+ * computed in float in the shader and dithered with blue noise where it is below 1 (no rings, no
+ * clipped core, no 8-bit steps). At the centre the output is the file's own pixel.
  */
-function printMaterial(map: Texture, fluor: Texture | null, ink: Texture | null, withUV: boolean) {
+function torchMaterial(map: Texture) {
   return new ShaderMaterial({
-    // the base variant has no UV code at all; the UV variant is compiled only once UV is on
-    defines: withUV ? { PRINT_UV: '' } : {},
     uniforms: {
-      ...proofUniforms,
-      ...uvUniforms,
       map: { value: map },
-      uFluorMask: { value: fluor ?? black },
-      uUvInk: { value: ink ?? black },
-      uHasUV: { value: fluor || ink ? 1 : 0 },
+      uSpot: proofUniforms.uSpot,
+      uOutside: proofUniforms.uSpotOutside,
+      uLevel: proofUniforms.uTorchLevel,
       uBlueNoise: { value: blueNoise() },
     },
     vertexShader: /* glsl */ `
       varying vec2 vUv;
       void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
     fragmentShader: /* glsl */ `
-      uniform sampler2D map, uFluorMask, uUvInk, uCookie, uBlueNoise;
-      uniform vec3 uColour, uFluorColor, uInkColor;
-      uniform float uAmbient, uSpotMix, uSpotOutside, uUseCookie, uProofUV, uFluorGain, uInkGain, uHasUV, uFloor;
-      uniform mat3 uNeutralize;
-      uniform vec4 uGrad, uSpot;
-      uniform vec2 uBuffer;
+      uniform sampler2D map, uBlueNoise;
+      uniform vec4 uSpot; // centre.xy (buffer px), radius px, softness
+      uniform float uOutside, uLevel;
       varying vec2 vUv;
-
-      // linear <-> sRGB transfer, so the dither lands on the 8-bit output steps
       vec3 toSRGB(vec3 c) { return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, c)); }
       vec3 toLinear(vec3 c) { return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(0.04045, c)); }
-
       void main() {
-        vec3 base = texture2D(map, vUv).rgb;
-        vec2 frag = gl_FragCoord.xy;
-        vec2 c = frag / uBuffer * 2.0 - 1.0;
-        float g = 1.0 - uGrad.z * (1.0 - (dot(normalize(uGrad.xy + 1e-5), c) * 0.5 + 0.5));
-        float light = g;
-        if (uSpotMix > 0.0) {
-          float dist = distance(frag, uSpot.xy) / max(uSpot.z, 1.0);
-          float pool = 1.0 - smoothstep(1.0 - uSpot.w, 1.0, dist);
-          if (uUseCookie > 0.5) pool *= texture2D(uCookie, (frag - uSpot.xy) / (2.0 * uSpot.z) + 0.5).r * 1.25;
-          light = mix(light, mix(uSpotOutside, 1.0, pool), uSpotMix);
-        }
-        vec3 lit = uColour * light + uAmbient;
-        // readability floor: never let the print light's luminance drop below uFloor. Below it, the
-        // light keeps a tint of the lamp but mostly neutral: a saturated violet scaled up to the floor
-        // would turn into a wash (blue carries little luminance).
-        float y = dot(lit, vec3(0.2126, 0.7152, 0.0722));
-        if (y < uFloor) {
-          vec3 hue = y > 1e-4 ? lit / y : vec3(1.0);
-          vec3 tint = mix(vec3(1.0), hue, 0.3);
-          lit = tint / dot(tint, vec3(0.2126, 0.7152, 0.0722)) * uFloor;
-        }
-        vec3 col = base * lit;
-        #ifdef PRINT_UV
-          col += uProofUV * (uFluorGain * uFluorColor * texture2D(uFluorMask, vUv).rgb + uInkGain * uInkColor * texture2D(uUvInk, vUv).r);
-        #endif
-        col = max(uNeutralize * col, 0.0);
+        vec3 file = texture2D(map, vUv).rgb; // the file's sRGB values, not decoded by the sampler
+        float d = distance(gl_FragCoord.xy, uSpot.xy) / max(uSpot.z, 1.0);
+        // smooth falloff from a flat core (exactly 1.0) to the edge; smootherstep has no visible knee
+        float t = clamp((d - (1.0 - uSpot.w)) / max(uSpot.w, 1e-3), 0.0, 1.0);
+        float m = 1.0 - t * t * t * (t * (t * 6.0 - 15.0) + 10.0);
+        float k = min(1.0, mix(uOutside, 1.0, m) * uLevel);
+        if (k >= 1.0) { gl_FragColor = vec4(file, 1.0); return; }
+        vec3 o = toSRGB(toLinear(file) * k);
         float n = texture2D(uBlueNoise, gl_FragCoord.xy / 64.0).r - 0.5;
-        col = toLinear(clamp(toSRGB(col) + n / 255.0, 0.0, 1.0));
-        gl_FragColor = vec4(col, 1.0);
+        gl_FragColor = vec4(clamp(o + n / 255.0, 0.0, 1.0), 1.0);
       }`,
     depthTest: false,
     depthWrite: false,
@@ -117,18 +68,15 @@ type PlaneObj = {
   ready: boolean;
   announced: boolean;
   base?: ShaderMaterial;
-  uv?: ShaderMaterial;
-  uvMaps?: [Texture | null, Texture | null];
-  hasUV: boolean;
   map?: Texture;
 };
 
 /**
- * The proof-strip layer: one screen-space plane per registered deliverable,
- * placed every frame from the cached layout and the shared scroll value.
+ * The AFTER DARK proof layer: one screen-space plane per registered deliverable, placed every frame
+ * from the cached layout and the shared scroll value. Planes only exist while AFTER DARK is on
+ * (ProofStrip registers them); under every other lamp the images are the plain DOM files.
  */
 export function ProofLayer() {
-  const gl = useThree((s) => s.gl);
   const invalidate = useThree((s) => s.invalidate);
   const scene = useMemo(() => new Scene(), []);
   const camera = useMemo(() => new OrthographicCamera(0, 1, 0, -1, -10, 10), []);
@@ -147,20 +95,12 @@ export function ProofLayer() {
   }, [scene, camera]);
 
   useEffect(() => {
-    const load = (url: string | undefined, srgb = false) => {
-      if (!url) return null;
-      const t = loader.load(url, () => invalidate());
-      if (srgb) t.colorSpace = SRGBColorSpace;
-      t.anisotropy = 4;
-      return t;
-    };
     const sync = () => {
       const entries = planeEntries();
       for (const [id, o] of objs.current) {
         if (!entries.has(id)) {
           if (o.mesh) scene.remove(o.mesh);
           o.base?.dispose();
-          o.uv?.dispose();
           o.map?.dispose();
           objs.current.delete(id);
         }
@@ -168,7 +108,7 @@ export function ProofLayer() {
       for (const [id, spec] of entries) {
         if (objs.current.has(id)) continue;
         // created lazily, once the frame comes within a viewport of the screen (see useFrame)
-        objs.current.set(id, { mesh: null, ready: false, announced: false, hasUV: !!(spec.fluorMask || spec.uvInk || spec.inkNotes?.length) });
+        objs.current.set(id, { mesh: null, ready: false, announced: false });
       }
       invalidate();
     };
@@ -179,8 +119,7 @@ export function ProofLayer() {
       let map: Texture;
       if (spec.kind === 'video') {
         const v = spec.el as HTMLVideoElement;
-        map = new VideoTexture(v);
-        map.colorSpace = SRGBColorSpace;
+        map = new VideoTexture(v); // raw sRGB values: the shader masks the file as it is
         const ready = () => {
           obj.ready = true;
           invalidate();
@@ -193,16 +132,10 @@ export function ProofLayer() {
           obj.ready = true;
           invalidate();
         });
-        map.colorSpace = SRGBColorSpace;
         map.anisotropy = 8;
       }
       obj.map = map;
-      obj.base = printMaterial(map, null, null, false);
-      if (obj.hasUV) {
-        const r = spec.el.getBoundingClientRect();
-        const ink = spec.inkNotes?.length ? createProofInk(spec.inkNotes, r.width / Math.max(1, r.height)) : load(spec.uvInk);
-        obj.uvMaps = [load(spec.fluorMask, true), ink];
-      }
+      obj.base = torchMaterial(map);
       obj.mesh = new Mesh(geo, obj.base);
       obj.mesh.visible = false;
       obj.mesh.frustumCulled = false;
@@ -225,19 +158,13 @@ export function ProofLayer() {
     camera.top = 0;
     camera.bottom = -H;
     camera.updateProjectionMatrix();
-    const dpr = gl.getPixelRatio();
-    proofUniforms.uBuffer.value.set(W * dpr, H * dpr);
     const entries = planeEntries();
-    const wantUV = proofUniforms.uProofUV.value > 0.001;
     for (const [id, o] of objs.current) {
       const r = planeRect(id);
       if (!r) continue;
       // only frames within one viewport of the screen get a texture and a plane
       if (!o.mesh && r.top < 2 * H && r.top + r.height > -H) createRef.current(id);
       if (!o.mesh) continue;
-      if (o.hasUV && wantUV && !o.uv && o.map && o.uvMaps) o.uv = printMaterial(o.map, o.uvMaps[0], o.uvMaps[1], true);
-      const mat = o.hasUV && wantUV && o.uv ? o.uv : o.base!;
-      if (o.mesh.material !== mat) o.mesh.material = mat;
       o.mesh.position.set(r.left + r.width / 2, -(r.top + r.height / 2), 0);
       o.mesh.scale.set(r.width, r.height, 1);
       o.mesh.visible = o.ready && r.top < H && r.top + r.height > 0;
