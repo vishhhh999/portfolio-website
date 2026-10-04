@@ -30,7 +30,7 @@ import {
 import { kelvinToAdapted } from '@/lib/kelvin';
 import { lampById, strikeChannels, strikeKelvin } from '@/lib/lampPresets';
 import { useBooth } from '@/lib/store';
-import { ceilingMaterial, diffuserMaterial, getBlobMaterial, lightmapTint } from './BoothRoom';
+import { ceilingMaterial, diffuserMaterial, getBlobMaterial, hoodGlow, lightmapTint } from './BoothRoom';
 import { postState } from './Post';
 import { onScreenFrame, screens } from './screens';
 import { BOOTH, TRAY } from './staging';
@@ -40,6 +40,10 @@ import { PRINT_FLOORS, proofUniforms } from './proofUniforms';
 import { isMobileTier } from '@/lib/perfTier';
 
 const D50_PRINT = lampById('D50').print;
+const D50_BOUNCE = (() => {
+  const P = lampById('D50');
+  return P.fill.intensity * 0.55 + P.diffuser * 0.1 + P.keyLight.intensity * 0.012;
+})();
 
 /** Bumped on resize and DPR steps: cached shadow maps must re-render. */
 export const shadowEpoch = { value: 0 };
@@ -191,10 +195,13 @@ export function LampRig() {
     pl.width = P.panel.w;
     pl.height = P.panel.d;
     pl.position.set(0, BOOTH.height - 0.006, P.panel.z);
-    diffuserMaterial.color.setRGB(...P.panel.colour).multiplyScalar(Math.max(0.06, P.diffuser * env));
+    // the diffuser glows only while its lamp is on; otherwise it only receives the scene's light (H)
+    diffuserMaterial.emissive.setRGB(...P.panel.colour).multiplyScalar(P.diffuser * env);
     // ceiling: bounce from the floor + spill around the diffuser
     const bounce = (P.fill.intensity * 0.55 + P.diffuser * 0.1 + P.keyLight.intensity * 0.012) * env;
     ceilingMaterial.color.setRGB(0.45, 0.45, 0.44).multiply(tmpColour.setRGB(...P.fill.sky)).multiplyScalar(bounce);
+    // the hood's glow is the same bounce: its old fixed level (sRGB #2a2a29) under D50, ~0 in the dark lamps
+    hoodGlow.setRGB(...P.fill.sky).multiplyScalar((0.0232 * bounce) / D50_BOUNCE);
 
     // ── key light ───────────────────────────────────
     const k = key.current!;
@@ -301,12 +308,25 @@ export function LampRig() {
       spill.current.color.copy(screens.size ? spillColour.multiplyScalar(1 / screens.size) : spillColour);
     }
 
+    // G: under SCREEN the screens face out of the booth, away from every object's front. What lights
+    // the fronts in a real booth is their light coming back off the coved interior: a soft bounce,
+    // the screens' average colour half desaturated, scaled by how much the screens are on.
+    if (P.screens.bounce && screens.size) {
+      tmpColour.setRGB(0, 0, 0);
+      for (const sc of screens) tmpColour.add(sc.colour);
+      tmpColour.multiplyScalar(1 / screens.size);
+      const y = tmpColour.r * 0.2126 + tmpColour.g * 0.7152 + tmpColour.b * 0.0722;
+      if (y > 1e-4) tmpColour.multiplyScalar(1 / y).lerp(tmpSpill.setRGB(1, 1, 1), 0.5);
+      fr.color.copy(tmpColour);
+      fr.intensity = P.screens.bounce * ch.spill * (spillSum / screens.size);
+    }
+
     // ── proof-strip photos: the same lamp, as a print light model ──
     // Until the visitor picks a lamp themselves (a project's native lamp is set for them), the
     // photos stay D50-faithful: neutral white, true colour. After a pick they follow the lamp,
     // with readability floors under the dark lamps.
     const picked = useBooth.getState().lampPicked;
-    const pr = picked ? P.print : D50_PRINT;
+    const pr = picked || lamp === 'AFTERDARK' ? P.print : D50_PRINT;
     const penv = picked ? env : 1;
     const dpr = gl.getPixelRatio();
     const level = pr.level * penv;
@@ -320,7 +340,8 @@ export function LampRig() {
       const W = window.innerWidth * dpr;
       const H = window.innerHeight * dpr;
       const r = pr.spot.r * Math.min(W, H);
-      if (picked && lamp === 'AFTERDARK') {
+      proofUniforms.uTorchLevel.value = Math.min(1, env);
+      if (lamp === 'AFTERDARK') {
         // the hand lamp follows the pointer over the photos too (same critically damped lag)
         printHand.goal.set(((ndcPage.current.x + 1) / 2) * W, ((ndcPage.current.y + 1) / 2) * H);
         if (handJustOn) {

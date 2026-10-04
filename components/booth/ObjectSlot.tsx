@@ -4,7 +4,7 @@ import { ContactShadows, Html } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
 import { useRouter } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Color, FrontSide, Matrix4, Mesh, MeshStandardMaterial, Vector3, type Camera, type Group, type Material, type Object3D } from 'three';
+import { Box3, Color, FrontSide, Matrix4, Mesh, MeshStandardMaterial, Vector3, type Camera, type Group, type Material, type Object3D } from 'three';
 import type { Work } from '@/lib/types';
 import { isMobileTier } from '@/lib/perfTier';
 import { useBooth } from '@/lib/store';
@@ -17,7 +17,7 @@ import { applyUV, blankInk, createProofInk } from './uvMaterial';
 import { setFocusRect } from './focus';
 import { playEvent } from '@/lib/sound';
 import { track } from '@/lib/analytics';
-import { openProject } from '@/lib/navigate';
+import { openProject, warmProject } from '@/lib/navigate';
 
 const _v = new Vector3();
 /** drei Html places labels in canvas space; the booth camera's projection spans the canvas too. */
@@ -62,6 +62,19 @@ function ModelObject({ work, onReady }: { work: Work; onReady: () => void }) {
       .then((gltf) => {
         if (!live) return;
         const scene = gltf.scene.clone(true);
+        if (m.layout) {
+          // F3: move each named piece so its footprint centre lands on the layout's [x, z], turned by yaw
+          scene.updateMatrixWorld(true);
+          for (const [name, [lx, lz, yaw]] of Object.entries(m.layout)) {
+            const node = scene.getObjectByName(name);
+            if (!node) continue;
+            node.rotation.y += yaw;
+            node.updateMatrixWorld(true);
+            const c = new Box3().setFromObject(node).getCenter(new Vector3());
+            node.position.x += lx - c.x;
+            node.position.z += lz - c.z;
+          }
+        }
         const st = STAGING[work.slug];
         const real = { w: st.object.w / (st.scale ?? 1), h: st.object.h / (st.scale ?? 1) };
         const ink = objectInk(work, real.w, real.h);
@@ -249,6 +262,7 @@ export function ObjectSlot({ work, lineup }: { work: Work; lineup: string[] }) {
       onPointerOver={(e) => {
         e.stopPropagation();
         if (!hovered && activeSlug === null) playEvent('hover', e.nativeEvent.clientX);
+        if (!active) warmProject(router, work.slug);
         setHovered(true);
         document.body.style.cursor = active ? '' : 'pointer';
       }}

@@ -53,7 +53,15 @@ export type Work = {
    * (components/booth/staging.ts); `rotation` is Euler radians; `plinthOffset` lifts it off its
    * base (metres) if its origin is not at its base; `frontSide` for closed meshes exported two-sided.
    */
-  model?: { src: string; mobile: string; rotation?: [number, number, number]; plinthOffset?: number; frontSide?: boolean };
+  model?: {
+    src: string;
+    mobile: string;
+    rotation?: [number, number, number];
+    plinthOffset?: number;
+    frontSide?: boolean;
+    /** Re-arranged pieces of a multi-node GLB: node name → footprint centre [x, z] (m) and yaw (rad). */
+    layout?: Record<string, [number, number, number]>;
+  };
   /** Pre-rendered still per lamp (Phase 6). */
   fallbacks: Record<Lamp, string>;
   /** Approved proofer's notes only (shown under UV). Empty until Vishesh approves them. */

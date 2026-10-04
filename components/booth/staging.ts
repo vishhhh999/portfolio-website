@@ -19,22 +19,32 @@ export type Staging = { object: Size3; base: Size3 & { kind: BaseKind }; x: numb
 
 const sized = (o: Size3, s: number): Size3 => ({ w: o.w * s, h: o.h * s, d: o.d * s });
 
-const BACK_Z = -0.26;
-const MID_Z = 0.04;
-const FRONT_Z = 0.3;
+/**
+ * F (06): four screen-space columns across the full cabinet width, each a front sample with a
+ * raised one behind it, so no sample hides another (projected boxes overlap ≤ 3%, world gaps
+ * ≥ 6cm, every sample ≥ 12% of the cabinet width: tools/check-sizes.mjs):
+ *   left    Too Yumm (front)      · House of Hex high on a tall back column
+ *   left-c  Bengal T20 (front)    · Mitooshi laptop raised behind it
+ *   centre  SOOK (front, raised)  · the JSW book on the high back plinth (the hero shelf)
+ *   right   SHUNYA (front, riser) · Sonde tablet raised behind it
+ * The objects fill about 60–70% of the interior height; the camera sits a little lower.
+ */
+const FRONT_Z = 0.28;
+const MID_Z = -0.15;
+const BACK_Z = -0.34;
 
 export const STAGING: Record<string, Staging> = {
-  // back tier: the two screens, raised
-  mitooshi: { object: { w: 0.3, h: 0.21, d: 0.24 }, base: { kind: 'plinth', w: 0.36, d: 0.3, h: 0.26 }, x: -0.21, z: BACK_Z },
-  sonde: { object: sized({ w: 0.25, h: 0.19, d: 0.15 }, 1.15), base: { kind: 'plinth', w: 0.34, d: 0.26, h: 0.2 }, x: 0.22, z: BACK_Z, scale: 1.15 },
-  // middle tier: the book and the SHUNYA range (on the acrylic riser)
-  'jsw-sports': { object: sized({ w: 0.564, h: 0.2747, d: 0.22 }, 0.8), base: { kind: 'plinth', w: 0.5, d: 0.24, h: 0.035 }, x: -0.24, z: MID_Z, scale: 0.8 },
-  shunya: { object: sized({ w: 0.2932, h: 0.0905, d: 0.3003 }, 1.15), base: { kind: 'riser', w: 0.37, d: 0.3, h: 0.07 }, x: 0.36, z: MID_Z, scale: 1.15 },
-  // front tier: packaging and the small pieces, lowest
-  'too-yumm': { object: sized({ w: 0.1425, h: 0.24, d: 0.0752 }, 1.46), base: { kind: 'plinth', w: 0.24, d: 0.14, h: 0.05 }, x: -0.61, z: FRONT_Z, scale: 1.46 },
-  'bengal-t20': { object: sized({ w: 0.21, h: 0.075, d: 0.15 }, 1.3), base: { kind: 'tray', w: 0.33, d: 0.23, h: 0.012 }, x: -0.24, z: FRONT_Z, scale: 1.3 },
-  sook: { object: { w: 0.3016, h: 0.1012, d: 0.0951 }, base: { kind: 'plinth', w: 0.34, d: 0.13, h: 0.04 }, x: 0.11, z: FRONT_Z },
-  'house-of-hex': { object: sized({ w: 0.13, h: 0.17, d: 0.09 }, 1.6), base: { kind: 'plinth', w: 0.24, d: 0.16, h: 0.07 }, x: 0.61, z: FRONT_Z, scale: 1.6 },
+  // front row: packaging and the match-day set, low
+  'too-yumm': { object: sized({ w: 0.1425, h: 0.24, d: 0.0752 }, 1.45), base: { kind: 'plinth', w: 0.25, d: 0.14, h: 0.04 }, x: -0.58, z: FRONT_Z, scale: 1.45 },
+  'bengal-t20': { object: sized({ w: 0.26, h: 0.06, d: 0.17 }, 1.15), base: { kind: 'plinth', w: 0.33, d: 0.15, h: 0.05 }, x: -0.255, z: FRONT_Z, scale: 1.15 },
+  sook: { object: sized({ w: 0.3016, h: 0.1012, d: 0.0951 }, 1.3), base: { kind: 'plinth', w: 0.42, d: 0.15, h: 0.06 }, x: 0.155, z: FRONT_Z, scale: 1.3 },
+  shunya: { object: sized({ w: 0.42, h: 0.0905, d: 0.27 }, 0.72), base: { kind: 'riser', w: 0.32, d: 0.21, h: 0.07 }, x: 0.575, z: FRONT_Z - 0.02, scale: 0.72 },
+  // raised middle: the two screens
+  mitooshi: { object: { w: 0.3, h: 0.21, d: 0.24 }, base: { kind: 'plinth', w: 0.36, d: 0.26, h: 0.3 }, x: -0.26, z: MID_Z, scale: 1 },
+  sonde: { object: sized({ w: 0.25, h: 0.19, d: 0.15 }, 1.15), base: { kind: 'plinth', w: 0.3, d: 0.24, h: 0.3 }, x: 0.58, z: MID_Z, scale: 1.15 },
+  // high back: the hero shelf (the book) and the phone's tall column
+  'jsw-sports': { object: sized({ w: 0.564, h: 0.2747, d: 0.22 }, 0.75), base: { kind: 'plinth', w: 0.46, d: 0.18, h: 0.4 }, x: 0.165, z: BACK_Z, scale: 0.75 },
+  'house-of-hex': { object: sized({ w: 0.13, h: 0.17, d: 0.09 }, 1.9), base: { kind: 'plinth', w: 0.22, d: 0.18, h: 0.43 }, x: -0.6, z: -0.25, scale: 1.9 },
   // archive-only: never staged in the lineup; sizes kept for the tray
   'indo-thai': { object: { w: 0.3, h: 0.21, d: 0.24 }, base: { kind: 'plinth', w: 0.36, d: 0.3, h: 0.1 }, x: 0, z: 0 },
 };
@@ -89,16 +99,16 @@ export const RECEDE_DZ = -0.1;
 export const FOV = 35;
 export const SENSOR_HEIGHT_MM = 24;
 export const FOCAL_MM = SENSOR_HEIGHT_MM / 2 / Math.tan(((FOV / 2) * Math.PI) / 180);
-export const EYE = { y: 0.4, pitchDeg: -7 } as const;
+export const EYE = { y: 0.37, pitchDeg: -6 } as const;
 
 /** Calibration props: a small ledge on the back wall, right of centre. */
 export const PROPS = {
-  ledge: { x: 0.5, y: 0.47, w: 0.4, d: 0.05, h: 0.012 },
+  ledge: { x: 0.56, y: 0.6, w: 0.32, d: 0.05, h: 0.012 },
   /** Mini 24-patch chart: half the classic size. */
-  checker: { x: 0.59, w: 0.14, h: 0.108, lean: 0.22, yaw: -0.16 },
-  card: { x: 0.43, w: 0.1, h: 0.067, lean: 0.26, yaw: 0.1 },
+  checker: { x: 0.64, w: 0.14, h: 0.108, lean: 0.22, yaw: -0.16 },
+  card: { x: 0.5, w: 0.1, h: 0.067, lean: 0.26, yaw: 0.1 },
   /** Glossy laminated swatch: catches the lamp's reflection (TL84 tubes show as streaks). */
-  gloss: { x: 0.34, w: 0.07, h: 0.1, lean: 0.42, yaw: 0.18 },
+  gloss: { x: 0.43, w: 0.07, h: 0.1, lean: 0.42, yaw: 0.18 },
 } as const;
 
 /** Base positions for a set of lineup slugs (explicit staging, not computed). */

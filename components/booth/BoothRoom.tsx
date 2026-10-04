@@ -41,8 +41,15 @@ const CEILING_GREY = '#B3B3B1';
  */
 export const ceilingMaterial = new MeshBasicMaterial({ color: CEILING_GREY, toneMapped: true, side: BackSide });
 
-/** The opal diffuser: its colour/level is driven by the lamp rig; the map is its internal falloff. */
-export const diffuserMaterial = new MeshBasicMaterial({ color: '#F4F3EE', toneMapped: true });
+/**
+ * The opal diffuser (H). An opal acrylic sheet: it glows (emissive, colour and level from the lamp
+ * rig, the map its internal falloff and tubes) only while its lamp is on (D50, TL84, A, FLOOD in
+ * their colours; under UV only the violet tubes). Otherwise it is a pale surface that just
+ * receives the scene's light (the screens' spill under SCREEN, the hand lamp under AFTER DARK).
+ */
+export const diffuserMaterial = new MeshStandardMaterial({ color: '#E6E5E0', roughness: 0.45, metalness: 0, emissive: '#000000', envMapIntensity: 0.3 });
+/** The hood's bounce glow (H): set per lamp by the rig from the lamp's bounce light; zero in the dark lamps. */
+export const hoodGlow = new Color(0, 0, 0);
 
 // ── procedural surface textures (generated once, tiny) ─────────────────────────────────────
 
@@ -92,7 +99,7 @@ export function roughnessNoise() {
  * the width. Brightest down the middle, falling off to the frame, with the tubes faintly visible
  * as soft brighter bands. `tubes` = how many (0: an even panel).
  */
-function diffuserTexture(tubes: number) {
+function diffuserTexture(tubes: number, tubesOnly = false) {
   const W = 512, H = 256;
   const c = document.createElement('canvas');
   c.width = W;
@@ -111,7 +118,7 @@ function diffuserTexture(tubes: number) {
         const ty = (k + 0.5) / tubes;
         band += Math.exp(-Math.pow((v - ty) / 0.055, 2));
       }
-      l *= 0.9 + 0.1 * Math.min(1, band);
+      l = tubesOnly ? Math.min(1, band) * Math.pow(Math.min(1, ex * 6), 0.5) : l * (0.9 + 0.1 * Math.min(1, band));
       const i = (y * W + x) * 4;
       img.data[i] = img.data[i + 1] = img.data[i + 2] = Math.round(255 * Math.min(1, l));
       img.data[i + 3] = 255;
@@ -285,7 +292,11 @@ function shellMaterials(mobile: boolean): ShellMats {
     frame: new MeshPhysicalMaterial({ color: '#161618', metalness: 0.55, roughness: 0.4, clearcoat: 0.35, clearcoatRoughness: 0.3, envMapIntensity: 1 }),
     housing: new MeshStandardMaterial({ color: '#1B1B1A', roughness: 0.62, metalness: 0.3 }),
     // the lamp hood: satin N6, like the light housing of a real booth (not a black slab)
-    hood: new MeshStandardMaterial({ color: '#B4B4B2', roughness: 0.6, metalness: 0.05, roughnessMap: rough, side: DoubleSide, emissive: '#2a2a29' }),
+    hood: (() => {
+      const m = new MeshStandardMaterial({ color: '#B4B4B2', roughness: 0.6, metalness: 0.05, roughnessMap: rough, side: DoubleSide });
+      m.emissive = hoodGlow; // shared: the rig sets it per lamp (dark under UV, SCREEN, AFTER DARK)
+      return m;
+    })(),
     lip: new MeshStandardMaterial({ color: '#A2A2A0', roughness: 0.7, roughnessMap: rough, aoMap: ao }),
     shelf: new MeshStandardMaterial({ color: PLINTH_GREY, roughness: 0.88, roughnessMap: rough, aoMap: ao }),
   };
@@ -323,9 +334,9 @@ export function BoothRoom({ lineup, lightmap = null }: { lineup: string[]; light
   const plate = useMemo(plateTexture, []);
   const lamp = useBooth((s) => s.lamp);
   const tubes = lamp === 'TL84' ? 4 : lamp === 'D50' ? 3 : lamp === 'UV' ? 2 : 0;
-  const difTex = useMemo(() => diffuserTexture(tubes), [tubes]);
+  const difTex = useMemo(() => diffuserTexture(tubes, lamp === 'UV'), [tubes, lamp]);
   useEffect(() => {
-    diffuserMaterial.map = difTex;
+    diffuserMaterial.emissiveMap = difTex;
     diffuserMaterial.needsUpdate = true;
   }, [difTex]);
 
