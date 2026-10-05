@@ -16,3 +16,4 @@ tools/_*.mjs
 tools/_*.py
 # Masters release download (tools/import-masters.mjs)
 tools/import/masters/
+booth-*.zip

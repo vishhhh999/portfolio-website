@@ -110,7 +110,7 @@ The still frame is 24% cheaper than the moving one. On a still frame the normal 
 - **JSW artwork:** desktop now carries WebP at the full 2048, encoded from the lossless PNG art, not the JPEG embedded in the GLB. The file is 0.64MB (was 1.52MB; the 07 file was UASTC with RDO at 1536). Side by side (07 encoding · 08 encoding · `ref-open.png`, at 2560, book held open): `jsw-compare.jpg`.
   - **What actually made the pages sharp is filtering, not the encoding.** The open pages are seen at an angle, and the model textures were loading with anisotropy 1, so trilinear filtering smeared the type. Every model's artwork now gets 8× anisotropic filtering. With it, the 07 and 08 encodings are nearly indistinguishable at tray zoom, so the WebP's win is its smaller file.
   - **The grid is in the artwork, not the encoding.** The inner pages of `jsw-sports_basecolor.png` carry a printed layout grid, faintly visible in the Blender reference too. I left it, since removing it would change the art. If it isn't meant to print, it needs taking out of the texture in Blender (then `node tools/optimize-models.mjs jsw-sports`).
-- **Other models at tray zoom:** @@TEXTURES@@
+- **Every model at tray zoom** (2560, focus pass off, `tools/lamp-review/08/tray-zoom/`, `node tools/tray-zoom.mjs`): the Too Yumm pouch type and photo, the Bengal set's illustration, SOOK's illustrations and small print, SHUNYA's labels, the device screens and the tug all read clean, with no block artefacts or smear. No other model needed a re-encode.
 
 ## 7. Phone staging (G)
 
@@ -140,7 +140,9 @@ The still frame is 24% cheaper than the moving one. On a still frame the normal 
 - `/` with a hover (phones: a swipe);
 - /work/mitooshi, /work/jsw-sports (open), /work/shunya and /work/indo-thai.
 
-Also: `reveal-sheet.jpg` (12 frames, first paint → poster → crossfade → live), `jsw-compare.jpg` and `aa-compare.png`.
+Also:
+- `reveal-sheet.jpg`: 12 frames. Two posters while the booth loads, the real 300ms crossfade held at nine points (0–300ms; software rendering can't present it in real time, so the CSS transition is paused and stepped), and the live booth.
+- `jsw-compare.jpg`, `aa-compare.png` and `tray-zoom/`.
 
 ## 10. Budgets
 

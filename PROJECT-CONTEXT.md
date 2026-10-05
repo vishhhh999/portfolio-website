@@ -323,7 +323,7 @@ An inline script runs before paint. It applies the stored lamp and sets `<html d
 - Mitooshi 04 and 06 need no master: they are two-colour dot-pattern squares that the indexed palette does not harm.
 - 44 archive masters are indexed.
 
-**Models status:** all nine samples are real GLBs (desktop 9.6MB with KTX2 textures / mobile 2.2MB with WebP textures, so phones never load the Basis transcoder, loaded in view priority; see DELIVERY-07.md). No procedural objects remain.
+**Models status:** all nine samples are real GLBs (desktop 8.8MB / mobile 2.2MB, loaded in view priority). Desktop uses KTX2, except JSW, which is WebP at 2048 from the lossless PNG (08). Mobile uses WebP, so phones never load the Basis transcoder. All model artwork gets 8× anisotropic filtering. The JSW inner pages carry an authored layout grid in the texture. No procedural objects remain.
 
 ---
 
@@ -402,6 +402,9 @@ Gotchas when testing in the cloud container:
 | `baef030` | Vishesh added the GLBs and logos |
 | `ff5fc69` … `b8341b8` | The A–I batch (below) |
 | `e3d6ada` | Merge of PR #1 into `main` (4 Oct 2026) |
+| `c8c4b85` | Batch 07 (PR #3): all ten objects, centred layout, project story, interaction, realism, speed |
+| `aa0e153` | Batch 08 A: the room FROZEN (`tools/booth-room.lock`) |
+| PR #4 | Batch 08: frame budget (re-render on change), no flicker (live posters, gated reveal, flicker-free lamp changes), masked hover focus, true relative scale, tray framing, phone arrangement, polish. See `DELIVERY-08.md` |
 
 **The A–I batch:**
 
@@ -436,7 +439,7 @@ The detailed delivery report for the batch is `DELIVERY.md` in the repo.
 
 ## 12. How to work on this project (for any future Claude session)
 
-1. **Read** `BRIEF.md`, then this file, then `DELIVERY.md`.
+1. **Read** `BRIEF.md`, then this file, then the latest `DELIVERY-0N.md`.
 2. **Ask before building.** Explain the plan in plain language: Vishesh doesn't code. Once approved, execute fully without stopping halfway.
 3. **Branch, preview, merge.** Work on a branch and let Vercel build a preview. Merge to `main` only after a green preview, because `main` is the live site.
 4. **Commit and push after each meaningful step.** Cloud containers are ephemeral.
