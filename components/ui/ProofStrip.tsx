@@ -158,7 +158,7 @@ export function ProofStrip({ deliverables, serialBase, part = 'all' }: { deliver
   return (
     <>
       <div className="proofstrip" data-part={part} role="list" aria-label={part === 'rest' ? 'More deliverables' : 'Deliverables'}>
-        {rows(deliverables.slice(0, 6), part).map((row) => (
+        {rows(deliverables.slice(0, 8), part).map((row) => (
           <div key={row.join('-')} className="proofrow" data-count={row.length}>
             {row.map((i) => {
               const d = deliverables[i];

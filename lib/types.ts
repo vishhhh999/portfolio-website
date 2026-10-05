@@ -72,7 +72,7 @@ export type Work = {
   fallbacks: Record<Lamp, string>;
   /** Approved proofer's notes only (shown under UV). Empty until Vishesh approves them. */
   uvNotes: UvNote[];
-  /** Six is the target; when the live site has fewer, the real ones are shown rather than padded with placeholders. */
+  /** Four to eight per project (F3); when the live site has fewer, the real ones are shown rather than padded with placeholders. */
   deliverables: Deliverable[];
   /** false = archive only: not on the booth floor, listed in /archive and /house-lights. */
   inLineup: boolean;
