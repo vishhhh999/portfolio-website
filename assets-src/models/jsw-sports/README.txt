@@ -1,47 +1,23 @@
-JSW SPORTS (HARYANA STEELERS) BOOK - WEB EXPORT
-Generated 2026-10-04 (re-baked with the real covers). Working copy: jsw-sports_web-export.blend (originals untouched).
+JSW SPORTS (HARYANA STEELERS) COFFEE-TABLE BOOK - WEB EXPORT (rebuild, jsw-sports)
+Source: modelled from scratch in jsw-sports_web-export.blend. Inspected 1.blend-6.blend and the earlier export: 1-3.blend are the HS book scenes (closed solid at 0.359 x 0.275 x 0.027 m / open scenes), 4-6.blend are the IIS report (not this book). Real dimensions were taken from 1.blend/3.blend; geometry is new because none of them has a hinge-ready split. Previous export kept as jsw-sports_web-export_OLD.blend.
+Nodes: back_cover, pages_back, spine (static); front_cover (animated) with child pages_front. Origin = bottom centre of the closed book; front cover faces -Y (Blender) / +Z (glTF).
+Size (closed): 0.359 W x 0.027 D x 0.275 H m. Boards 4 mm, page block 0.351 x 0.267 m, 3 mm spine slab, 2 mm rounded cover corners, 0.5-1.2 mm bevels, 0.2 mm clearances between parts.
 
-SOURCE
-- 1.blend (named in the brief) only has the book as a closed solid block lying flat, which cannot be opened.
-- 3.blend in the same folder has the same book modelled OPEN (Book_Spread_1, rounded spine, 3 mm boards, page block with
-  gutter curve) with the HS spreads mapped from textures\HS\spread_1-4.png. That model was used; nothing was modelled
-  from scratch and the artwork mapping is yours.
-- Covers relinked to textures\HS Covers: hs_front_cover.png (front board), hs_back_cover.png (back board),
-  hs_sleeve.png (spine). The old front_cover.jpg / back_cover.jpg / side_label.jpg references were dead links.
+MATERIALS / TEXTURES (one shared baked material, UV1 atlas, texCoord 1; UV0 holds artwork mapping)
+Outside front cover: textures\HS Covers\hs_front_cover.png. Outside back cover: hs_back_cover.png. Cover edges extend the cover's edge pixels.
+INSIDE faces of both boards: endpaper, plain uncoated off-white #EEEAE2, roughness 0.85, no print.
+Spine: hs_sleeve.png on the spine outside face only, centred at its natural aspect (spine is 27 mm, sleeve art 21.6 mm wide, the 2.7 mm each side extends edge pixels); nowhere else.
+Open spread: textures\HS\spread_1.png used (left half on pages_front, right half on pages_back). spread_2-4 not baked; to swap, re-bake with the other spread.
+Page block edges: plain paper colour #EDE8DC, roughness 0.9 (no artwork).
+Bake: BaseColor 2048 sRGB, ORM 2048 (R AO 128 spp baked in the OPEN pose so the spread is not occluded, G roughness, B metallic 0). No normal map (no real surface detail). Atlas: non-art islands (endpaper, page edges, hidden faces) shrunk to 20% to give the artwork islands more texels; spreads/covers are at roughly 55% of source resolution.
+Files: textures\jsw-sports_basecolor.png, jsw-sports_orm.png (LOD0, 2048); jsw-sports.mobile_basecolor.png, jsw-sports.mobile_orm.png (LOD1, 1024). The GLBs embed these as JPEG (quality 88 / 85) to hit the size targets.
+Gold foil: none applied (no foil mask exists); metallic 0.
 
-NODE
-jsw_book   0.564 W x 0.220 D x 0.2747 H m, standing on its bottom edge, 110 deg between the pages.
-           Spread faces the front (-Y in Blender = +Z in glTF); front and back covers are on the outside of the V.
-           Page size ~0.351 x 0.275 m (your model, landscape coffee-table format).
-LOD0 3,772 tris (budget 20,000)   LOD1 3,772 tris (budget 5,000; already under, decimating would only damage spine/gutter)
-Edges: 1 mm 2-segment bevel on all edges over 60 deg, Smooth by Angle 30, merged at 0.0001, triangulated.
+ANIMATION: one action 'open', rotation only, on front_cover (pages_front follows as child). Axis: vertical Z through the hinge at the cover's outer spine corner. Frame 1 = closed (rest pose, front cover facing -Y), frame 30 = open 110 deg between the covers; Bezier auto-clamped ease in/out. Back half, spine and back cover stay put. At 110 deg the front half swings toward the camera side, so the spread is seen with the left page angled.
+Checked frames 1, 10, 20, 30: zero mesh overlaps between any pair of parts in both LODs (BVH). Closed book is fully sealed from every side (all parts manifold).
 
-MATERIAL / TEXTURES (2048 PNG on UV1; spread and cover islands given extra atlas space)
-basecolor.png (= basecolor_spread-1.png)  sRGB: spread 1 inside, real covers + spine, page colour on the block
-basecolor_spread-2.png / -3.png / -4.png  swap-in basecolors for the other spreads (same mesh, UVs, ORM and normal)
-orm.png     R AO 128 spp, G roughness (cover laminate 0.45, pages/spread 0.8), B metallic
-normal.png  OpenGL; page-edge lines on the block edges and the cover board grain from your materials
-
-GOLD FOIL: NOT APPLIED
-About a quarter of the front cover is yellow/gold-coloured ink. There is no separate foil mask in the files, and a colour
-pick cannot tell foil from printed yellow, so metallic is 0 everywhere. If any of it is foil, send a black/white foil
-mask (same size as hs_front_cover.png) and it becomes metallic 1 there only.
-
-FILE SIZES
-jsw-sports.glb            8.55 MB
-jsw-sports.mobile.glb     8.55 MB
-basecolor.png             3.53 MB
-basecolor_spread-2.png    3.34 MB
-basecolor_spread-3.png    3.50 MB
-basecolor_spread-4.png    3.42 MB
-orm.png                   1.83 MB
-normal.png                3.02 MB
-jsw-sports.ref.png        2.27 MB
-
-VALIDATION (both GLBs re-imported into empty scenes)
-1 mesh node "jsw_book", 0.564 x 0.220 x 0.2747 m, bottom at 0, centred, 3 images at 2048, 0 missing.
-
-OTHER
-Non-manifold edges remain where the page block meets the boards (as modelled).
-AgX in Blender 5.2 has no "Medium Contrast" look; reference render uses AgX Base Contrast.
-jsw-sports_web-export.blend1 is Blender's automatic backup; safe to delete.
+Triangles: LOD0 1,948 (budget 20,000); LOD1 1,036 (budget 5,000), decimated per part (collapse), own 1024 textures.
+File sizes: jsw-sports.glb 1087556 bytes (1.09 MB, target <= 4 MB); jsw-sports.mobile.glb 339620 bytes (0.34 MB, target <= 1.5 MB). Old files were 8.97 MB each.
+Renders: jsw-sports.ref.png (frame 1, closed), jsw-sports.ref-open.png (frame 30).
+Validation: both GLBs re-imported; 0.359 x 0.027 x 0.275 m, origin bottom centre, no missing images, action 'open' present in both.
+Caveats: mesh is lightweight (page edges are smooth, no individual sheet geometry); LOD0 has far fewer triangles than the 20k budget by design.
