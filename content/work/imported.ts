@@ -126,38 +126,22 @@ export const imported: Record<string, unknown> = {
         "poster": "/work/mitooshi/03-poster.webp"
       },
       {
-        "type": "image",
-        "src": "/work/mitooshi/04.webp",
-        "alt": "Dithered dot pattern globe in white on a bright blue square, part of the Mitooshi ASCII style visuals.",
-        "source": "https://framerusercontent.com/images/sHXbDiPMzn5FgbSifh9I6U4XvOg.jpg",
+        "type": "video",
+        "src": "/work/mitooshi/04.mp4",
+        "alt": "A globe of light blue ASCII dots turning on a bright blue square, the land picked out in denser dots.",
         "width": 1080,
-        "height": 1080
+        "height": 1080,
+        "poster": "/work/mitooshi/04-poster.webp",
+        "sources": [{ "src": "/work/mitooshi/04.webm", "type": "video/webm; codecs=vp9" }]
       },
       {
         "type": "video",
         "src": "/work/mitooshi/05.mp4",
-        "alt": "TBC",
-        "source": "https://framerusercontent.com/assets/jbMdS64t3KY0rHlruevvZQbj43s.mp4",
-        "width": 1920,
-        "height": 1920,
-        "poster": "/work/mitooshi/05-poster.webp"
-      },
-      {
-        "type": "image",
-        "src": "/work/mitooshi/06.webp",
-        "alt": "Scattered white dot pattern shapes on a bright blue square, an ASCII style graphic from the Mitooshi visuals.",
-        "source": "https://framerusercontent.com/images/Hy1jBizPfzMOK5Zbcm2dDAV9N2w.jpg",
+        "alt": "Clusters of light blue ASCII dot spheres drifting and turning on a bright blue square.",
         "width": 1080,
-        "height": 1080
-      },
-      {
-        "type": "video",
-        "src": "/work/mitooshi/07.mp4",
-        "alt": "TBC",
-        "source": "https://framerusercontent.com/assets/NL3wgtGIFpCop1GyVdZmmk9lU4.mp4",
-        "width": 1920,
-        "height": 1920,
-        "poster": "/work/mitooshi/07-poster.webp"
+        "height": 1080,
+        "poster": "/work/mitooshi/05-poster.webp",
+        "sources": [{ "src": "/work/mitooshi/05.webm", "type": "video/webm; codecs=vp9" }]
       }
     ]
   },

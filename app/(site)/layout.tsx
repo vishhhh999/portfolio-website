@@ -11,16 +11,16 @@ import { Shortcuts } from '@/components/ui/Shortcuts';
 import { Loupe } from '@/components/ui/Loupe';
 import { Notice } from '@/components/ui/Notice';
 import { TorchOverlay } from '@/components/ui/TorchOverlay';
-import { IndexNavLink } from '@/components/ui/IndexNavLink';
+import { SiteNav } from '@/components/ui/SiteNav';
 import { JsonLd, personLd } from '@/lib/jsonld';
 
 /**
- * The Blender lightmap for the booth shell (tools/booth-shell.glb, TEXCOORD_1), if one has been
+ * The Blender lightmap for the booth room (tools/booth-room.glb, TEXCOORD_1), if one has been
  * baked: decided at build time, so the client never requests a file that is not there.
  */
 function boothLightmap(): string | null {
   // the KTX2 converted from Vishesh's bake (public/booth/lightmap.exr or .png, J) or an older location
-  for (const rel of ['booth/lightmap.ktx2', 'models/booth-shell/lightmap.ktx2', 'models/booth-shell/lightmap.png']) {
+  for (const rel of ['booth/lightmap.ktx2', 'booth/lightmap.png']) {
     if (existsSync(path.join(process.cwd(), 'public', rel))) return `/${rel}`;
   }
   return null;
@@ -33,11 +33,7 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
       <BoothHost lightmap={boothLightmap()} />
       <header className="masthead">
         <Link href="/" className="wordmark">Vishesh Mahendru</Link>
-        <nav aria-label="Site" className="sitenav">
-          <IndexNavLink>Index</IndexNavLink>
-          <Link href="/about">About</Link>
-          <Link href="/archive">Archive</Link>
-        </nav>
+        <SiteNav />
       </header>
       <SwitchPanel />
       <Shortcuts />

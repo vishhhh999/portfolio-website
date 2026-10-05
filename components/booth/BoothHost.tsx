@@ -7,6 +7,9 @@ import { autoHouseLights, failsPerformanceCaveat } from '@/lib/resilience';
 import { isInLineup } from '@/content/work';
 import { lampById } from '@/lib/lampPresets';
 import { useBooth } from '@/lib/store';
+import { resetSpins } from '@/lib/spin';
+import { prepareOpening, runOpening } from '@/lib/lampController';
+import { playEvent } from '@/lib/sound';
 import { onViewsChanged, registerStage, viewCount } from '@/lib/views';
 
 const BoothCanvas = dynamic(() => import('./BoothCanvas'), { ssr: false });
@@ -39,13 +42,20 @@ export function BoothHost({ lightmap = null }: { lightmap?: string | null }) {
   const stageRef = useRef<HTMLDivElement>(null);
   // house lights (a mode of this page): no stage is registered, so the canvas draws nothing
   const houseLights = useBooth((s) => s.houseLights);
-  const live = mode !== 'off' && !houseLights;
+  // C5: the home page's Index view: the booth is off on "/", like house lights, until 3D viewport
+  const homeIndex = useBooth((s) => s.homeIndex) && mode === 'full';
+  const live = mode !== 'off' && !houseLights && !homeIndex;
+  useEffect(() => {
+    document.documentElement.toggleAttribute('data-home-index', homeIndex);
+  }, [homeIndex]);
 
   // Project pages: the sample goes on the tray. The lamp is never changed by a route: it stays
   // whatever the visitor picked (D50 until they pick); the native lamp is offered as a chip.
   useEffect(() => {
     setActiveSlug(mode === 'header' ? pathname.split('/')[2] : null);
   }, [pathname, mode, setActiveSlug]);
+  // I3: a turned object faces front again when the route changes
+  useEffect(() => resetSpins(), [pathname]);
 
   useEffect(() => {
     if (!live || !stageRef.current) return;
@@ -75,14 +85,26 @@ export function BoothHost({ lightmap = null }: { lightmap?: string | null }) {
       return;
     }
     const idle = window.requestIdleCallback ?? ((cb: () => void) => window.setTimeout(cb, 120));
-    const id = idle(() => setMounted(true), { timeout: 1200 });
+    const id = idle(() => {
+      // J5: the booth's first frame is dark on a session's first visit (the tubes strike on ready)
+      prepareOpening();
+      setMounted(true);
+    }, { timeout: 1200 });
     return () => (window.cancelIdleCallback ?? window.clearTimeout)(id as number);
   }, [hasViews, mounted, mode]);
 
   return (
     <>
       <div className="booth-canvas" data-visible={hasViews} aria-hidden="true">
-        {mounted && <BoothCanvas onReady={() => setReady(true)} lightmap={lightmap} />}
+        {mounted && (
+          <BoothCanvas
+            onReady={() => {
+              setReady(true);
+              runOpening((name) => playEvent(name as Parameters<typeof playEvent>[0]));
+            }}
+            lightmap={lightmap}
+          />
+        )}
       </div>
       {live && (
         <div ref={stageRef} className="booth-stage" data-mode={mode} data-ready={ready} aria-hidden="true">

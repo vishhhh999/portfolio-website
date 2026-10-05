@@ -22,7 +22,7 @@ function withImport(w: Work): Work {
   const d = o.deliverables
     ?.filter((x) => x.src)
     .map(({ source: _source, ...x }, i) => (ALT[w.slug]?.[i + 1] ? { ...x, alt: ALT[w.slug][i + 1] } : x))
-    .slice(0, 6);
+    .slice(0, 8);
   return {
     ...w,
     // the live site sets titles in caps; keep the authored casing unless the name itself differs
@@ -59,4 +59,10 @@ export const isInLineup = (slug: string) => lineup.some((w) => w.slug === slug);
 export function nextWork(slug: string): Work {
   const i = lineup.findIndex((w) => w.slug === slug);
   return lineup[(i + 1) % lineup.length];
+}
+
+/** Previous project on the tray (D5): the lineup, wrapping round. */
+export function prevWork(slug: string): Work {
+  const i = lineup.findIndex((w) => w.slug === slug);
+  return lineup[(i - 1 + lineup.length) % lineup.length];
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { track } from '@/lib/analytics';
 import { playEvent } from '@/lib/sound';
 
@@ -20,36 +20,26 @@ export function CvLink({ href }: { href: string }) {
   );
 }
 
-const STAMP_KEY = 'vm:stamped:v1';
+const fmt = () => new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date());
 
-/** The certificate's PASS stamp: stamps once per visit when it scrolls into view. */
-export function PassStamp() {
-  const ref = useRef<HTMLSpanElement>(null);
+/**
+ * E1: the time in India, 24h HH:MM, ticking on the minute. Client-only: the server renders a blank
+ * of the same width, so hydration never mismatches. Not announced (aria-live off).
+ */
+export function IstClock() {
+  const [time, setTime] = useState<string | null>(null);
   useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const io = new IntersectionObserver(
-      ([e]) => {
-        if (!e.isIntersecting) return;
-        io.disconnect();
-        let seen = false;
-        try {
-          seen = sessionStorage.getItem(STAMP_KEY) === '1';
-          sessionStorage.setItem(STAMP_KEY, '1');
-        } catch {}
-        if (seen) return;
-        el.dataset.stamp = 'on';
-        const r = el.getBoundingClientRect();
-        playEvent('stamp', r.left + r.width / 2);
-      },
-      { threshold: 0.9 },
-    );
-    io.observe(el);
-    return () => io.disconnect();
+    let id = 0;
+    const tick = () => {
+      setTime(fmt());
+      id = window.setTimeout(tick, 60_000 - (Date.now() % 60_000) + 50);
+    };
+    tick();
+    return () => window.clearTimeout(id);
   }, []);
   return (
-    <span ref={ref} className="calib__stamp cert__stamp" aria-hidden="true">
-      PASS
+    <span className="istclock mono" aria-live="off">
+      <time suppressHydrationWarning>{time ?? '--:--'}</time> IST
     </span>
   );
 }

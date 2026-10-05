@@ -6,7 +6,6 @@ export const about = {
   name: 'Vishesh Mahendru',
   discipline: 'Visual designer',
   location: 'India',
-  remote: 'Open to remote roles worldwide',
   /** What I do: the live site's own words. */
   summary: [
     'Vishesh Mahendru is a visual designer based in India, working across brand identity, digital design, and 3D visualization.',

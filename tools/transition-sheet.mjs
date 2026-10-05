@@ -19,6 +19,7 @@ mkdirSync(dirname(out), { recursive: true });
 const W = 1568, H = 980;
 const b = await pw.chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 const p = await b.newPage({ viewport: { width: W, height: H } });
+await p.addInitScript(() => sessionStorage.setItem('vm:opened:v1', '1')); // J5: no opening strike in steady-state checks
 p.setDefaultTimeout(600000);
 await p.goto(BASE + '/', { waitUntil: 'networkidle' });
 await p.waitForSelector('.booth-stage[data-ready="true"]', { timeout: 600000 });

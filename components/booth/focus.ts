@@ -16,3 +16,6 @@ export function onFocusRects(cb: () => void) {
   listeners.add(cb);
   return () => void listeners.delete(cb);
 }
+
+/** J4: the sample under the pointer (home lineup), the depth of field's focus while there is no tray object. */
+export const hoverFocus = { slug: null as string | null };

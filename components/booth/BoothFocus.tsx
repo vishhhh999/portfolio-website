@@ -8,6 +8,7 @@ import { useBooth } from '@/lib/store';
 import { playEvent } from '@/lib/sound';
 import { track } from '@/lib/analytics';
 import { openProject, warmProject } from '@/lib/navigate';
+import { KEY_STEP, nudgeSpin } from '@/lib/spin';
 
 /**
  * The keyboard layer over the booth (I5): one real button per object, laid exactly over it, so the
@@ -66,10 +67,14 @@ export function BoothFocus({ samples }: { samples: FrameSample[] }) {
           }}
           onBlur={() => setKeySlug(null)}
           onKeyDown={(e) => {
-            if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+            // I2: ← → turn the focused sample 15°; ↓ ↑ move between samples
+            if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+              e.preventDefault();
+              nudgeSpin(s.slug, e.key === 'ArrowRight' ? KEY_STEP : -KEY_STEP);
+            } else if (e.key === 'ArrowDown') {
               e.preventDefault();
               go(i, 1);
-            } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+            } else if (e.key === 'ArrowUp') {
               e.preventDefault();
               go(i, -1);
             }

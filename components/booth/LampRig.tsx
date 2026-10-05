@@ -34,11 +34,14 @@ import { ceilingMaterial, diffuserMaterial, getBlobMaterial, hoodGlow, lightmapT
 import { postState } from './Post';
 import { onScreenFrame, screens } from './screens';
 import { BOOTH, TRAY } from './staging';
-import { boothEnvironment, ENV_INTENSITY } from './environment';
+import { boothEnvironment, captureEnvironment, capturedEnvironment, ENV_INTENSITY } from './environment';
+import { modelsSettled } from './models';
+import { perfOff } from '@/lib/perfFlags';
 import { uvUniforms } from './uvMaterial';
 import { PRINT_FLOORS, proofUniforms } from './proofUniforms';
 import { torch } from '@/lib/torch';
 import { isMobileTier } from '@/lib/perfTier';
+const MOBILE_TIER = typeof window !== 'undefined' && isMobileTier();
 
 const D50_PRINT = lampById('D50').print;
 const D50_BOUNCE = (() => {
@@ -154,7 +157,7 @@ export function LampRig() {
   // Image-based light: the booth's own interior as a PMREM, re-tinted per lamp (built once each).
   const lampNow = useBooth((st) => st.lamp);
   useEffect(() => {
-    scene.environment = boothEnvironment(gl, lampNow);
+    scene.environment = capturedEnvironment(lampNow) ?? boothEnvironment(gl, lampNow);
     invalidate();
   }, [gl, scene, lampNow, invalidate]);
   useEffect(() => useBooth.subscribe(() => invalidate()), [invalidate]);
@@ -177,14 +180,17 @@ export function LampRig() {
     return () => window.removeEventListener('pointermove', onMove);
   }, [gl, invalidate]);
 
-  useFrame((_, rawDt) => {
+  /** The whole rig for one frame; `override` forces the strike progress (the J2 capture pass at full output). */
+  const applyRig = (rawDt: number, override?: number) => {
     // a non-monotonic or stalled clock never jumps or inverts the motion: 0 ≤ dt ≤ 100ms
     const dt = Math.min(0.1, Math.max(0, rawDt || 0));
-    const { lamp, strikeProgress, activeSlug } = useBooth.getState();
+    const { lamp, strikeProgress: liveProgress, activeSlug } = useBooth.getState();
+    const strikeProgress = override ?? liveProgress;
     const P = lampById(lamp);
-    const ch = strikeChannels(P.strike.curve, strikeProgress);
+    const curve = useBooth.getState().opening ? 'opening' : P.strike.curve;
+    const ch = strikeChannels(curve, strikeProgress);
     const env = ch.light;
-    const ramp = strikeKelvin(P.strike.curve, strikeProgress);
+    const ramp = strikeKelvin(curve, strikeProgress);
     const onTray = activeSlug !== null;
 
     scene.environmentIntensity = ENV_INTENSITY[lamp] * env;
@@ -386,14 +392,15 @@ export function LampRig() {
     postState.bloomThreshold = P.bloom.threshold;
     postState.grain = P.grain;
     postState.exposure = P.exposure * ch.exposure;
+    postState.neutral = !P.dark;
     postState.matrix.fromArray(P.matrix).transpose(); // fromArray is column-major; presets are row-major
     if (useBooth.getState().lampPicked) proofUniforms.uNeutralize.value.identity();
     else proofUniforms.uNeutralize.value.copy(postState.matrix).invert();
 
-    // Diagnostics: log the rig once each time FLOOD (or any lamp, with ?lampdebug) settles.
+    // Diagnostics (?lampdebug only: it reads pixels back): log the rig once each time a lamp settles.
     if (strikeProgress >= 1 && lastLamp.current !== lamp) {
       lastLamp.current = lamp;
-      if (lamp === 'FLOOD' || window.location.search.includes('lampdebug')) {
+      if (window.location.search.includes('lampdebug')) {
         postState.diagnose = {
           lamp,
           key: {
@@ -418,6 +425,18 @@ export function LampRig() {
 
     handWasMoving.current = handMoving;
     if (strikeProgress < 1 || handMoving) invalidate();
+  };
+
+  useFrame((_, rawDt) => {
+    // J2: the real interior is captured the first time a lamp is on screen: the rig is set at the
+    // lamp's full output for the capture, then at the actual strike progress for the frame drawn,
+    // so the environment is right from the lamp's first frame (no step once it has warmed up)
+    const lamp = useBooth.getState().lamp;
+    if (!MOBILE_TIER && !perfOff('envcapture') && modelsSettled() && !capturedEnvironment(lamp)) {
+      applyRig(0, 1);
+      scene.environment = captureEnvironment(gl, scene, lamp);
+    }
+    applyRig(rawDt);
   });
 
   return (

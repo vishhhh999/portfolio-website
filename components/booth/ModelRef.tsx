@@ -2,7 +2,7 @@
 
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useMemo, useState } from 'react';
-import { Box3, Color, FrontSide, MathUtils, Vector3, type Mesh, type Object3D, type PerspectiveCamera } from 'three';
+import { AnimationMixer, Box3, Color, FrontSide, MathUtils, PMREMGenerator, Scene, Vector3, type Mesh, type Object3D, type PerspectiveCamera } from 'three';
 import { getWork } from '@/content/work';
 import { loadModel } from './models';
 
@@ -22,8 +22,20 @@ export function ModelRef({ slug }: { slug: string }) {
 
   useEffect(() => {
     if (!work?.model) return;
-    loadModel(work.model.src, gl).then((g) => {
+    loadModel(work.model.src, gl, 0).then((g) => {
       const r = g.scene.clone(true);
+      // ?modelref=jsw-sports&open: the animated clip at its last frame (JSW: open at 110°, ref-open.png)
+      if (work.model?.animation && new URLSearchParams(location.search).has('open')) {
+        const clip = g.animations.find((c) => c.name === work.model!.animation) ?? g.animations[0];
+        if (clip) {
+          const mixer = new AnimationMixer(r);
+          const action = mixer.clipAction(clip);
+          action.play();
+          action.paused = true;
+          action.time = clip.duration;
+          mixer.update(0);
+        }
+      }
       r.traverse((o) => {
         const m = o as Mesh;
         if (m.isMesh && work.model?.frontSide) (m.material as { side: number }).side = FrontSide;
@@ -34,16 +46,23 @@ export function ModelRef({ slug }: { slug: string }) {
     });
   }, [gl, work, invalidate]);
 
-  // the reference world: flat 0.18 grey, no environment
+  // the reference world: flat 0.18 grey, lighting and reflected by every material as in Blender's
+  // world shader (metals would otherwise reflect nothing and read black)
   useEffect(() => {
     const prevBg = scene.background, prevEnv = scene.environment;
     scene.background = new Color(0.18, 0.18, 0.18);
-    scene.environment = null;
+    const pm = new PMREMGenerator(gl);
+    const world = new Scene();
+    world.background = new Color(0.18, 0.18, 0.18);
+    const env = pm.fromScene(world, 0, 0.1, 10, { size: 32 });
+    scene.environment = env.texture;
     return () => {
       scene.background = prevBg;
       scene.environment = prevEnv;
+      env.dispose();
+      pm.dispose();
     };
-  }, [scene]);
+  }, [scene, gl]);
 
   const fit = useMemo(() => {
     if (!root) return null;

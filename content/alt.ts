@@ -13,8 +13,6 @@ export const ALT: Record<string, Record<number, string>> = {
   },
   mitooshi: {
     3: 'Mitooshi website on a tablet lying on a dark blue surface, moving from the hero (Strategic Infrastructure for Industry Leaders) through stat cards to the Join the network form.',
-    5: 'A globe built from light blue ASCII dots, rotating on a bright blue square.',
-    7: 'Clusters of light blue ASCII dot spheres shifting on a bright blue square.',
   },
   shunya: {
     1: 'A dark ceramic dish on a grey background: a camphor tablet catches a flame and burns down to nothing, while the SHUNYA wordmark (with शून्य below) appears and fades.',

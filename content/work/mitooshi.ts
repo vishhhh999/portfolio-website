@@ -11,6 +11,7 @@ const work: Work = {
   inLineup: true,
   nativeLamp: 'SCREEN',
   glb: '',
+  model: { src: '/models/mitooshi/mitooshi.glb', mobile: '/models/mitooshi/mitooshi.mobile.glb', screen: { aspect: 1.5224 } },
   object: 'Laptop showing the Mitooshi logo',
   fallbacks: placeholderFallbacks('mitooshi'),
   // UV notes: the approved set is applied in corrections.ts

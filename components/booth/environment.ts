@@ -90,3 +90,20 @@ export function boothEnvironment(gl: WebGLRenderer, lamp: Lamp): Texture {
   }
   return rt.texture;
 }
+
+/**
+ * J2: the booth's actual interior as the environment for glossy materials: once a lamp has struck
+ * and settled, the live scene (walls, diffuser, plinths and samples, under that lamp's own lights)
+ * is rendered into a cube from the middle of the booth on the GPU and prefiltered (PMREM). Cached
+ * per lamp; until a lamp's capture exists the built environment above stands in. Desktop only.
+ */
+const captured = new Map<Lamp, WebGLRenderTarget>();
+export const capturedEnvironment = (lamp: Lamp) => captured.get(lamp)?.texture ?? null;
+export function captureEnvironment(gl: WebGLRenderer, scene: Scene, lamp: Lamp): Texture {
+  pmrem ??= new PMREMGenerator(gl);
+  const prevEnv = scene.environment;
+  const rt = pmrem.fromScene(scene, 0.015, 0.02, 5, { size: 128, position: new Vector3(0, 0.3, 0.05) });
+  scene.environment = prevEnv;
+  captured.set(lamp, rt);
+  return rt.texture;
+}

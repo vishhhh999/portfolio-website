@@ -136,7 +136,8 @@ export function setScroll(y: number) {
 }
 export const getScroll = () => scrollY;
 
-const toViewport = (r: DocRect) => ({ left: r.left - window.scrollX, top: r.top - scrollY, width: r.width, height: r.height });
+// the page's real scroll at this moment (the clock's copy can lag a programmatic jump by a tick)
+const toViewport = (r: DocRect) => ({ left: r.left - window.scrollX, top: r.top - window.scrollY, width: r.width, height: r.height });
 
 /** Booth stage rect in viewport CSS px, or null when there is no stage. */
 export function stageRect() {

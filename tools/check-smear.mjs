@@ -64,6 +64,7 @@ const kinds = (v) => v.map((x) => x.kind).sort().join(',') || '(none)';
 for (const W of widths) {
   const ctx = await b.newContext({ viewport: { width: W, height: Math.round(W * 0.496) }, deviceScaleFactor: 1 });
   const p = await ctx.newPage();
+  await p.addInitScript(() => sessionStorage.setItem('vm:opened:v1', '1')); // J5: no opening strike in steady-state checks
   p.setDefaultTimeout(600000);
   for (const route of ['/', '/work/too-yumm']) {
     await p.goto(BASE + route, { waitUntil: 'networkidle' });

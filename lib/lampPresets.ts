@@ -5,7 +5,7 @@ export type RGB = [number, number, number];
 type Vec3 = [number, number, number];
 
 /** How a lamp comes on. Evaluated over t ∈ [0, 1] of `strike.duration`. */
-export type StrikeCurve = 'fluoro' | 'quickFluoro' | 'tungsten' | 'instant' | 'buzz' | 'handLamp' | 'flood' | 'screens';
+export type StrikeCurve = 'fluoro' | 'quickFluoro' | 'tungsten' | 'instant' | 'buzz' | 'handLamp' | 'flood' | 'screens' | 'opening';
 
 export type LampPreset = {
   id: Lamp;
@@ -52,7 +52,7 @@ export type LampPreset = {
   uv: number;
   bloom: { intensity: number; threshold: number };
   grain: number;
-  /** Booth exposure into AgX: D50 calibrated so the grey card reads 18% grey; dark lamps trimmed. */
+  /** Booth exposure into the tone map. B5: the room lamps (PBR Neutral) are set so under D50 the back wall reads L* 76–82 and white paper L* 88–94; the dark lamps (AgX) trimmed. */
   exposure: number;
   /**
    * 3×3 colour matrix (row-major, linear light) for spectral character only:
@@ -110,13 +110,13 @@ export const LAMPS: LampPreset[] = [
     id: 'D50', label: 'D50 · Daylight', ariaLabel: 'Daylight, D50', readout: '5000K', spec: 'D50 · 5000K · CRI 98', key: '1', indicator: '#F4F3EE',
     // The full diffuser: even, near-shadowless light, broad soft speculars, a soft gradient down the back wall.
     panel: { intensity: 2.1, colour: D50, w: 1.36, d: 0.68, z: -0.1 },
-    diffuser: 0.78,
+    diffuser: 0.95,
     keyLight: { intensity: 1.6, colour: D50, position: [0.1, 0.78, 0.42], target: [0, 0.05, -0.15], angle: 1.4, penumbra: 1, decay: 2, shadowRadius: 9, shadowIntensity: 0.35 },
     fill: { intensity: 0.32, sky: D50, ground: [0.55, 0.55, 0.54] },
     front: 0.25,
     contact: 0.55, haze: 0,
     screens: SCREENS_ON, uv: 0,
-    bloom: { intensity: 0, threshold: 1 }, grain: 0, exposure: 0.47, matrix: I3,
+    bloom: { intensity: 0, threshold: 1 }, grain: 0, exposure: 0.635, matrix: I3,
     print: { level: 1, colour: D50, ambient: 0, grad: [0, 1, 0.06] },
     room: [0.2, 0.2, 0.198],
     strike: { duration: 0.25, curve: 'quickFluoro' }, dark: false, continuous: false,
@@ -126,13 +126,13 @@ export const LAMPS: LampPreset[] = [
     // A tube bank set back over the row: top-light, front faces fall off, crisp shadows thrown
     // forward, narrow specular streaks on gloss. Floor stays within a stop (booth lamp).
     panel: { intensity: 2.9, colour: TL84, w: 1.36, d: 0.45, z: -0.14 },
-    diffuser: 0.74,
+    diffuser: 0.9,
     keyLight: { intensity: 1.5, colour: TL84, position: [0, 0.78, -0.38], target: [0, 0, 0.18], angle: 1.3, penumbra: 0.35, decay: 2, shadowRadius: 2.5, shadowIntensity: 0.55 },
     fill: { intensity: 0.42, sky: TL84, ground: [0.42, 0.45, 0.42] },
     front: 0.45,
     contact: 0.6, haze: 0,
     screens: SCREENS_ON, uv: 0,
-    bloom: { intensity: 0, threshold: 1 }, grain: 0, exposure: 0.47,
+    bloom: { intensity: 0, threshold: 1 }, grain: 0, exposure: 0.635,
     // Triband phosphors: reds lose saturation, greens push, cyan-blue shift.
     matrix: [0.86, 0.12, 0.02, 0.02, 1.0, -0.02, -0.02, 0.07, 0.95],
     print: { level: 0.97, colour: TL84, ambient: 0, grad: [0, 1, 0.14] },
@@ -149,7 +149,7 @@ export const LAMPS: LampPreset[] = [
     front: 0.04,
     contact: 0.45, haze: 0,
     screens: { gain: 0.42, spill: 0 }, uv: 0,
-    bloom: { intensity: 0, threshold: 1 }, grain: 0, exposure: 0.5,
+    bloom: { intensity: 0, threshold: 1 }, grain: 0, exposure: 0.675,
     // Tungsten has almost no blue: blues go dull and dark, reds and ambers bloom.
     matrix: [1.0, 0.02, -0.02, 0.03, 0.97, 0.0, 0.06, 0.06, 0.8],
     print: { level: 0.95, colour: TUNGSTEN, ambient: 0.05, grad: [0.82, 0.3, 0.62] },
@@ -201,7 +201,7 @@ export const LAMPS: LampPreset[] = [
     front: 0.0,
     contact: 0.15, haze: 0,
     screens: { gain: 1.5, spill: 40, bounce: 0.25 }, uv: 0,
-    bloom: { intensity: 0.6, threshold: 0.75 }, grain: 0.035, exposure: 0.6, matrix: I3,
+    bloom: { intensity: 0.6, threshold: 0.75 }, grain: 0.035, exposure: 0.45, matrix: I3,
     print: { level: 0.07, colour: [0.6, 0.7, 1], ambient: 0.025, grad: [0, -1, 0.3] },
     room: [0.005, 0.005, 0.007],
     strike: { duration: 0.5, curve: 'screens' }, dark: true, continuous: false,
@@ -278,6 +278,14 @@ export function strikeEnvelope(curve: StrikeCurve, t: number): number {
     case 'handLamp':
       // dark beat, then the torch clicks on
       return t < 0.5 ? 0 : 1;
+    case 'opening':
+      // J5, the first visit: the booth dark, the D50 tubes strike: two flickers, then full (1.2s)
+      if (t < 0.24) return 0;
+      if (t < 0.3) return 0.8;
+      if (t < 0.42) return 0.04;
+      if (t < 0.47) return 0.9;
+      if (t < 0.58) return 0.08;
+      return t < 0.72 ? 0.85 + 0.15 * ((t - 0.58) / 0.14) : 1;
   }
 }
 

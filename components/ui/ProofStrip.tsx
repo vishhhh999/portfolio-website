@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useBooth } from '@/lib/store';
 import type { Deliverable } from '@/lib/types';
 import { avifFor } from '@/content/masters';
+import { sizedFile, srcSetFor } from '@/lib/responsive';
 
 import { PALETTES } from '@/content/palettes';
 
@@ -26,26 +27,28 @@ function RegTarget({ className }: { className: string }) {
 const aspectOf = (d: Deliverable) => (d.width && d.height ? d.width / d.height : 4 / 3);
 
 /**
- * Contact-sheet rhythm: a hero frame, then a 2-up and a 3-up row. A portrait
- * opener starts with a 2-up instead. Each frame's width is proportional to its
- * image's real aspect ratio, so every row shares one height and nothing is cropped.
+ * D3: how a run of deliverables is laid out. 'one': a single frame; 'pair': side by side (stacked on
+ * phones); 'grid': rows of 2 then 3. Each frame's width is proportional to its image's real aspect
+ * ratio, so every row shares one height and nothing is cropped.
  */
-function rows(list: Deliverable[], part: StripPart): number[][] {
-  const idx = list.map((_, i) => i);
-  const heroCount = aspectOf(list[0]) >= 1.2 ? 1 : Math.min(2, list.length);
-  if (part === 'hero') return [idx.slice(0, heroCount)];
-  const rest = part === 'rest' ? idx.slice(heroCount) : idx;
-  const pattern = part === 'rest' ? [2, 3] : heroCount === 1 ? [1, 2, 3] : [2, 2, 2];
+export type StripLayout = 'one' | 'pair' | 'grid';
+function rows(items: number[], layout: StripLayout): number[][] {
+  if (layout !== 'grid') return [items];
+  const rest = [...items];
   const out: number[][] = [];
   let p = 0;
-  while (rest.length) out.push(rest.splice(0, pattern[p++ % pattern.length]));
+  while (rest.length) out.push(rest.splice(0, [2, 3][p++ % 2]));
   return out;
 }
 
-/** 'hero' = the opening frame (work first, straight under the title); 'rest' = everything after it. */
-type StripPart = 'all' | 'hero' | 'rest';
+/** The rendered width of a frame in a row of n (desktop rail minus gaps; phones are full width). */
+const SIZES_FOR: Record<number, string> = {
+  1: '(max-width: 760px) 100vw, min(70vw, 1400px)',
+  2: '(max-width: 760px) 100vw, 48vw',
+  3: '(max-width: 760px) 100vw, 32vw',
+};
 
-function ProofFrame({ d, index, serial, onPlay }: { d: Deliverable; index: number; serial: number; onPlay: (d: Deliverable) => void }) {
+function ProofFrame({ d, index, serial, onPlay, sizes }: { d: Deliverable; index: number; serial: number; onPlay: (d: Deliverable) => void; sizes: string }) {
   const ref = useRef<HTMLImageElement & HTMLVideoElement>(null);
   const lamp = useBooth((s) => s.lamp);
 
@@ -56,13 +59,14 @@ function ProofFrame({ d, index, serial, onPlay }: { d: Deliverable; index: numbe
     const v = el as HTMLVideoElement;
     v.muted = true;
     v.defaultMuted = true;
-    // decode only near the screen: play within one viewport, pause beyond it (battery, GPU upload)
+    // H3: nothing is fetched before the video nears the screen (no autoplay attribute, preload none):
+    // it starts a quarter screen before it scrolls in and pauses once it has left
     const io = new IntersectionObserver(
       ([e]) => {
         if (e.isIntersecting) void v.play().catch(() => {});
         else v.pause();
       },
-      { rootMargin: '100% 0px' },
+      { rootMargin: '25% 0px' },
     );
     io.observe(v);
     return () => io.disconnect();
@@ -91,7 +95,7 @@ function ProofFrame({ d, index, serial, onPlay }: { d: Deliverable; index: numbe
         <div className="proof__image">
           {d.type === 'video' ? (
             <>
-              <video ref={ref} poster={d.poster} muted loop playsInline autoPlay preload="metadata" aria-label={d.alt} style={{ aspectRatio: `${aspectOf(d)}` }}>
+              <video ref={ref} poster={d.poster ? sizedFile(d.poster, 1200) : undefined} muted loop playsInline preload="none" aria-label={d.alt} style={{ aspectRatio: `${aspectOf(d)}` }}>
                 {d.sources?.map((s) => <source key={s.src} src={s.src} type={s.type} />)}
                 <source src={d.src} type="video/mp4" />
               </video>
@@ -101,7 +105,15 @@ function ProofFrame({ d, index, serial, onPlay }: { d: Deliverable; index: numbe
             </>
           ) : (
             <picture>
-              {avifFor(d.src) && <source srcSet={avifFor(d.src)!} type="image/avif" />}
+              {/* H3: sized AVIF / WebP for the real layout width; the full file stays the fallback */}
+              {srcSetFor(d.src, 'avif') ? (
+                <>
+                  <source srcSet={srcSetFor(d.src, 'avif')!} sizes={sizes} type="image/avif" />
+                  <source srcSet={srcSetFor(d.src, 'webp')!} sizes={sizes} type="image/webp" />
+                </>
+              ) : (
+                avifFor(d.src) && <source srcSet={avifFor(d.src)!} type="image/avif" />
+              )}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 ref={ref}
@@ -109,7 +121,7 @@ function ProofFrame({ d, index, serial, onPlay }: { d: Deliverable; index: numbe
                 alt={d.alt}
                 width={d.width ?? 1600}
                 height={d.height ?? 1200}
-                loading={index < 3 ? 'eager' : 'lazy'}
+                loading={index === 0 ? 'eager' : 'lazy'}
                 fetchPriority={index === 0 ? 'high' : 'auto'}
                 decoding="async"
                
@@ -127,8 +139,8 @@ function ProofFrame({ d, index, serial, onPlay }: { d: Deliverable; index: numbe
   );
 }
 
-/** Up to 6 deliverables as a proof strip; video frames open a player with sound. */
-export function ProofStrip({ deliverables, serialBase, part = 'all' }: { deliverables: Deliverable[]; serialBase: number; part?: StripPart }) {
+/** A run of a project's deliverables (by index) as proof frames; video frames open a player with sound. */
+export function ProofStrip({ deliverables, serialBase, items, layout, label }: { deliverables: Deliverable[]; serialBase: number; items: number[]; layout: StripLayout; label: string }) {
   const [playing, setPlaying] = useState<Deliverable | null>(null);
   const dialog = useRef<HTMLDialogElement>(null);
 
@@ -141,15 +153,15 @@ export function ProofStrip({ deliverables, serialBase, part = 'all' }: { deliver
 
   return (
     <>
-      <div className="proofstrip" data-part={part} role="list" aria-label={part === 'rest' ? 'More deliverables' : 'Deliverables'}>
-        {rows(deliverables.slice(0, 6), part).map((row) => (
+      <div className="proofstrip" data-layout={layout} role="list" aria-label={label}>
+        {rows(items.filter((i) => deliverables[i]), layout).map((row) => (
           <div key={row.join('-')} className="proofrow" data-count={row.length}>
             {row.map((i) => {
               const d = deliverables[i];
               const a = aspectOf(d);
               return (
                 <div key={d.src} role="listitem" className="proofrow__item" style={{ flexGrow: a, flexBasis: 0, ['--aspect' as string]: a }}>
-                  <ProofFrame d={d} index={i} serial={serialBase + i} onPlay={setPlaying} />
+                  <ProofFrame d={d} index={i} serial={serialBase + i} onPlay={setPlaying} sizes={SIZES_FOR[Math.min(3, row.length)]} />
                 </div>
               );
             })}

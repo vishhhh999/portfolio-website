@@ -1,5 +1,5 @@
 {
-  "_readme": "Booth camera + staging for Blender. Units: metres. \"three\" = three.js world (Y-up, +Z towards camera); \"blender\" = the same point Z-up: (x, y, z)three -> (x, -z, y)blender. tools/blender_camera.py imports tools/booth-shell.glb (shell, bases, TEXCOORD_1 lightmap atlas) and builds the cameras from this file.",
+  "_readme": "Booth camera + staging for Blender. Units: metres. \"three\" = three.js world (Y-up, +Z towards camera); \"blender\" = the same point Z-up: (x, y, z)three -> (x, -z, y)blender. tools/blender_camera.py imports tools/booth-room.glb (the room only, TEXCOORD_1 lightmap atlas; plinths, riser and shelf carry their own AO in code) and builds the cameras from this file.",
   "units": "metres",
   "lens": {
     "fovVerticalDeg": 35,
@@ -76,25 +76,25 @@
         "three": {
           "position": [
             0,
-            0.39006,
-            1.23302
+            0.38068,
+            1.20085
           ],
           "target": [
             0,
-            0.292,
+            0.286,
             0.3
           ]
         },
         "blender": {
           "location": [
             0,
-            -1.23302,
-            0.39006
+            -1.20085,
+            0.38068
           ],
           "target": [
             0,
             -0.3,
-            0.292
+            0.286
           ],
           "shift_x": 0,
           "shift_y": 0
@@ -104,25 +104,25 @@
         "three": {
           "position": [
             0,
-            0.28412,
-            0.90041
+            0.31583,
+            1.13569
           ],
           "target": [
             0,
-            0.22101,
+            0.228,
             0.3
           ]
         },
         "blender": {
           "location": [
             0,
-            -0.90041,
-            0.28412
+            -1.13569,
+            0.31583
           ],
           "target": [
             0,
             -0.3,
-            0.22101
+            0.228
           ],
           "shift_x": 0,
           "shift_y": 0
@@ -132,25 +132,25 @@
         "three": {
           "position": [
             0,
-            0.28218,
-            0.86303
+            0.28413,
+            0.86973
           ],
           "target": [
             0,
-            0.223,
+            0.22425,
             0.3
           ]
         },
         "blender": {
           "location": [
             0,
-            -0.86303,
-            0.28218
+            -0.86973,
+            0.28413
           ],
           "target": [
             0,
             -0.3,
-            0.223
+            0.22425
           ],
           "shift_x": 0,
           "shift_y": 0
@@ -160,25 +160,25 @@
         "three": {
           "position": [
             0,
-            0.28882,
-            0.88582
+            0.32056,
+            0.99465
           ],
           "target": [
             0,
-            0.22725,
+            0.24755,
             0.3
           ]
         },
         "blender": {
           "location": [
             0,
-            -0.88582,
-            0.28882
+            -0.99465,
+            0.32056
           ],
           "target": [
             0,
             -0.3,
-            0.22725
+            0.24755
           ],
           "shift_x": 0,
           "shift_y": 0
@@ -188,25 +188,25 @@
         "three": {
           "position": [
             0,
-            0.37052,
-            1.16599
+            0.42037,
+            1.33694
           ],
           "target": [
             0,
-            0.2795,
+            0.31138,
             0.3
           ]
         },
         "blender": {
           "location": [
             0,
-            -1.16599,
-            0.37052
+            -1.33694,
+            0.42037
           ],
           "target": [
             0,
             -0.3,
-            0.2795
+            0.31138
           ],
           "shift_x": 0,
           "shift_y": 0
@@ -216,25 +216,25 @@
         "three": {
           "position": [
             0,
-            0.19711,
-            0.7244
+            0.22797,
+            0.71005
           ],
           "target": [
             0,
-            0.1525,
+            0.18487,
             0.3
           ]
         },
         "blender": {
           "location": [
             0,
-            -0.7244,
-            0.19711
+            -0.71005,
+            0.22797
           ],
           "target": [
             0,
             -0.3,
-            0.1525
+            0.18487
           ],
           "shift_x": 0,
           "shift_y": 0
@@ -244,25 +244,25 @@
         "three": {
           "position": [
             0,
-            0.24227,
-            0.85652
+            0.20057,
+            0.71005
           ],
           "target": [
             0,
-            0.18378,
+            0.15747,
             0.3
           ]
         },
         "blender": {
           "location": [
             0,
-            -0.85652,
-            0.24227
+            -0.71005,
+            0.20057
           ],
           "target": [
             0,
             -0.3,
-            0.18378
+            0.15747
           ],
           "shift_x": 0,
           "shift_y": 0
@@ -272,25 +272,53 @@
         "three": {
           "position": [
             0,
-            0.19569,
-            0.72923
+            0.18599,
+            0.71005
           ],
           "target": [
             0,
-            0.15058,
+            0.14289,
             0.3
           ]
         },
         "blender": {
           "location": [
             0,
-            -0.72923,
-            0.19569
+            -0.71005,
+            0.18599
           ],
           "target": [
             0,
             -0.3,
-            0.15058
+            0.14289
+          ],
+          "shift_x": 0,
+          "shift_y": 0
+        }
+      },
+      "indo-thai": {
+        "three": {
+          "position": [
+            0,
+            0.18574,
+            0.71005
+          ],
+          "target": [
+            0,
+            0.14264,
+            0.3
+          ]
+        },
+        "blender": {
+          "location": [
+            0,
+            -0.71005,
+            0.18574
+          ],
+          "target": [
+            0,
+            -0.3,
+            0.14264
           ],
           "shift_x": 0,
           "shift_y": 0
@@ -333,20 +361,20 @@
       "kind": "plinth",
       "size": {
         "kind": "plinth",
-        "w": 0.25,
+        "w": 0.23,
         "d": 0.14,
         "h": 0.04
       },
-      "scale": 1.45,
+      "scale": 1.4,
       "blender": {
         "center": [
-          -0.58,
-          -0.28,
+          -0.62025,
+          -0.3,
           0.02
         ],
         "objectBase": [
-          -0.58,
-          -0.28,
+          -0.62025,
+          -0.3,
           0.04
         ]
       }
@@ -356,21 +384,21 @@
       "kind": "plinth",
       "size": {
         "kind": "plinth",
-        "w": 0.46,
-        "d": 0.18,
-        "h": 0.4
+        "w": 0.33,
+        "d": 0.14,
+        "h": 0.38
       },
-      "scale": 0.75,
+      "scale": 0.8,
       "blender": {
         "center": [
-          0.165,
-          0.34,
-          0.2
+          0,
+          0.35,
+          0.19
         ],
         "objectBase": [
-          0.165,
-          0.34,
-          0.4
+          0,
+          0.35,
+          0.38
         ]
       }
     },
@@ -379,21 +407,21 @@
       "kind": "plinth",
       "size": {
         "kind": "plinth",
-        "w": 0.36,
-        "d": 0.26,
-        "h": 0.3
+        "w": 0.34,
+        "d": 0.3,
+        "h": 0.28
       },
       "scale": 1,
       "blender": {
         "center": [
-          -0.26,
-          0.15,
-          0.15
+          -0.394,
+          0.12,
+          0.14
         ],
         "objectBase": [
-          -0.26,
-          0.15,
-          0.3
+          -0.394,
+          0.12,
+          0.28
         ]
       }
     },
@@ -402,21 +430,21 @@
       "kind": "plinth",
       "size": {
         "kind": "plinth",
-        "w": 0.3,
-        "d": 0.24,
-        "h": 0.3
+        "w": 0.32,
+        "d": 0.2,
+        "h": 0.28
       },
-      "scale": 1.15,
+      "scale": 1.08,
       "blender": {
         "center": [
-          0.58,
-          0.15,
-          0.15
+          0.372,
+          0.12,
+          0.14
         ],
         "objectBase": [
-          0.58,
-          0.15,
-          0.3
+          0.372,
+          0.12,
+          0.28
         ]
       }
     },
@@ -425,21 +453,21 @@
       "kind": "plinth",
       "size": {
         "kind": "plinth",
-        "w": 0.22,
-        "d": 0.18,
-        "h": 0.43
+        "w": 0.2,
+        "d": 0.2,
+        "h": 0.03
       },
-      "scale": 1.9,
+      "scale": 2.2,
       "blender": {
         "center": [
-          -0.6,
-          0.25,
-          0.215
+          0.61075,
+          -0.26,
+          0.015
         ],
         "objectBase": [
-          -0.6,
-          0.25,
-          0.43
+          0.61075,
+          -0.26,
+          0.03
         ]
       }
     },
@@ -448,20 +476,20 @@
       "kind": "plinth",
       "size": {
         "kind": "plinth",
-        "w": 0.33,
-        "d": 0.15,
+        "w": 0.26,
+        "d": 0.14,
         "h": 0.05
       },
-      "scale": 1.15,
+      "scale": 0.78,
       "blender": {
         "center": [
-          -0.255,
-          -0.28,
+          -0.3205,
+          -0.3,
           0.025
         ],
         "objectBase": [
-          -0.255,
-          -0.28,
+          -0.3205,
+          -0.3,
           0.05
         ]
       }
@@ -471,20 +499,20 @@
       "kind": "plinth",
       "size": {
         "kind": "plinth",
-        "w": 0.42,
-        "d": 0.15,
+        "w": 0.27,
+        "d": 0.12,
         "h": 0.06
       },
-      "scale": 1.3,
+      "scale": 0.78,
       "blender": {
         "center": [
-          0.155,
-          -0.28,
+          -0.00288,
+          -0.3,
           0.03
         ],
         "objectBase": [
-          0.155,
-          -0.28,
+          -0.00288,
+          -0.3,
           0.06
         ]
       }
@@ -494,21 +522,44 @@
       "kind": "riser",
       "size": {
         "kind": "riser",
-        "w": 0.32,
-        "d": 0.21,
+        "w": 0.25,
+        "d": 0.17,
         "h": 0.07
       },
-      "scale": 0.72,
+      "scale": 0.55,
       "blender": {
         "center": [
-          0.575,
-          -0.26,
+          0.31325,
+          -0.29,
           0.035
         ],
         "objectBase": [
-          0.575,
-          -0.26,
+          0.31325,
+          -0.29,
           0.07
+        ]
+      }
+    },
+    {
+      "slug": "indo-thai",
+      "kind": "plinth",
+      "size": {
+        "kind": "plinth",
+        "w": 0.3,
+        "d": 0.25,
+        "h": 0.22
+      },
+      "scale": 0.041,
+      "blender": {
+        "center": [
+          -0.009,
+          0.1,
+          0.11
+        ],
+        "objectBase": [
+          -0.009,
+          0.1,
+          0.22
         ]
       }
     }
@@ -516,37 +567,16 @@
   "props": {
     "ledge": {
       "x": 0.56,
-      "y": 0.6,
-      "w": 0.32,
-      "d": 0.05,
+      "y": 0.62,
+      "w": 0.26,
+      "d": 0.06,
       "h": 0.012
-    },
-    "checker": {
-      "x": 0.64,
-      "w": 0.14,
-      "h": 0.108,
-      "lean": 0.22,
-      "yaw": -0.16
-    },
-    "card": {
-      "x": 0.5,
-      "w": 0.1,
-      "h": 0.067,
-      "lean": 0.26,
-      "yaw": 0.1
-    },
-    "gloss": {
-      "x": 0.43,
-      "w": 0.07,
-      "h": 0.1,
-      "lean": 0.42,
-      "yaw": 0.18
     }
   },
-  "shellGlb": "booth-shell.glb",
+  "roomGlb": "booth-room.glb",
   "lightmap": {
     "uv": "TEXCOORD_1",
     "atlas": "1024px",
-    "output": "public/models/booth-shell/lightmap.ktx2 (or lightmap.png)"
+    "output": "public/booth/lightmap.exr (linear half float) or lightmap.png (16-bit linear); converted to public/booth/lightmap.ktx2"
   }
 }

@@ -11,6 +11,7 @@ const work: Work = {
   inLineup: true,
   nativeLamp: 'SCREEN',
   glb: '',
+  model: { src: '/models/house-of-hex/house-of-hex.glb', mobile: '/models/house-of-hex/house-of-hex.mobile.glb', screen: { aspect: 0.4621 } },
   object: 'Phone on a stand showing the House of Hex logo',
   fallbacks: placeholderFallbacks('house-of-hex'),
   // UV notes: the approved set is applied in corrections.ts

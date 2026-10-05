@@ -1,11 +1,13 @@
 /**
- * D1 / D5: layout edges.
- *  D1  the home booth: the cabinet's rendered left and right edges (its opaque silhouette, drawn in
- *      magenta with ?viewdebug=cabinet) are symmetric inside the booth frame to ±2px, and where the
- *      78svh height cap is not hit they reach the content gutters to ±4px. 725–2560 wide; at 390
- *      (the phone's portrait crop, panned sample to sample) the cabinet must cover the frame.
- *  D5  on /, /work/too-yumm and /archive at 1568 and 2560: the nav, the footer and the "Next on the
- *      tray" row end on the right content gutter (±2px).
+ * C1 / C2 (07) and D5 (06): layout edges.
+ *  C2  the home booth: one centred column. The cabinet's rendered left and right edges (its opaque
+ *      silhouette, drawn in magenta with ?viewdebug=cabinet) are symmetric inside the booth frame to
+ *      ±2px; the frame is centred on the page (±2px); its width is min(content width, 1.6 × the
+ *      height left under the headline and above the panel); booth and panel fit in the first screen.
+ *      390, 725, 1024, 1568, 1920 and 2560×1440; under 600px (the phone's own portrait shot, panned
+ *      sample to sample) the cabinet must cover the frame.
+ *  D5  on /, /work/too-yumm and /archive at 1568 and 2560: the nav and the footer end on the right
+ *      content gutter (±2px), and the previous / next row spans the rail.
  */
 import { createRequire } from 'module';
 import sharp from 'sharp';
@@ -20,8 +22,8 @@ const ok = (c, m) => {
 };
 const HIDE = `html, body { background: #00ff00 !important; } body * { visibility: hidden !important; } .booth-canvas, .booth-canvas * { visibility: visible !important; }`;
 
-for (const [W, H] of [[390, 844], [725, 960], [1024, 768], [1280, 800], [1568, 980], [1920, 1080], [2560, 1271]]) {
-  const mobile = W < 700;
+for (const [W, H] of [[390, 844], [725, 960], [1024, 768], [1568, 980], [1920, 1080], [2560, 1440]]) {
+  const mobile = W < 600;
   const ctx = await b.newContext({ viewport: { width: W, height: H }, isMobile: mobile, hasTouch: mobile });
   const p = await ctx.newPage();
   p.setDefaultTimeout(600000);
@@ -31,7 +33,8 @@ for (const [W, H] of [[390, 844], [725, 960], [1024, 768], [1280, 800], [1568, 9
   const f = await p.evaluate(() => {
     const r = document.querySelector('.booth-frame').getBoundingClientRect();
     const g = parseFloat(getComputedStyle(document.querySelector('.hero')).paddingLeft);
-    return { left: r.left, right: r.right, top: r.top, bottom: r.bottom, width: r.width, height: r.height, gutter: g, cw: document.documentElement.clientWidth, aspect: 1.57 / 0.965 };
+    const slot = document.getElementById('panel-slot')?.getBoundingClientRect();
+    return { left: r.left, right: r.right, top: r.top, bottom: r.bottom, width: r.width, height: r.height, gutter: g, cw: document.documentElement.clientWidth, vh: innerHeight, panelBottom: slot?.bottom ?? 0, panelH: slot?.height ?? 0 };
   });
   const tag = await p.addStyleTag({ content: HIDE });
   await p.waitForTimeout(100);
@@ -53,10 +56,12 @@ for (const [W, H] of [[390, 844], [725, 960], [1024, 768], [1280, 800], [1568, 9
   } else {
     const dl = L - f.left, dr = f.right - R;
     ok(Math.abs(dl - dr) <= 2, `${W}: cabinet centred in the frame (left gap ${dl.toFixed(1)}px, right gap ${dr.toFixed(1)}px)`);
-    const capped = f.height < f.width / f.aspect - 2;
-    if (!capped) ok(Math.abs(L - f.gutter) <= 4 && Math.abs(R - (f.cw - f.gutter)) <= 4, `${W}: cabinet reaches the gutters (${L}–${R} vs ${f.gutter.toFixed(0)}–${(f.cw - f.gutter).toFixed(0)})`);
-    else console.log(`     ${W}: height-capped (frame ${f.width.toFixed(0)}×${f.height.toFixed(0)}), centred instead`);
-    ok(Math.abs(f.left - f.gutter) <= 2 && Math.abs(f.right - (f.cw - f.gutter)) <= 2, `${W}: booth stage spans gutter to gutter (${f.left.toFixed(0)}–${f.right.toFixed(0)})`);
+    ok(Math.abs((f.left + f.right) / 2 - f.cw / 2) <= 2, `${W}: stage centred on the page (${f.left.toFixed(0)}–${f.right.toFixed(0)} of ${f.cw})`);
+    const content = f.cw - 2 * f.gutter;
+    const avail = f.vh - f.top - Math.max(56, f.panelH) - 14 - 18;
+    const want = Math.max(280, Math.min(content, 1.6 * avail));
+    ok(Math.abs(f.width - want) <= 2 && Math.abs(f.width / f.height - 1.6) < 0.01, `${W}: stage = min(content ${content.toFixed(0)}, 1.6 × ${avail.toFixed(0)}) = ${want.toFixed(0)} (is ${f.width.toFixed(0)}×${f.height.toFixed(0)})`);
+    ok(f.panelBottom <= f.vh + 1, `${W}: booth and panel in the first screen (panel ends at ${f.panelBottom.toFixed(0)} of ${f.vh})`);
   }
   await ctx.close();
 }
@@ -81,8 +86,8 @@ for (const W of [1568, 2560]) {
         nav: document.querySelector('.sitenav')?.getBoundingClientRect().right,
         footer: contentRight(document.querySelector('.footer')),
         footerLast: document.querySelector('.footer')?.lastElementChild?.getBoundingClientRect().right,
-        nextRow: contentRight(document.querySelector('.work__links')),
-        next: document.querySelector('.next')?.getBoundingClientRect().right ?? null,
+        nextRow: contentRight(document.querySelector('.worknav')),
+        next: document.querySelector('.worknav__next')?.getBoundingClientRect().right ?? null,
       };
     });
     for (const k of ['nav', 'footer', 'footerLast', 'nextRow', 'next']) {

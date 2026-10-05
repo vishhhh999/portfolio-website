@@ -338,7 +338,6 @@ export type SoundEvent =
   | 'select'
   | 'swipe'
   | 'route'
-  | 'stamp'
   | 'paperFeed'
   | 'loupe'
   | 'beep'
@@ -457,11 +456,6 @@ function play(name: SoundEvent, dest: AudioNode) {
       burst(dest, t, 0.015, 'bandpass', 2600, 0.3, 3);
       burst(dest, t + 0.045, 0.02, 'bandpass', 1700, 0.35, 2);
       tone(dest, t + 0.045, 0.1, 'sine', 160, 80, 0.15);
-      break;
-    case 'stamp':
-      // a rubber stamp: a dull thump with a rubbery body
-      tone(dest, t, 0.12, 'sine', 220, 70, 0.7);
-      burst(dest, t, 0.07, 'lowpass', 1200, 0.5);
       break;
     case 'paperFeed':
       // a short paper feed: a ratcheting run of tiny ticks under a paper hiss

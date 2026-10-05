@@ -61,12 +61,18 @@ export type Work = {
     frontSide?: boolean;
     /** Re-arranged pieces of a multi-node GLB: node name → footprint centre [x, z] (m) and yaw (rad). */
     layout?: Record<string, [number, number, number]>;
+    /** A device's `screen` mesh: UV0 0–1 is the visible display, at this aspect (w / h). */
+    screen?: { aspect: number };
+    /** A display stand under the model: 'wedge' (a sloped block matching the model's tilt, for flat sets). */
+    stand?: 'wedge';
+    /** The one animated object (A5): the named clip plays to its end while the object is on the tray. */
+    animation?: string;
   };
   /** Pre-rendered still per lamp (Phase 6). */
   fallbacks: Record<Lamp, string>;
   /** Approved proofer's notes only (shown under UV). Empty until Vishesh approves them. */
   uvNotes: UvNote[];
-  /** Six is the target; when the live site has fewer, the real ones are shown rather than padded with placeholders. */
+  /** Four to eight per project (F3); when the live site has fewer, the real ones are shown rather than padded with placeholders. */
   deliverables: Deliverable[];
   /** false = archive only: not on the booth floor, listed in /archive and /house-lights. */
   inLineup: boolean;

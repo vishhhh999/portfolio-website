@@ -8,10 +8,11 @@ const work: Work = {
   year: 2025,
   role: '',
   scope: '',
-  inLineup: false,
+  inLineup: true,
   nativeLamp: 'SCREEN',
   glb: '',
-  object: 'Laptop',
+  model: { src: '/models/indo-thai/indo-thai.glb', mobile: '/models/indo-thai/indo-thai.mobile.glb', rotation: [0, -0.95, 0] },
+  object: 'Aircraft pushback tug with tow bar, a display model',
   fallbacks: placeholderFallbacks('indo-thai'),
   // UV notes: the approved set is applied in corrections.ts
   uvNotes: [],

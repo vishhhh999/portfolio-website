@@ -8,7 +8,8 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "check": "node tools/check-routes.mjs && tsc --noEmit",
-    "test:overflow": "node tools/check-overflow.mjs"
+    "test:overflow": "node tools/check-overflow.mjs",
+    "postinstall": "node tools/patch-r3f-timer.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.9",

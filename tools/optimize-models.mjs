@@ -32,8 +32,15 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SIZES = {
   'too-yumm': { desktop: { art: 1024, data: 512 }, mobile: { art: 512, data: 512 } },
   sook: { desktop: { art: 1024, data: 512 }, mobile: { art: 512, data: 256 } },
-  'jsw-sports': { desktop: { art: 2048, data: 1024 }, mobile: { art: 1024, data: 512 } },
+  // rebuilt in batch 07 (A1): its source embeds JPEG art, so UASTC at 2048 would double it; 1536 keeps it ≤ 1.5MB
+  'jsw-sports': { desktop: { art: 1536, data: 512 }, mobile: { art: 768, data: 256 } },
   shunya: { desktop: { art: 1024, data: 512 }, mobile: { art: 512, data: 256 } },
+  // batch 07 (A1): the devices, the tug and the Bengal set. Every desktop file ≤ 1.5MB, mobile ≤ 600KB.
+  mitooshi: { desktop: { art: 1024, data: 1024 }, mobile: { art: 512, data: 512 } },
+  'house-of-hex': { desktop: { art: 1024, data: 512 }, mobile: { art: 512, data: 256 } },
+  sonde: { desktop: { art: 1024, data: 512 }, mobile: { art: 512, data: 256 } },
+  'indo-thai': { desktop: { art: 1024, data: 512 }, mobile: { art: 512, data: 256 } },
+  'bengal-t20': { desktop: { art: 1024, data: 512 }, mobile: { art: 512, data: 256 } },
 };
 
 /** RGBA raster for the Basis encoder (it takes raw pixels in Node). */
@@ -67,9 +74,21 @@ async function build(slug, tier) {
   const size = SIZES[slug]?.[tier] ?? { art: tier === 'mobile' ? 512 : 1024, data: 512 };
   const doc = await io.read(src);
   const inTris = triangles(doc);
-  await doc.transform(
+  if (tier === 'mobile') {
+    // H3 (07): phones get WebP textures (EXT_texture_webp), not KTX2, so a phone never downloads the
+    // 0.25MB Basis transcoder. Normal and data maps at higher quality (they are not colour).
+    await doc.transform(
+      dedup(),
+      prune({ keepAttributes: true }),
+      weld(),
+      textureCompress({ encoder: sharp, targetFormat: 'webp', quality: 82, resize: [size.art, size.art], slots: ART }),
+      textureCompress({ encoder: sharp, targetFormat: 'webp', quality: 92, resize: [size.data, size.data], slots: new RegExp(`${NORMAL.source}|${DATA.source}`, 'i') }),
+      meshopt({ encoder: MeshoptEncoder, level: 'medium' }),
+    );
+  } else {
+    await doc.transform(
     dedup(),
-    prune(),
+    prune({ keepAttributes: true }), // A3: the screen mesh has no texture in the file, but its UV0 maps the logo
     weld(),
     textureCompress({ encoder: sharp, targetFormat: 'png', resize: [size.art, size.art], slots: ART }),
     textureCompress({ encoder: sharp, targetFormat: 'png', resize: [size.data, size.data], slots: new RegExp(`${NORMAL.source}|${DATA.source}`, 'i') }),
@@ -81,6 +100,7 @@ async function build(slug, tier) {
     ktx2({ slots: DATA, isUASTC: false, qualityLevel: 200, compressionLevel: 2, isSetKTX2SRGBTransferFunc: false, isPerceptual: false, generateMipmap: true, isKTX2File: true, imageDecoder }),
     meshopt({ encoder: MeshoptEncoder, level: 'medium' }),
   );
+  }
   const outDir = join(ROOT, 'public/models', slug);
   mkdirSync(outDir, { recursive: true });
   const out = join(outDir, srcName);
@@ -92,12 +112,12 @@ async function build(slug, tier) {
   return { file: `public/models/${slug}/${srcName}`, sourceMB: +(statSync(src).size / 1048576).toFixed(2), MB: +(statSync(out).size / 1048576).toFixed(2), triangles: triangles(doc), sourceTriangles: inTris, art: size.art, data: size.data, textures };
 }
 
-const only = process.argv[2];
-const slugs = Object.keys(SIZES).filter((s) => !only || s === only);
+const only = process.argv.slice(2);
+const slugs = Object.keys(SIZES).filter((s) => !only.length || only.includes(s));
 const reportPath = join(ROOT, 'tools/models-report.json');
 const report = existsSync(reportPath) ? JSON.parse(readFileSync(reportPath, 'utf8')) : {};
 for (const slug of slugs) {
-  for (const tier of ['desktop', 'mobile']) {
+  for (const tier of (process.env.TIERS || 'desktop,mobile').split(',')) {
     const t0 = Date.now();
     const r = await build(slug, tier);
     if (!r) {

@@ -130,11 +130,7 @@ None.
 - public/work/house-of-hex/01-poster.webp
 - public/work/indo-thai/01-poster.webp
 - public/work/mitooshi/03-poster.webp
-- public/work/mitooshi/05-poster.webp
-- public/work/mitooshi/07-poster.webp
 - public/work/shunya/01-poster.webp
 
 ## No master needed
 
-- public/work/mitooshi/04.webp: two-colour dot pattern; the indexed palette does not harm it
-- public/work/mitooshi/06.webp: two-colour dot pattern; the indexed palette does not harm it

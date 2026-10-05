@@ -43,14 +43,10 @@
   Mitooshi website shown on a tablet on a dark background, with stat cards reading $4B+, 28%, 88, 930M+, 33 and 27.
 - **03** video · `/work/mitooshi/03.mp4` · DRAFT, written from the footage  
   Mitooshi website on a tablet lying on a dark blue surface, moving from the hero (Strategic Infrastructure for Industry Leaders) through stat cards to the Join the network form.
-- **04** image · `/work/mitooshi/04.webp` · from live site  
-  Dithered dot pattern globe in white on a bright blue square, part of the Mitooshi ASCII style visuals.
-- **05** video · `/work/mitooshi/05.mp4` · DRAFT, written from the footage  
-  A globe built from light blue ASCII dots, rotating on a bright blue square.
-- **06** image · `/work/mitooshi/06.webp` · from live site  
-  Scattered white dot pattern shapes on a bright blue square, an ASCII style graphic from the Mitooshi visuals.
-- **07** video · `/work/mitooshi/07.mp4` · DRAFT, written from the footage *(not shown: 7th piece)*  
-  Clusters of light blue ASCII dot spheres shifting on a bright blue square.
+- **04** video · `/work/mitooshi/04.mp4` (+ WebM) · written from the footage (was a GIF)  
+  A globe of light blue ASCII dots turning on a bright blue square, the land picked out in denser dots.
+- **05** video · `/work/mitooshi/05.mp4` (+ WebM) · written from the footage (was a GIF)  
+  Clusters of light blue ASCII dot spheres drifting and turning on a bright blue square.
 
 ## Sonde (sonde)
 

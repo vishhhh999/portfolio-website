@@ -209,8 +209,6 @@ let md = `# Masters report (${TAG})\n\n`;
 md += `Source: \`${TAG}.zip\` from the GitHub release, ${data.rows.length} PNG masters.\n\n`;
 // K1: images that need no master: two-colour dot-pattern squares, which a 256-colour palette cannot harm
 const NOT_NEEDED = {
-  'public/work/mitooshi/04.webp': 'two-colour dot pattern; the indexed palette does not harm it',
-  'public/work/mitooshi/06.webp': 'two-colour dot pattern; the indexed palette does not harm it',
 };
 data.untouched = data.untouched.filter((p) => !(p in NOT_NEEDED));
 md += `| | count |\n|---|---|\n| matched and re-encoded | ${m.length} |\n| still indexed (colour type 3), not used | ${by('still-indexed').length} |\n| unmatched | ${by('unmatched').length} |\n| ties | ${by('tie').length} |\n| conflicts | ${by('conflict').length} |\n| current images with no master | ${data.untouched.length} |\n\n`;

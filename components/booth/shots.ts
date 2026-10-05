@@ -20,6 +20,9 @@ function pose(dist: number): Shot {
   return { position, target, dist };
 }
 
+/** C3: the cabinet's height relative to the portrait box on phones (1: exactly the box). */
+const PHONE_ZOOM = 1;
+
 const cam = new PerspectiveCamera(FOV, 1, 0.05, 20);
 const v = new Vector3();
 
@@ -68,7 +71,10 @@ export function cabinetShot(
   for (let i = 0; i < 40; i++) {
     const mid = (lo + hi) / 2;
     const fb = faceBox(pose(mid), stage);
-    const fits = portrait ? fb.h <= box.height : fb.w <= box.width && fb.h <= box.height;
+    // C3: phones get their own portrait shot: the cabinet's height fills the box, panned to the focused
+    // sample. (It can't be framed tighter: the booth draws into the whole stage, so anything past the
+    // box would land on the headline.)
+    const fits = portrait ? fb.h <= box.height * PHONE_ZOOM : fb.w <= box.width && fb.h <= box.height;
     if (fits) hi = mid;
     else lo = mid;
   }
@@ -85,7 +91,7 @@ export function cabinetShot(
     dx = box.left + box.width / 2 - fx;
     dx = Math.min(box.left - fb.l, Math.max(box.left + box.width - fb.r, dx));
   }
-  const dy = box.top + box.height - fb.b;
+  const dy = portrait ? box.top + box.height / 2 - (fb.t + fb.b) / 2 : box.top + box.height - fb.b;
   // setViewOffset moves the picture by -offset: a positive dx (move right) is a negative offset
   const out: FramedShot = { ...shot, offset: [-dx, -dy] };
   if (cache.size > 64) cache.clear();
@@ -101,13 +107,15 @@ export function lineupShot(aspect: number): FramedShot {
 
 /** Tray shot: the active sample alone on the tray, the same lens and pitch, owning the frame. */
 export function trayShot(slug: string, aspect: number): Shot {
-  const { w, h } = STAGING[slug].object;
+  const { object, trayW, trayX = 0 } = STAGING[slug];
+  const { h } = object;
+  const w = trayW ?? object.w;
   const tanH = tanV * aspect;
   const fitH = Math.max(h * 1.7, 0.26);
   const fitW = Math.max(w * 1.6, 0.36);
   const dist = Math.max(fitH / 2 / tanV, fitW / 2 / tanH);
   const cy = TRAY.top + h * 0.5;
   // stand back along the pitched axis from the sample's centre
-  const position: [number, number, number] = [0, cy - Math.sin(PITCH) * dist, TRAY.z + Math.cos(PITCH) * dist];
-  return { target: [0, cy, TRAY.z], position, dist };
+  const position: [number, number, number] = [trayX, cy - Math.sin(PITCH) * dist, TRAY.z + Math.cos(PITCH) * dist];
+  return { target: [trayX, cy, TRAY.z], position, dist };
 }

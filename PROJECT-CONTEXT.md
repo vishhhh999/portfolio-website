@@ -74,11 +74,11 @@ The full original concept, phases and locked rules are in `BRIEF.md` in the repo
 
 | Route | What |
 |---|---|
-| `/` | The booth: eight samples in four screen-space columns (a front sample with a raised one behind it), the stage spanning the content width gutter to gutter, with the headline "Tested under every light." In house lights mode: the flat project index, same URL. |
-| `/work/[slug]` | The booth is a header with that sample on the tray. Below: spec plate, then the 6-image proof strip (crop marks, each image's own palette bar, frame numbers). Images are the plain files under every lamp (torch only under AFTER DARK). In house lights mode: no booth header, same content. |
-| `/house-lights` | A shareable direct link to the flat index (no WebGL). No UI link points here; the `Index` nav item turns house lights on at `/`. |
-| `/about` | "Certificate of Calibration", full width: two columns from 1100px (name, discipline, location, what I do, portrait · experience, education, awards, tool stack, clients), one column below. CV PDF (`/Vishesh-Mahendru-CV.pdf`) and socials. No CTA and no email block on the certificate (the email lives in the footer). |
-| `/archive` | Contact sheet of 45 archive pieces. The filter is by series and is kept in `?series=`. |
+| `/` | One centred column: the headline "Tested under every light.", the subtext, the booth (nine samples plus the About certificate on the shelf), the lamp panel in the flow under it. Stage width = min(content width, 1.6 × the height left), so booth and panel fit one screen. Phones (< 600px) have their own portrait shot (the cabinet's height fills a 4:5 box), swiped sample to sample. The nav's first item swaps the home view in place (URL unchanged): **Index** (a clean list: number, project, discipline, year, image preview on hover) ⇄ **3D viewport**. In house lights mode: the flat house-lights index, same URL. |
+| `/work/[slug]` | The booth header (≥ 62svh desktop, ≥ 48svh phone, starting under the masthead) with that sample on the tray; drag (or ← → on the focused header) turns it. Below, the story: title block on the calibration label (left) beside M1 (right, tops aligned); P1 centred (~62ch); M2 + M3 side by side; P2 + P3 side by side; then the rest in a grid. The live link ("Live site ↗" / "Full case study ↗") is a row inside the calibration label (Mitooshi, Sonde, House of Hex, Indo Thai only). Footer: "← Previous project" / "Next on the tray →", full width, wrapping round the lineup. Images are the plain files under every lamp (torch only under AFTER DARK). In house lights mode: no booth header, same content. |
+| `/house-lights` | A shareable direct link to the flat index (no WebGL). No UI link points here. House lights is only the rocker / I; the nav's Index is a separate home view. |
+| `/about` | "Certificate of Calibration", full width: two columns from 1100px (name, discipline, location, what I do, portrait · experience, education, awards, tool stack, clients), one column below. LOCATION reads "India" plus a live IST clock (24h, ticks each minute, client-only). No "checked under" / PASS strip. CV PDF (`/Vishesh-Mahendru-CV.pdf`) and socials. No CTA and no email block on the certificate (the email lives in the footer). |
+| `/archive` | Contact sheet of 49 pieces (45 stills + 4 AMG GTR clips that loop muted only on screen), titled by Vish's A-number list (`content/archive.ts` `TITLES`), numbered A01–A49 with no gaps. One row of chips (All · Music cover art · 3D explorations · Posters · Other), kept in `?series=`. |
 | 404 | `app/not-found.tsx`: a pure-CSS UV booth. |
 | `/projects/*` | 301 redirects to `/work/*` (legacy Framer URLs; `next.config.ts` `LEGACY_PROJECTS`). |
 
@@ -86,7 +86,7 @@ The full original concept, phases and locked rules are in `BRIEF.md` in the repo
 
 **Contact:** work@visheshmahendru.com ("Book a viewing" mailto plus a copy-email button), in the site footer only.
 
-**Lamp panel:** a floating hardware bar fixed at the bottom right on pages with a booth (`/` and lineup project pages), folding to a pill that shows the active lamp (session-remembered, `vm:panelFolded:v1`). Phones: the bottom rail with short labels under the dots and the active lamp's name. No panel on `/about`, `/archive`, `/house-lights` or archive-only projects. Layout is full width, gutter to gutter, everywhere: no column is reserved for the panel; pages keep `--panel-clear` of space under their last content so the bar never covers it.
+**Lamp panel:** on `/` it sits in the flow, centred under the booth (portalled into `#panel-slot`). On project pages it floats bottom centre as a pill showing the active lamp; it opens on hover or click and folds back when the page scrolls content under it; pages keep `--panel-clear` of space under their last content. No panel on `/about`, `/archive`, `/house-lights`.
 
 **Socials** (in `lib/site.ts`):
 - Instagram vishafterdark
@@ -99,20 +99,21 @@ The full original concept, phases and locked rules are in `BRIEF.md` in the repo
 
 ### Projects (`content/work/*.ts`, order in `content/work/index.ts`)
 
-**Lineup, left to right:**
+**Lineup (all nine projects are in the booth; content order in `content/work/index.ts`):**
 
-| Sample | Native lamp | Object in the booth |
-|---|---|---|
-| Too Yumm | TL84 | GLB |
-| JSW Sports | D50 | GLB |
-| Mitooshi | SCREEN | laptop |
-| Sonde | SCREEN | tablet |
-| House of Hex | SCREEN | phone on stand |
-| Bengal T20 | FLOOD | procedural flag/ticket stack |
-| SOOK | TL84 | GLB tea-box trio |
-| SHUNYA | A | GLB, on a riser |
+| Sample | Native lamp | Object in the booth | Where |
+|---|---|---|---|
+| Too Yumm | TL84 | GLB pouch | front row, far left |
+| Bengal T20 | FLOOD | GLB flat set on its own sloped wedge | front row |
+| SOOK | TL84 | GLB tea-box trio | front row |
+| SHUNYA | A | GLB four pieces, on the clear riser with a dark backing board | front row |
+| House of Hex | SCREEN | GLB phone on stand (logo on its screen) | front row, far right |
+| Mitooshi | SCREEN | GLB laptop (logo on its screen) | raised middle tier, left |
+| Indo Thai | SCREEN | GLB aircraft pushback tug | raised middle tier, centre |
+| Sonde | SCREEN | GLB tablet (logo on its screen) | raised middle tier, right |
+| JSW Sports | D50 | GLB coffee-table book, closed; it opens (clip `open`, 900ms eased) on the tray | back, high plinth |
 
-**Archive only:** Indo Thai (SCREEN, `inLineup: false`).
+Plus the **About certificate** (black satin frame, glass, matte paper: "CERTIFICATE OF CALIBRATION", "VM BOOTH 01", "Vishesh Mahendru") on the shelf, top right; click → `/about`, hover → "About". Rules (tools/check-sizes.mjs): every sample ≥ 11% of the cabinet width, projected boxes overlap ≤ 3%, ≥ 8cm clear between any two.
 
 ### Content pipeline
 
@@ -178,19 +179,20 @@ The data shape is in `lib/types.ts`. Key fields:
 
 | File | Role |
 |---|---|
-| `staging.ts` | Booth dimensions (1.5 × 0.8m), cove, cabinet header, hood, diffuser; the 8 samples in 3 tiers with per-sample scale and position; lens FOV 35; eye height and pitch |
-| `shots.ts` | Camera shots: `cabinetShot` contain-fits the samples to the stage on any aspect ratio, with lens shift; `trayShot` for project pages |
+| `staging.ts` | Booth dimensions (1.5 × 0.8m), cove, cabinet header, hood, diffuser; the 9 samples in 3 tiers (front row packed with 8.3cm gaps, raised middle tier, JSW high at the back) with per-sample scale and position, SHUNYA's backing, JSW's open width on the tray (`trayW`); the certificate; lens FOV 35; eye height and pitch |
+| `shots.ts` | Camera shots: `cabinetShot` contain-fits the cabinet to the stage, with lens shift (phones: their own portrait shot, panned to the focused sample); `trayShot` for project pages |
 | `CameraRig.tsx` | Smooth camera moves; pointer parallax max 1.5° (0.6° vertical) |
 | `shell.ts` | Booth shell geometry (rounded boxes, second UV set for the baked AO/lightmap atlas) |
-| `BoothRoom.tsx` | Shell materials, floor (reflective on desktop), diffuser, calibration props, lightmap hook |
-| `ObjectSlot.tsx` | One sample: base, GLB or procedural object, contact shadow, hover lift, focus, click to open |
-| `placeholders.tsx` | Procedural objects: laptop, tablet on easel, phone in stand, Bengal stack, screens |
-| `models.ts` | GLB loading (KTX2 + meshopt) |
-| `screens.ts` | Device screens: brand logo SVG on the brand colour (`public/brand/<slug>/logo.svg` + `bg.txt`) |
+| `BoothRoom.tsx` | Shell materials (N8 walls), floor (reflective on desktop), diffuser, lightmap hook; the cabinet's solid parts are picking occluders |
+| `ObjectSlot.tsx` | One sample: base, GLB, Bengal's wedge, SHUNYA's backing, contact shadow, hover lift, turntable (drag / keys, inertia), JSW's open clip, pickability (≥ 60% in view), click to open |
+| `Certificate.tsx` | The About certificate on the shelf |
+| `models.ts` | GLB loading (KTX2 + meshopt) in view-priority order: the tray object first, then the lineup left to right, the rest when idle (phones: after the first scroll or touch) |
+| `deviceScreen.ts`, `screens.ts` | A device GLB's `screen` mesh: the brand logo on its `bg.txt` colour by UV0, a glass coat with fingerprints, an area light the size of the display (desktop) |
+| `imperfections.ts` | Fingerprints and scratches (acrylic, glass, screens), paper fibre normal, wiped wall roughness |
 | `uvMaterial.ts` | UV fluorescence and invisible-ink shader chunk, hover rim |
-| `environment.ts` | Reflection environment per lamp (PMREM) |
+| `environment.ts` | Reflection environment per lamp (PMREM): the real booth interior, captured on the GPU the first time each lamp is on screen with the rig at that lamp's full output (desktop, cached per lamp); a built stand-in on phones |
 | `LampRig.tsx` | All seven lamp rigs, strike animation, shadow invalidation |
-| `Post.tsx` | Post chain: scissored views, AgX tone mapping only inside the booth, bloom, colour matrix, grain only in the stage box, MSAA with SMAA fallback, SSAO on desktop, loupe pixel reads |
+| `Post.tsx` | Post chain: scissored views (full MSAA resolve only when the view rects change), tone mapping only inside the booth (PBR Neutral for D50 / TL84 / A, AgX for the dark lamps), a gentle stage vignette, desktop depth of field (tray or hovered object), bloom, colour matrix, grain only in the stage box, MSAA with SMAA fallback, SSAO on desktop, loupe pixel reads; `?perf` per-pass profiler |
 | `PerfProbe.tsx` | Frame timing, resolution step-down, slow GPU → automatic house lights |
 | `BoothHost.tsx` | Mounts the canvas lazily after first paint; WebGL capability check |
 | `BoothFocus.tsx`, `focus.ts` | Keyboard focus and the hover spec plate for samples |
@@ -198,10 +200,11 @@ The data shape is in `lib/types.ts`. Key fields:
 
 ### Lighting details
 
-- **Lamp presets** (`lib/lampPresets.ts`): position, colour (Kelvin via `lib/kelvin.ts`), intensity, exposure, strike channels and durations, and screen gains for each lamp. D50 exposure is 0.47, which calibrates the N5 grey patch to sRGB about 118.
+- **Lamp presets** (`lib/lampPresets.ts`): position, colour (Kelvin via `lib/kelvin.ts`), intensity, exposure, strike channels and durations, and screen gains for each lamp. B5 (07): D50 exposure 0.635 under PBR Neutral puts the back wall at L* ~80 and white paper at L* ~90 (`tools/measure-brightness.mjs`); TL84 and A scaled by the same factor.
+- **Opening moment:** first visit per session the booth comes up dark and the D50 tubes strike (two flickers, ~1.2s; `prepareOpening` / `runOpening` in `lib/lampController.ts`). Skipped on repeat visits, reduced motion and house lights.
 - **Shadows:** PCF + drei SoftShadows (PCSS); cached contact shadows per object; SSAO at half resolution on desktop; baked AO texture (`public/booth/ao.png`) everywhere.
 - **Area-light tables:** the LTC tables for RectAreaLight live in `public/booth/ltc.bin` (`lib/ltc.ts`). They were moved out of the JS bundle to fit the budget.
-- **Lightmap path:** if `public/booth/lightmap.*` exists, the booth uses it automatically (resolved at build time in the site layout). It doesn't exist yet: a Blender bake from `tools/booth-shell.glb` plus `tools/camera.json` would provide it.
+- **Lightmap path:** if `public/booth/lightmap.ktx2` (or `.png`) exists, the booth uses it automatically (resolved at build time in the site layout). It doesn't exist yet: bake from `tools/booth-room.glb` (the room only; plinths, riser and shelf keep their own AO in code) plus `tools/camera.json`.
 
 ### Interaction and UI (`components/ui/`, `lib/`)
 
@@ -209,8 +212,10 @@ The data shape is in `lib/types.ts`. Key fields:
 
 | Piece | Files | Notes |
 |---|---|---|
-| Switch panel | `SwitchPanel.tsx` | Floating bar, bottom right; folds to a pill. Mobile: bottom rail with short labels. Only where there is a booth. |
-| House lights | `lib/houseLights.ts`, `HouseIndex.tsx`, `IndexNavLink.tsx` | A mode of the page (`setHouseLightsMode`), never a navigation |
+| Switch panel | `SwitchPanel.tsx` | Home: in the flow under the booth. Project pages: a floating centred pill that opens on hover / click. Only where there is a booth. |
+| Site nav | `SiteNav.tsx`, `HomeIndex.tsx` | "Index" ⇄ "3D viewport" on `/` (store `homeIndex`, `<html data-home-index>`); "Home" elsewhere |
+| House lights | `lib/houseLights.ts`, `HouseIndex.tsx` | A mode of the page (`setHouseLightsMode`), never a navigation |
+| Turntable | `lib/spin.ts`, `TrayTurn.tsx` | Drag ≥ 6px turns a GLB about its vertical axis (inertia; none under reduced motion); ← → 15° on the focused sample or the project header; reset on route change |
 | UV caption | `UvCaption.tsx` | Approved UV notes as fluorescent-ink text under the first proof, UV lamp only |
 | Native lamp chip | `NativeLampChip.tsx` | Offers a project's native lamp without forcing it |
 | Spec plate | `SpecPlate.tsx` | |
@@ -222,7 +227,7 @@ The data shape is in `lib/types.ts`. Key fields:
 | Notices | `Notice.tsx` | Driven by `?notice=` |
 | Copy email | `CopyEmail.tsx` | |
 | Outbound links | `OutboundLink.tsx` | |
-| About bits | `AboutBits.tsx` | CV link, pass stamp |
+| About bits | `AboutBits.tsx` | CV link, IST clock |
 
 **Behaviour (`lib/`):**
 
@@ -241,7 +246,8 @@ The data shape is in `lib/types.ts`. Key fields:
 | I | House lights |
 | S | Sound |
 | L | Loupe |
-| ← → | Move between samples |
+| ← → | Turn the focused sample 15° (home) or the tray object (project header focused) |
+| ↑ ↓ | Move between samples |
 | Enter | Open the focused sample |
 | Esc | Close |
 | ? | Shortcut list |
@@ -250,7 +256,7 @@ The data shape is in `lib/types.ts`. Key fields:
 
 - Fully procedural Web Audio. Off by default; the choice is remembered (`vm:sound:v1`).
 - **Beds:** one quiet bed per lamp.
-- **Events:** lamp switches (one per lamp), breaker on/off, hover, select, swipe, route, stamp, paper feed, loupe, beep, toggle.
+- **Events:** lamp switches (one per lamp), breaker on/off, hover, select, swipe, route, paper feed, loupe, beep, toggle.
 - Signal chain: master → limiter → speakers. An analyser drives the level meter.
 - Pauses when the tab is hidden.
 
@@ -266,13 +272,14 @@ An inline script runs before paint. It applies the stored lamp and sets `<html d
 | `vm:houseLights:v2` | local | Visitor chose house lights |
 | `vm:autoHouseLights:v1` | session | Slow GPU fell back automatically |
 | `vm:sound:v1` | local | Sound on/off |
-| `vm:stamped:v1` | session | About page stamp already played |
+| `vm:opened:v1` | session | The opening strike has played |
 
 ### URL flags (debugging)
 
 | Flag | What |
 |---|---|
-| `?perf` | Frame-time and fps readout. `window.__boothPerf()` in the console. |
+| `?perf` | Frame-time and fps readout, `window.__boothPerf()`, `window.__boothPasses(n)` per-pass timings; the only mode with GPU readbacks (besides the loupe). `?perf&no=ssao,pcss,contact,screenlights,bloom,reflector,msaa,dof,envcapture` switches features off |
+| `?tone=agx` / `?tone=neutral` | Force one tone map |
 | `?gpu=high` / `?gpu=low`, `?tier=` | Force a GPU or perf tier |
 | `?viewdebug`, `?viewdebug=cabinet` | View alignment debug overlays |
 | `?lampdebug` | JSON lamp-rig report on each lamp change |
@@ -293,9 +300,10 @@ An inline script runs before paint. It applies the stored lamp and sets `<html d
 | Proof palettes | Each case-study image (the master AVIF where one exists; a video's poster) | `tools/extract-palettes.mjs` (k-means in OKLab, area-weighted, by lightness) | `content/palettes.ts` |
 | GLB models | `assets-src/models/<slug>/` (Blender exports + `.ref.png` renders) | `tools/optimize-models.mjs` | `public/models/<slug>/*.glb` (desktop + mobile variants) |
 | Model check | | `tools/model-ref.mjs` | Side-by-side against the Blender reference renders |
-| Booth AO and shell | Code (`shell.ts`) | `node --experimental-strip-types tools/bake-booth.mjs` | `public/booth/ao.png`, `tools/booth-shell.glb`, `tools/camera.json` |
+| Booth AO and room | Code (`shell.ts`) | `node --experimental-strip-types tools/bake-booth.mjs` | `public/booth/ao.png`, `tools/booth-room.glb` (room only, UV1), `tools/camera.json` |
+| Responsive proofs | `public/work/<slug>/NN.webp` (+ master AVIF) | `tools/proof-sizes.mjs` | `public/work/<slug>/sized/NN-{640,1200,1800,2400}.{avif,webp}`, `content/sizes.ts` |
+| Mitooshi loops, AMG clips | `assets-src/mitooshi/*.gif`, `assets-src/archive/amg-gtr/*.mp4` | ffmpeg (H.264 + VP9, posters) | `public/work/mitooshi/04-05.*`, `public/archive/clips/` |
 | Blender camera | `tools/camera.json` | `tools/blender_camera.py` (run in Blender) | Matching cameras and plinths in Blender |
-| Bengal textures | Project stills | `tools/crop-textures.py` | `public/booth/textures/bengal-t20/` |
 | Brand screens | Manual | | `public/brand/<slug>/logo.svg` + `bg.txt` |
 | LCP posters | Rendered from the booth | `tools/make-posters.mjs` + `encode-posters.py` | `public/booth/poster-*.webp`. Re-run after any visual change to the booth. |
 | Blue noise | | `tools/gen-bluenoise.py` | `public/textures/bluenoise64.png` |
@@ -308,7 +316,7 @@ An inline script runs before paint. It applies the stored lamp and sets `<html d
 - Mitooshi 04 and 06 need no master: they are two-colour dot-pattern squares that the indexed palette does not harm.
 - 44 archive masters are indexed.
 
-**Models status:** Too Yumm, SOOK, JSW Sports and SHUNYA are real GLBs. The other four samples are built in code.
+**Models status:** all nine samples are real GLBs (desktop 9.6MB with KTX2 textures / mobile 2.2MB with WebP textures, so phones never load the Basis transcoder, loaded in view priority; see DELIVERY-07.md). No procedural objects remain.
 
 ---
 
@@ -346,14 +354,19 @@ PLAYWRIGHT=<path to playwright> node tools/<check>.mjs
 | `check-routes.mjs` | No reserved route names (runs in `npm run build`) |
 | `check-lamp.mjs` | The lamp never auto-switches; persistence; native chip |
 | `check-views.mjs` | Booth/canvas alignment at 1280–2560 wide, resizes, scrollbars |
-| `check-sizes.mjs` | Each sample ≥ 12% of the cabinet width; projected boxes overlap ≤ 3%; 3D gaps ≥ 6cm |
+| `check-sizes.mjs` | Each sample ≥ 11% of the cabinet width; projected boxes (certificate included) overlap ≤ 3%; 3D gaps ≥ 8cm |
+| `check-picking.mjs` | B4: on every booth route, a grid of points: what a click opens is what is seen there |
+| `check-07.mjs` | Nav labels and the home view switch, IST clock, no Mitooshi 04–07 leftovers, archive titles and numbering, chips |
+| `measure-brightness.mjs` | B5 loupe readings (wall and paper L*) per lamp |
+| `frame-budget.mjs` | H2 per-pass timings at 2560×1440 and the mobile tier |
+| `shots-07.mjs` | K5 screenshots and the JSW opening sheet |
 | `check-overflow.mjs` | No horizontal scroll at 390px on 13 routes |
 | `check-redirects.mjs` | `/projects/*` → `/work/*` 301s |
 | `check-sound.mjs` | Sound beds and events |
 | `check-smear.mjs` | A1: no stale booth pixels outside the current views (scrolling, opening projects), and each route registers only its own views |
 | `check-flicker.mjs` | A2: no presented frame of the booth drops > 5% below its neighbours while the pointer moves (D50, A) |
 | `check-houselights.mjs` | B: house lights toggles in place, URL unchanged; stored choice loads flat; no panel on /about, /archive |
-| `check-layout.mjs` | D1/D5: cabinet centred in a gutter-to-gutter stage; nav, footer and next row end on the right gutter |
+| `check-layout.mjs` | C2/D5: centred stage = min(content, 1.6 × height left), booth and panel in one screen; nav and footer end on the right gutter |
 | `check-switch.mjs` | A3: project-to-project timing and long tasks |
 | `measure-screen.mjs` | G: object luminance under SCREEN |
 | `torch-closeups.mjs`, `transition-sheet.mjs` | C2 torch close-ups (core = the file), A4 transition contact sheet |

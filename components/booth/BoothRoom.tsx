@@ -1,5 +1,7 @@
 'use client';
 
+import { perfOff } from '@/lib/perfFlags';
+
 import { MeshReflectorMaterial, RoundedBox, useTexture } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
@@ -29,11 +31,12 @@ import { useBooth } from '@/lib/store';
 import { shellParts, type ShellPart } from './shell';
 import { BOOTH, CABINET, CABINET_FACE, COVE, DIFFUSER, PLINTH_GREY, PROPS, STAGING, TRAY } from './staging';
 import { applyUV } from './uvMaterial';
+import { smudgeMap, wallRoughness } from './imperfections';
 
-/** Munsell N7 booth grey for the walls; the floor a satin step darker; plinths a warmer N8. */
-export const BOOTH_GREY = '#A8A8A6';
-const FLOOR_GREY = '#9D9D9B';
-const CEILING_GREY = '#B3B3B1';
+/** B5: Munsell N8 booth grey for the walls; the floor a satin step darker; plinths a warmer N8.5. */
+export const BOOTH_GREY = '#C4C4C2';
+const FLOOR_GREY = '#B5B5B3';
+const CEILING_GREY = '#CDCDCB';
 
 /**
  * Ceiling: lit only by bounce (no lamp faces it), so the rig sets its level and tint directly per
@@ -63,7 +66,7 @@ export function roughnessNoise() {
   const N = 512;
   const c = document.createElement('canvas');
   c.width = c.height = N;
-  const g = c.getContext('2d')!;
+  const g = c.getContext('2d', { willReadFrequently: true })!;
   const img = g.createImageData(N, N);
   let s = 90210;
   const rnd = () => ((s = (s * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
@@ -104,7 +107,7 @@ function diffuserTexture(tubes: number, tubesOnly = false) {
   const c = document.createElement('canvas');
   c.width = W;
   c.height = H;
-  const g = c.getContext('2d')!;
+  const g = c.getContext('2d', { willReadFrequently: true })!;
   const img = g.createImageData(W, H);
   for (let y = 0; y < H; y++)
     for (let x = 0; x < W; x++) {
@@ -190,7 +193,7 @@ function blobTexture() {
   const S = 128;
   const c = document.createElement('canvas');
   c.width = c.height = S;
-  const g = c.getContext('2d')!;
+  const g = c.getContext('2d', { willReadFrequently: true })!;
   const img = g.createImageData(S, S);
   for (let y = 0; y < S; y++)
     for (let x = 0; x < S; x++) {
@@ -227,7 +230,7 @@ function plateTexture() {
   const c = document.createElement('canvas');
   c.width = W;
   c.height = H;
-  const g = c.getContext('2d')!;
+  const g = c.getContext('2d', { willReadFrequently: true })!;
   const grad = g.createLinearGradient(0, 0, 0, H);
   grad.addColorStop(0, '#d9d9d6');
   grad.addColorStop(1, '#bdbdba');
@@ -267,10 +270,11 @@ function shellMaterials(mobile: boolean): ShellMats {
   const rough = roughnessNoise();
   const ao = shellAO();
   const wall = () => {
-    const r = rough.clone();
-    r.repeat.set(3, 2);
+    // J3: slow wiped variation across the paint (the fine grain stays in the bump of the light)
+    const r = wallRoughness().clone();
+    r.repeat.set(2, 1.4);
     r.needsUpdate = true;
-    return new MeshStandardMaterial({ color: BOOTH_GREY, roughness: 0.92, roughnessMap: r, aoMap: ao, aoMapIntensity: 1, side: BackSide, envMapIntensity: 0.35 });
+    return new MeshStandardMaterial({ color: BOOTH_GREY, roughness: 0.98, roughnessMap: r, aoMap: ao, aoMapIntensity: 1, side: BackSide, envMapIntensity: 0.35 });
   };
   const floor = new MeshStandardMaterial({
     // pushed back in depth: anything standing on the floor wins every depth tie
@@ -315,7 +319,8 @@ function baseMaterialFor(kind: 'plinth' | 'riser' | 'tray', mobile: boolean): Ma
   if (kind === 'riser')
     return mobile
       ? new MeshPhysicalMaterial({ color: '#E9EDEE', roughness: 0.55, transmission: 0, transparent: true, opacity: 0.72, clearcoat: 0.6, envMapIntensity: 0.8 })
-      : new MeshPhysicalMaterial({ color: '#F4F8F8', roughness: 0.06, transmission: 1, thickness: 0.03, ior: 1.49, clearcoat: 1, clearcoatRoughness: 0.04, envMapIntensity: 1 });
+      : // J3: polished acrylic with a few fingerprints and hairline scratches in its gloss
+        new MeshPhysicalMaterial({ color: '#F4F8F8', roughness: 0.3, roughnessMap: smudgeMap(), transmission: 1, thickness: 0.03, ior: 1.49, clearcoat: 1, clearcoatRoughness: 0.2, clearcoatRoughnessMap: smudgeMap(), envMapIntensity: 1 });
   if (kind === 'tray') return new MeshPhysicalMaterial({ color: '#5F5F5D', metalness: 0.6, roughness: 0.38, clearcoat: 0.2, envMapIntensity: 0.9 });
   const r = roughnessNoise();
   return new MeshStandardMaterial({ color: PLINTH_GREY, roughness: 0.9, roughnessMap: r, aoMap: shellAO(), envMapIntensity: 0.4 });
@@ -378,7 +383,7 @@ export function BoothRoom({ lineup, lightmap = null }: { lineup: string[]; light
         />
       ))}
 
-      {!mobile && <FloorReflection />}
+      {!mobile && !perfOff('reflector') && <FloorReflection />}
 
       {/* maker's plate on the sill, 1mm proud of the frame's face */}
       <mesh position={[0.5, -CABINET.sill / 2, BOOTH.frontZ + CABINET.proud + 0.001]}>
@@ -468,83 +473,6 @@ function Tray() {
       <RoundedBox args={[TRAY.w, TRAY.h, TRAY.d]} radius={0.003} smoothness={2} position={[0, TRAY.stand + TRAY.h / 2, 0]} castShadow receiveShadow>
         <meshStandardMaterial color="#8F8F8D" roughness={0.5} metalness={0.2} transparent opacity={0} />
       </RoundedBox>
-    </group>
-  );
-}
-
-// ── calibration props ──────────────────────────────────────────────────────────────────────
-function glossSwatchTexture() {
-  const W = 256, H = 360;
-  const c = document.createElement('canvas');
-  c.width = W;
-  c.height = H;
-  const g = c.getContext('2d')!;
-  g.fillStyle = '#f3f1ea';
-  g.fillRect(0, 0, W, H);
-  ['#e2007a', '#009ee0', '#ffed00', '#1e1e1e', '#e2231a'].forEach((col, i) => {
-    g.fillStyle = col;
-    g.fillRect(24, 24 + i * 62, W - 48, 50);
-  });
-  const t = new CanvasTexture(c);
-  t.colorSpace = SRGBColorSpace;
-  return t;
-}
-
-/** One printed card standing on the shelf: a thin board with the print on its front face. */
-function Card({ w, h, t, face, edge, roughness, physical, refFn }: { w: number; h: number; t: number; face: Texture; edge: string; roughness: number; physical?: boolean; refFn?: (m: Material | null) => void }) {
-  const sides = [0, 1, 2, 3, 5].map((i) => <meshStandardMaterial key={i} attach={`material-${i}`} color={edge} roughness={0.8} />);
-  return (
-    <mesh position={[0, h / 2, 0]} castShadow receiveShadow>
-      <boxGeometry args={[w, h, t]} />
-      {sides}
-      {physical ? (
-        <meshPhysicalMaterial ref={refFn as never} attach="material-4" map={face} roughness={roughness} clearcoat={1} clearcoatRoughness={0.02} />
-      ) : (
-        <meshStandardMaterial ref={refFn as never} attach="material-4" map={face} roughness={roughness} />
-      )}
-    </mesh>
-  );
-}
-
-/**
- * Calibration props on the shelf: a mini 24-patch chart (published sRGB values), the paper card
- * carrying test fluorMask + uvInk textures, and a glossy laminated swatch that shows each lamp's
- * reflection.
- */
-export function CalibrationProps() {
-  const [checker, cardBase, cardFluor, cardInk] = useTexture(['/textures/checker24.png', '/textures/card_base.png', '/textures/card_fluor.png', '/textures/card_uvink.png']);
-  checker.colorSpace = SRGBColorSpace;
-  cardBase.colorSpace = SRGBColorSpace;
-  cardFluor.colorSpace = SRGBColorSpace;
-  checker.anisotropy = cardBase.anisotropy = 8;
-  const gloss = useMemo(glossSwatchTexture, []);
-  const gl = useThree((s) => s.gl);
-  useEffect(() => {
-    checker.anisotropy = cardBase.anisotropy = gloss.anisotropy = gl.capabilities.getMaxAnisotropy();
-  }, [gl, checker, cardBase, gloss]);
-
-  const cardMat = useRef<Material | null>(null);
-  useLayoutEffect(() => {
-    if (cardMat.current) applyUV(cardMat.current, { fluorMask: cardFluor, uvInk: cardInk });
-  }, [cardFluor, cardInk]);
-
-  // the tray shot looks up past the shelf: the props would sit under the masthead, so they step out
-  const activeSlug = useBooth((s) => s.activeSlug);
-
-  const { ledge, checker: ch, card, gloss: gs } = PROPS;
-  const back = BOOTH.backZ;
-  const top = ledge.y + ledge.h;
-  return (
-    <group visible={!activeSlug}>
-      <group position={[ch.x, top, back + 0.032]} rotation={[-ch.lean, ch.yaw, 0]}>
-        <Card w={ch.w} h={ch.h} t={0.003} face={checker} edge="#151515" roughness={0.8} />
-      </group>
-      <group position={[card.x, top, back + 0.034]} rotation={[-card.lean, card.yaw, 0]}>
-        <Card w={card.w} h={card.h} t={0.0012} face={cardBase} edge="#EEECE6" roughness={0.88} refFn={(m) => (cardMat.current = m)} />
-      </group>
-      <group position={[gs.x, top, back + 0.04]} rotation={[-gs.lean, gs.yaw, 0]}>
-        <Card w={gs.w} h={gs.h} t={0.0015} face={gloss} edge="#EEECE6" roughness={0.18} physical />
-      </group>
     </group>
   );
 }
