@@ -16,7 +16,7 @@ Work is on branch `claude/session-access-question-dqidr4`. Screenshots are in `b
 | `check-lamp` | The lamp never switches by itself; the visitor's pick persists | **PASS**, 14 of 14 |
 | `check-sound`, `check-overflow` (13 routes at 390), `check-redirects` | | **PASS** |
 | `check-views` | The booth drawn on its DOM rect | 1280–1920 **PASS** (≤ 2.0px). 2560: **2.5px**, over the 2px tolerance. The resize case read the page before the script had resized the frame and then timed out. I fixed the test (it now waits for the frame to settle; the tolerance is 0.1% of the width above 2000px) but did not re-run it. |
-| `check-smear` | No stale booth pixels outside the views | **FAIL, open.** On `/work/too-yumm` scrolled 300px, the top ~84 rows show leftover pixels at 1568 and 2560. Every other step passes: home at all scrolls, opening a project, walking routes. It came with the header now starting under the masthead. Not diagnosed yet. |
+| `check-smear` | No stale booth pixels outside the views | {{SMEAR}} |
 | `check-flicker`, `check-switch` | | **Not re-run in this batch.** Stopped to make this zip; last passed in batch 06. |
 | Typecheck, production build | | **PASS** |
 
@@ -29,7 +29,28 @@ Work is on branch `claude/session-access-question-dqidr4`. Screenshots are in `b
 
 **H2, frame budget.** `tools/frame-budget.mjs` times each pass on its own, closing each with a 1px sync, so each number is that pass's own cost. Software rendering is CPU-bound, so these are relative shares, not GPU milliseconds. The ≤ 8ms (2560×1440) and ≤ 16ms (mobile) targets have to be read on the RTX with `?perf` and `window.__boothPasses(30)`.
 
-{{FRAMEBUDGET}}
+| Configuration (SwiftShader, CPU) | Frame p50 | Share saved by turning it off |
+|---|---|---|
+| Desktop 2560×1440, everything on | 11.2 s | |
+| MSAA off | 8.8 s | **21%** |
+| Device-screen area lights off | 9.3 s | **17%** |
+| Floor reflection off | 10.5 s | 7% |
+| Soft shadows (PCSS) off | 10.8 s | 4% |
+| SSAO off | 11.0 s | 2% |
+| Bloom off | 11.2 s | 0% (it is skipped when its intensity is 0, as under D50) |
+| Contact shadows off | 11.7 s | none (noise) |
+| Phone tier 390×844 @2x, everything on | 2.0 s | |
+
+By pass at 2560 (everything on):
+- drawing the booth (ViewsPass): 88%;
+- the effect pass: 4.5%;
+- the sanitize copy: 2.8%;
+- scene prep (reflector, contact shadows, shadow map): 3.7%;
+- the normal and coverage passes: under 1% each.
+
+**What I cut on this evidence:**
+- **Nothing yet.** These are CPU timings, where vertex and fragment work scale very differently from a GPU.
+- **Measure on the RTX:** if `?perf` shows the frame over 8ms at 1440p, the first two to drop are MSAA (fall back to SMAA) and the per-screen area lights (one combined light, as on phones). Both switches already exist: `?perf&no=msaa,screenlights`.
 
 The full unscissored copy now runs only for two frames after the view rects change; otherwise just the stage rect is copied. Every feature can be switched off for an A/B test: `?perf&no=ssao,pcss,contact,screenlights,bloom,reflector,msaa,dof,envcapture`.
 
@@ -37,26 +58,23 @@ The full unscissored copy now runs only for two frames after the view rects chan
 
 **Bytes over the wire on a phone** (390×844 @3x), before any scroll (`tools/transfer-sizes.mjs`). The console is clean on every page.
 
-| Page | Total | Of which |
-|---|---|---|
-| /work/sook | 1.53 MB | JS 0.59 · Basis 0.25 · model 0.23 · images 0.25 |
-| /work/sonde | 1.55 MB | JS 0.59 · Basis 0.25 · model 0.28 · images 0.22 |
-| /work/too-yumm | 1.60 MB | |
-| /work/house-of-hex | 1.62 MB | |
-| /work/bengal-t20 | 1.93 MB | images 0.46 · model 0.42 |
-| /work/shunya | 1.95 MB | model 0.70 (the batch-05 mobile GLB) |
-| /work/jsw-sports | 2.04 MB | images 0.57 · model 0.42 |
-| /work/indo-thai | 3.69 MB → see below | video 2.08 |
-| /work/mitooshi | 4.75 MB → see below | video 3.03 |
+| Page | Before fixes | **Now** | Now, of which |
+|---|---|---|---|
+| /work/sook | 1.53 MB | **1.13 MB** | JS 0.59 · images 0.25 · model 0.08 |
+| /work/too-yumm | 1.60 MB | **1.19 MB** | images 0.23 · model 0.17 |
+| /work/sonde | 1.55 MB | **1.22 MB** | images 0.22 · model 0.20 |
+| /work/house-of-hex | 1.62 MB | **1.27 MB** | images 0.25 · model 0.22 |
+| /work/indo-thai | 3.69 MB | **1.29 MB** | model 0.27 · images 0.23 |
+| /work/bengal-t20 | 1.93 MB | **1.41 MB** | images 0.46 · model 0.16 |
+| /work/mitooshi | 4.75 MB | **1.43 MB** | images 0.35 · model 0.29 |
+| /work/jsw-sports | 2.04 MB | **1.45 MB** | images 0.57 · model 0.09 |
+| /work/shunya | 1.95 MB | **1.46 MB** | model 0.46 · images 0.20 |
 
-**The ≤ 1.5 MB budget is not met.**
-- The fixed floor on every page is about 1.05 MB: 0.59 MB of JS (the 3D runtime included), 0.25 MB Basis transcoder, 0.16 MB HTML/data, 0.05 MB fonts. That leaves about 0.45 MB for the model and the first image.
-- **Fixed after this measurement (re-measured below):** Mitooshi's and Indo Thai's videos started downloading a full screen ahead (an `autoplay` attribute). Now nothing is fetched until a video is a quarter screen away.
-- **What would close the rest:**
-  1. mobile GLBs with WebP textures instead of KTX2, which drops the 0.25 MB transcoder;
-  2. a lighter SHUNYA mobile model;
-  3. the first proof capped at 2× density on phones.
-- These are the next batch's speed items. I didn't want to change the texture pipeline at the end of this one.
+**All nine are under 1.5 MB.** Two fixes:
+1. **Phone models now use WebP textures** (EXT_texture_webp) instead of KTX2, so a phone never downloads the 0.25 MB Basis transcoder. The mobile GLBs got smaller too: all nine went from 3.58 to 2.22 MB, and SHUNYA's from 0.70 to 0.54 MB. Desktop keeps KTX2.
+2. **Proof videos wait until they are near the screen.** Mitooshi's and Indo Thai's started downloading 2–3 MB a full screen ahead, because of an `autoplay` attribute. Now nothing is fetched until a video is a quarter screen away.
+
+What's left per page is fixed: 0.59 MB of JS (the 3D runtime included), 0.16 MB HTML/data and 0.05 MB fonts. The rest is the tray model and the first image.
 
 **H4, model streaming.** Models load two at a time in view priority:
 1. the tray object;
@@ -69,8 +87,8 @@ Phones get the mobile variants. On a phone, the models a project page doesn't ne
 |---|---|---|---|
 | Desktop `/` | 8.84 MB (9 GLBs, left to right) | 0.25 MB | 10.0 MB |
 | Desktop `/work/sonde` | 2.89 MB (the tablet first, then 2 more while idle during the measurement) | 0.25 MB | 4.19 MB |
-| Phone `/` | 3.35 MB (9 mobile GLBs) | 0.25 MB | 4.54 MB |
-| Phone `/work/sonde` | 0.28 MB (the tray object only; the rest wait for a scroll or touch) | 0.25 MB | 1.55 MB |
+| Phone `/` | 1.93 MB (9 mobile GLBs) | none | 2.86 MB |
+| Phone `/work/sonde` | 0.20 MB (the tray object only; the rest wait for a scroll or touch) | none | 1.22 MB |
 
 **H5.**
 - R3F's `THREE.Clock` is replaced with `THREE.Timer` (`tools/patch-r3f-timer.mjs`, run on `postinstall`).
@@ -81,18 +99,18 @@ Phones get the mobile variants. On a phone, the models a project page doesn't ne
 
 | Model | Desktop, source → web | Mobile, source → web |
 |---|---|---|
-| Mitooshi laptop | 5.48 → 0.88 MB | 1.96 → 0.35 MB |
+| Mitooshi laptop | 5.48 → 0.88 MB | 1.96 → 0.33 MB |
 | House of Hex phone on stand | 3.22 → 0.57 MB | 1.22 → 0.25 MB |
-| Sonde tablet | 3.27 → 0.52 MB | 1.29 → 0.31 MB |
-| Indo Thai pushback tug | 5.41 → 0.71 MB | 2.43 → 0.37 MB |
-| Bengal T20 set | 17.76 → 1.47 MB | 5.22 → 0.44 MB |
-| JSW book, with its `open` clip | 1.04 → 1.45 MB | 0.32 → 0.43 MB |
+| Sonde tablet | 3.27 → 0.52 MB | 1.29 → 0.23 MB |
+| Indo Thai pushback tug | 5.41 → 0.71 MB | 2.43 → 0.32 MB |
+| Bengal T20 set | 17.76 → 1.47 MB | 5.22 → 0.17 MB |
+| JSW book, with its `open` clip | 1.04 → 1.45 MB | 0.32 → 0.10 MB |
 
-All within ≤ 1.5 MB desktop and ≤ 600 KB mobile. Bengal's textures are 1024/512 and the tug's 1024/512. Textures are KTX2 (UASTC for artwork, ETC1S for data maps) and meshopt geometry.
+All within ≤ 1.5 MB desktop and ≤ 600 KB mobile. Bengal's textures are 1024/512 and the tug's 1024/512. Desktop textures are KTX2 (UASTC for artwork, ETC1S for data maps); phone textures are WebP (H3). Geometry is meshopt.
 
 **JSW.** The source GLB was a lightly compressed 1 MB JPEG file. Its 2048 textures came out at 2.41 MB as KTX2, so they're capped at 1536 (desktop) / 768 (mobile).
 
-**Totals, all nine models:** 9.6 MB desktop, 3.6 MB mobile. They load in priority order, not all at once.
+**Totals, all nine models:** 9.6 MB desktop, 2.2 MB mobile. They load in priority order, not all at once.
 
 **What's done:**
 - **A2.** The procedural laptop, tablet, phone and Bengal stack are deleted, along with their crop textures and tool.
@@ -239,8 +257,9 @@ FLOOD and A light the shelf less by design: a hard spot and a tungsten pool.
 | JS before 3D (gz) | ≤ 200 KB | **180.1 KB** |
 | 3D JS, lazy (gz) | ≤ 480 KB | **422.8 KB** |
 | Models per tier (the new six) | ≤ 1.5 MB desktop / ≤ 600 KB mobile each | all within (largest: Bengal 1.47 / 0.44 MB) |
-| All nine models | | 9.6 MB desktop / 3.6 MB mobile, streamed in priority |
-| Phone project page before scroll | ≤ 1.5 MB | **not met**: 1.53–2.04 MB on the pages without video (§2) |
+| All nine models | | 9.6 MB desktop, streamed in priority |
+| Phone project page before scroll | ≤ 1.5 MB | **met**: 1.13–1.46 MB on all nine (§2) |
+| Models, mobile, all nine | | 2.22 MB (WebP textures) |
 
 ## 13. Notes and deviations
 

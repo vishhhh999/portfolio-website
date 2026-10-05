@@ -316,7 +316,7 @@ An inline script runs before paint. It applies the stored lamp and sets `<html d
 - Mitooshi 04 and 06 need no master: they are two-colour dot-pattern squares that the indexed palette does not harm.
 - 44 archive masters are indexed.
 
-**Models status:** all nine samples are real GLBs (desktop 9.6MB / mobile 3.6MB in total, loaded in view priority; see DELIVERY-07.md). No procedural objects remain.
+**Models status:** all nine samples are real GLBs (desktop 9.6MB with KTX2 textures / mobile 2.2MB with WebP textures, so phones never load the Basis transcoder, loaded in view priority; see DELIVERY-07.md). No procedural objects remain.
 
 ---
 

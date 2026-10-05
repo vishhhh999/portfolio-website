@@ -31,7 +31,9 @@ for (const route of routes) {
       await p.setViewportSize({ width: w, height: h });
     }
     await p.waitForTimeout(600);
-    // the home frame is sized by script (C2): wait until it has settled at this size
+    // the home frame is sized by script (C2), and in software rendering one frame can block the page for
+    // seconds: wait for two real animation frames (the resize has been handled), then until it settles
+    await p.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
     for (let i = 0, last = ''; i < 40; i++) {
       const now = await p.evaluate(() => JSON.stringify(document.querySelector('.booth-frame, .booth-stage')?.getBoundingClientRect()));
       if (now === last) break;

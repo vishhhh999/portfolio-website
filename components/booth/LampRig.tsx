@@ -158,10 +158,8 @@ export function LampRig() {
   const lampNow = useBooth((st) => st.lamp);
   useEffect(() => {
     scene.environment = capturedEnvironment(lampNow) ?? boothEnvironment(gl, lampNow);
-    settledAt.current = 0;
     invalidate();
   }, [gl, scene, lampNow, invalidate]);
-  const settledAt = useRef(0);
   useEffect(() => useBooth.subscribe(() => invalidate()), [invalidate]);
   const size = useThree((s) => s.size);
   const dprNow = useThree((s) => s.viewport.dpr);
@@ -182,10 +180,12 @@ export function LampRig() {
     return () => window.removeEventListener('pointermove', onMove);
   }, [gl, invalidate]);
 
-  useFrame((_, rawDt) => {
+  /** The whole rig for one frame; `override` forces the strike progress (the J2 capture pass at full output). */
+  const applyRig = (rawDt: number, override?: number) => {
     // a non-monotonic or stalled clock never jumps or inverts the motion: 0 ≤ dt ≤ 100ms
     const dt = Math.min(0.1, Math.max(0, rawDt || 0));
-    const { lamp, strikeProgress, activeSlug } = useBooth.getState();
+    const { lamp, strikeProgress: liveProgress, activeSlug } = useBooth.getState();
+    const strikeProgress = override ?? liveProgress;
     const P = lampById(lamp);
     const curve = useBooth.getState().opening ? 'opening' : P.strike.curve;
     const ch = strikeChannels(curve, strikeProgress);
@@ -194,15 +194,6 @@ export function LampRig() {
     const onTray = activeSlug !== null;
 
     scene.environmentIntensity = ENV_INTENSITY[lamp] * env;
-    // J2: capture the real interior for this lamp once it has struck and the models are in
-    if (!MOBILE_TIER && !perfOff('envcapture') && strikeProgress >= 1 && modelsSettled() && !capturedEnvironment(lamp)) {
-      const now = performance.now();
-      if (!settledAt.current) settledAt.current = now;
-      if (now - settledAt.current > 400) {
-        scene.environment = captureEnvironment(gl, scene, lamp);
-        invalidate();
-      } else invalidate();
-    }
     // a baked shell lightmap (if any) is bounce light: the lamp's colour at its bounce level
     lightmapTint.value.setRGB(...P.fill.sky).multiplyScalar((P.fill.intensity + P.panel.intensity * 0.25) * env);
 
@@ -434,6 +425,18 @@ export function LampRig() {
 
     handWasMoving.current = handMoving;
     if (strikeProgress < 1 || handMoving) invalidate();
+  };
+
+  useFrame((_, rawDt) => {
+    // J2: the real interior is captured the first time a lamp is on screen: the rig is set at the
+    // lamp's full output for the capture, then at the actual strike progress for the frame drawn,
+    // so the environment is right from the lamp's first frame (no step once it has warmed up)
+    const lamp = useBooth.getState().lamp;
+    if (!MOBILE_TIER && !perfOff('envcapture') && modelsSettled() && !capturedEnvironment(lamp)) {
+      applyRig(0, 1);
+      scene.environment = captureEnvironment(gl, scene, lamp);
+    }
+    applyRig(rawDt);
   });
 
   return (
