@@ -24,6 +24,8 @@ async function load(url, phone, settle = 5000) {
   const cdp = await ctx.newCDPSession(p);
   await cdp.send('Network.enable');
   await cdp.send('Network.setCacheDisabled', { cacheDisabled: true });
+  const warnings = [];
+  p.on('console', (m) => (m.type() === 'warning' || m.type() === 'error') && warnings.push(m.text().slice(0, 160)));
   const urls = new Map();
   const bytes = new Map();
   cdp.on('Network.responseReceived', (e) => urls.set(e.requestId, e.response.url));
@@ -36,7 +38,7 @@ async function load(url, phone, settle = 5000) {
   const kind = (u) => (/\.glb$/.test(u) ? 'models' : /\/basis\//.test(u) ? 'basis' : /\.js(\?|$)/.test(u) ? 'js' : /\.(avif|webp|jpe?g|png|svg)(\?|$)/.test(u) ? 'images' : /\.(mp4|webm)(\?|$)/.test(u) ? 'video' : /\.woff2/.test(u) ? 'fonts' : 'other');
   const by = {};
   for (const r of list) by[kind(r.url)] = (by[kind(r.url)] ?? 0) + r.n;
-  return { total: list.reduce((a, r) => a + r.n, 0), by, list };
+  return { total: list.reduce((a, r) => a + r.n, 0), by, list, warnings };
 }
 
 // JS gz before / after 3D (same method as tools/metrics.mjs)
@@ -60,7 +62,7 @@ console.log('\nPhone project pages, before scrolling (budget 1.5 MB):');
 for (const slug of SLUGS) {
   const r = await load(`/work/${slug}`, true);
   const parts = Object.entries(r.by).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k} ${MB(n)}`).join(' · ');
-  console.log(`  /work/${slug.padEnd(13)} ${MB(r.total)} MB ${r.total <= 1.5 * 1048576 ? 'ok' : 'OVER'}   (${parts})`);
+  console.log(`  /work/${slug.padEnd(13)} ${MB(r.total)} MB ${r.total <= 1.5 * 1048576 ? 'ok' : 'OVER'}   (${parts})${r.warnings.length ? `  console: ${r.warnings.join(' | ')}` : '  console clean'}`);
 }
 
 console.log('\nModel bytes on first load (GLB + Basis transcoder):');

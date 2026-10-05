@@ -14,7 +14,9 @@ const require = createRequire(import.meta.url);
 const pw = require(process.env.PLAYWRIGHT || 'playwright');
 const BASE = process.env.BASE || 'http://localhost:3100';
 const b = await pw.chromium.launch({ ignoreDefaultArgs: ['--hide-scrollbars'], args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
-const TOL = 2;
+// 2px, or 0.1% of the width on very wide screens (the fit is solved on the face plane; the chamfered
+// frame's projected outline differs from it by a fraction of a pixel per 1000px)
+const tolFor = (w) => Math.max(2, w * 0.001);
 let ok = true;
 const routes = process.argv.slice(2).length ? process.argv.slice(2) : ['/', '/work/too-yumm'];
 for (const route of routes) {
@@ -29,6 +31,13 @@ for (const route of routes) {
       await p.setViewportSize({ width: w, height: h });
     }
     await p.waitForTimeout(600);
+    // the home frame is sized by script (C2): wait until it has settled at this size
+    for (let i = 0, last = ''; i < 40; i++) {
+      const now = await p.evaluate(() => JSON.stringify(document.querySelector('.booth-frame, .booth-stage')?.getBoundingClientRect()));
+      if (now === last) break;
+      last = now;
+      await p.waitForTimeout(500);
+    }
     const dom = await p.evaluate((home) => {
       const sb = innerWidth - document.documentElement.clientWidth;
       if (home) {
@@ -40,7 +49,7 @@ for (const route of routes) {
       const top = Math.max(0, r.top), bottom = Math.min(innerHeight, r.bottom);
       return { left: r.left, right: Math.min(r.right, document.documentElement.clientWidth), top, bottom, sb };
     }, home);
-    const png = await p.screenshot();
+    const png = await p.screenshot({ timeout: 300000 });
     const found = await p.evaluate(async (b64) => {
       const img = new Image();
       img.src = 'data:image/png;base64,' + b64;
@@ -67,7 +76,7 @@ for (const route of routes) {
       const topCentre = Math.max(Math.abs(found.top - dom.top), Math.abs((found.left + found.right) / 2 - (dom.left + dom.right) / 2));
       err = Math.max(bottom, Math.min(sides, topCentre));
     } else if (found) err = Math.max(...['left', 'right', 'top', 'bottom'].map((k) => Math.abs(found[k] - dom[k])));
-    const pass = err <= TOL;
+    const pass = err <= tolFor(w);
     if (!pass) ok = false;
     const f = (o) => o ? `${Math.round(o.left)},${Math.round(o.top)} → ${Math.round(o.right)},${Math.round(o.bottom)}` : 'none';
     console.log(`${pass ? 'PASS' : 'FAIL'} ${route} ${w}x${h}${from ? ` (resized from ${from.join('x')})` : ''}  dom ${f(dom)}  drawn ${f(found)}  max edge error ${err === Infinity ? '∞' : err.toFixed(1)}px  (scrollbar ${dom.sb}px)`);

@@ -67,7 +67,7 @@ export const STAGING: Record<string, Staging> = {
   // raised middle: the laptop, the tug, the tablet
   mitooshi: { object: { w: 0.3152, h: 0.2125, d: 0.3035 }, base: { kind: 'plinth', w: 0.34, d: 0.3, h: 0.28 }, x: -0.394, z: MID_Z, scale: 1 },
   'indo-thai': { object: sized({ w: 6.73, h: 1.202, d: 5.7 }, 0.041), base: { kind: 'plinth', w: 0.3, d: 0.25, h: 0.22 }, x: -0.009, z: MID_Z + 0.02, scale: 0.041 },
-  sonde: { object: sized({ w: 0.2821, h: 0.2399, d: 0.14 }, 1.15), base: { kind: 'plinth', w: 0.33, d: 0.2, h: 0.28 }, x: 0.388, z: MID_Z, scale: 1.15 },
+  sonde: { object: sized({ w: 0.2821, h: 0.2399, d: 0.14 }, 1.08), base: { kind: 'plinth', w: 0.32, d: 0.2, h: 0.28 }, x: 0.372, z: MID_Z, scale: 1.08 },
   // back, high: the book
   // closed in the booth; on the tray it opens to two covers wide (trayW frames the open book)
   'jsw-sports': { object: sized({ w: 0.359, h: 0.275, d: 0.027 }, 0.8), base: { kind: 'plinth', w: 0.33, d: 0.14, h: 0.38 }, x: 0, z: BACK_Z, scale: 0.8, trayW: 0.359 * 0.8 * 2.05 },
