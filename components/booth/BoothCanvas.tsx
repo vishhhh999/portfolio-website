@@ -6,7 +6,7 @@ import { advance, Canvas, events as createPointerEvents, useFrame, useThree, typ
 import { SoftShadows } from '@react-three/drei';
 import { Suspense, useEffect, useRef, useState } from 'react';
 import { loadLTC } from '@/lib/ltc';
-import { Euler, Matrix4, Quaternion, Vector3 } from 'three';
+import { Euler, Matrix4, Quaternion, Vector3, type Intersection, type Mesh, type Object3D } from 'three';
 import { lineup } from '@/content/work';
 import { attachRenderer, requestFrames, setContinuous } from '@/lib/clock';
 import { lampById } from '@/lib/lampPresets';
@@ -65,7 +65,31 @@ function stageEvents(store: Parameters<typeof createPointerEvents>[0]) {
       else state.pointer.set((event.clientX / state.size.width) * 2 - 1, -(event.clientY / state.size.height) * 2 + 1);
       state.raycaster.setFromCamera(state.pointer, state.camera);
     },
+    /**
+     * B4: only what is seen can be picked. A hit counts if the mesh and every parent are visible and
+     * no slot on the way marks itself unpickable (less than 60% of it inside the view), and nothing
+     * solid of the cabinet (frame, hood, housing, lip) is in front of it.
+     */
+    filter(items: Intersection[], state: RootState) {
+      const seen = items.filter((i) => pickable(i.object));
+      if (!seen.length) return seen;
+      occluders ??= collectOccluders(state.scene);
+      const wall = state.raycaster.intersectObjects(occluders, false)[0];
+      return wall ? seen.filter((i) => i.distance <= wall.distance + 1e-4) : seen;
+    },
   };
+}
+let occluders: Object3D[] | null = null;
+function collectOccluders(scene: Object3D) {
+  const out: Object3D[] = [];
+  scene.traverse((o) => {
+    if ((o as Mesh).isMesh && o.userData.occluder) out.push(o);
+  });
+  return out;
+}
+function pickable(o: Object3D | null) {
+  for (; o; o = o.parent) if (!o.visible || o.userData.pickable === false) return false;
+  return true;
 }
 
 /** Exposes window.__boothSizes for tools/check-sizes.mjs (projects through the live camera, lens shift included). */

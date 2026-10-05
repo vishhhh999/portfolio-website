@@ -11,7 +11,7 @@ import { Shortcuts } from '@/components/ui/Shortcuts';
 import { Loupe } from '@/components/ui/Loupe';
 import { Notice } from '@/components/ui/Notice';
 import { TorchOverlay } from '@/components/ui/TorchOverlay';
-import { IndexNavLink } from '@/components/ui/IndexNavLink';
+import { SiteNav } from '@/components/ui/SiteNav';
 import { JsonLd, personLd } from '@/lib/jsonld';
 
 /**
@@ -33,11 +33,7 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
       <BoothHost lightmap={boothLightmap()} />
       <header className="masthead">
         <Link href="/" className="wordmark">Vishesh Mahendru</Link>
-        <nav aria-label="Site" className="sitenav">
-          <IndexNavLink>Index</IndexNavLink>
-          <Link href="/about">About</Link>
-          <Link href="/archive">Archive</Link>
-        </nav>
+        <SiteNav />
       </header>
       <SwitchPanel />
       <Shortcuts />

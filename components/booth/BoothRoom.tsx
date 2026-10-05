@@ -32,10 +32,10 @@ import { shellParts, type ShellPart } from './shell';
 import { BOOTH, CABINET, CABINET_FACE, COVE, DIFFUSER, PLINTH_GREY, PROPS, STAGING, TRAY } from './staging';
 import { applyUV } from './uvMaterial';
 
-/** Munsell N7 booth grey for the walls; the floor a satin step darker; plinths a warmer N8. */
-export const BOOTH_GREY = '#A8A8A6';
-const FLOOR_GREY = '#9D9D9B';
-const CEILING_GREY = '#B3B3B1';
+/** B5: Munsell N8 booth grey for the walls; the floor a satin step darker; plinths a warmer N8.5. */
+export const BOOTH_GREY = '#C4C4C2';
+const FLOOR_GREY = '#B5B5B3';
+const CEILING_GREY = '#CDCDCB';
 
 /**
  * Ceiling: lit only by bounce (no lamp faces it), so the rig sets its level and tint directly per
@@ -375,6 +375,8 @@ export function BoothRoom({ lineup, lightmap = null }: { lineup: string[]; light
           material={matFor(p)}
           position={p.position}
           rotation={p.rotation ?? [0, 0, 0]}
+          // B4: the cabinet's solid parts block picking (the walls are behind every sample)
+          userData={{ occluder: p.role === 'frame' || p.role === 'housing' || p.role === 'hood' || p.role === 'lip' }}
           receiveShadow={p.role === 'interior' || p.role === 'lip' || p.role === 'shelf'}
           castShadow={p.role === 'lip' || p.role === 'shelf' || p.role === 'hood'}
         />

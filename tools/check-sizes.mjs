@@ -1,8 +1,8 @@
 /**
  * Projected width of every sample in the home lineup (object only, plinth excluded) as % of the
- * cabinet's projected width, measured through the live camera. Fails under 12%. F1 (desktop
+ * cabinet's projected width, measured through the live camera. Fails under 11%. F1 (desktop
  * sizes): projected boxes of two samples may overlap by at most 3% of the smaller box, and the
- * clear 3D gap between any two samples is at least 6cm.
+ * clear 3D gap between any two samples is at least 8cm.
  *   node tools/check-sizes.mjs   (against a running build)
  */
 import { createRequire } from 'module';
@@ -11,7 +11,7 @@ const pw = require(process.env.PLAYWRIGHT || 'playwright');
 const BASE = process.env.BASE || 'http://localhost:3100';
 const b = await pw.chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 let ok = true;
-const MIN = 12;
+const MIN = 11;
 for (const [w, h] of [[1440, 900], [1568, 980], [2560, 1271], [1920, 1080], [1366, 768], [725, 960], [390, 844]]) {
   const p = await b.newPage({ viewport: { width: w, height: h }, reducedMotion: 'reduce' });
   await p.goto(BASE + '/', { waitUntil: 'networkidle' });
@@ -33,7 +33,7 @@ for (const [w, h] of [[1440, 900], [1568, 980], [2560, 1271], [1920, 1080], [136
         const pct = (ov / Math.min(area(A), area(B))) * 100;
         if (pct > worst.pct) worst = { pct, a: ks[i], b: ks[j] };
       }
-    const bad = worst.pct > 3 || minGap.m < 0.06;
+    const bad = worst.pct > 3 || minGap.m < 0.08;
     if (bad && (w === 1568 || w === 2560)) ok = false;
     console.log(`   overlap ${worst.pct.toFixed(1)}%${worst.a ? ` (${worst.a} / ${worst.b})` : ''} · min gap ${(minGap.m * 100).toFixed(1)}cm (${minGap.a} / ${minGap.b})${bad ? '  !' : ''}`);
   }

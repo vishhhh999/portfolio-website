@@ -27,19 +27,17 @@ function RegTarget({ className }: { className: string }) {
 const aspectOf = (d: Deliverable) => (d.width && d.height ? d.width / d.height : 4 / 3);
 
 /**
- * Contact-sheet rhythm: a hero frame, then a 2-up and a 3-up row. A portrait
- * opener starts with a 2-up instead. Each frame's width is proportional to its
- * image's real aspect ratio, so every row shares one height and nothing is cropped.
+ * D3: how a run of deliverables is laid out. 'one': a single frame; 'pair': side by side (stacked on
+ * phones); 'grid': rows of 2 then 3. Each frame's width is proportional to its image's real aspect
+ * ratio, so every row shares one height and nothing is cropped.
  */
-function rows(list: Deliverable[], part: StripPart): number[][] {
-  const idx = list.map((_, i) => i);
-  const heroCount = aspectOf(list[0]) >= 1.2 ? 1 : Math.min(2, list.length);
-  if (part === 'hero') return [idx.slice(0, heroCount)];
-  const rest = part === 'rest' ? idx.slice(heroCount) : idx;
-  const pattern = part === 'rest' ? [2, 3] : heroCount === 1 ? [1, 2, 3] : [2, 2, 2];
+export type StripLayout = 'one' | 'pair' | 'grid';
+function rows(items: number[], layout: StripLayout): number[][] {
+  if (layout !== 'grid') return [items];
+  const rest = [...items];
   const out: number[][] = [];
   let p = 0;
-  while (rest.length) out.push(rest.splice(0, pattern[p++ % pattern.length]));
+  while (rest.length) out.push(rest.splice(0, [2, 3][p++ % 2]));
   return out;
 }
 
@@ -49,9 +47,6 @@ const SIZES_FOR: Record<number, string> = {
   2: '(max-width: 760px) 100vw, 48vw',
   3: '(max-width: 760px) 100vw, 32vw',
 };
-
-/** 'hero' = the opening frame (work first, straight under the title); 'rest' = everything after it. */
-type StripPart = 'all' | 'hero' | 'rest';
 
 function ProofFrame({ d, index, serial, onPlay, sizes }: { d: Deliverable; index: number; serial: number; onPlay: (d: Deliverable) => void; sizes: string }) {
   const ref = useRef<HTMLImageElement & HTMLVideoElement>(null);
@@ -143,8 +138,8 @@ function ProofFrame({ d, index, serial, onPlay, sizes }: { d: Deliverable; index
   );
 }
 
-/** Up to 6 deliverables as a proof strip; video frames open a player with sound. */
-export function ProofStrip({ deliverables, serialBase, part = 'all' }: { deliverables: Deliverable[]; serialBase: number; part?: StripPart }) {
+/** A run of a project's deliverables (by index) as proof frames; video frames open a player with sound. */
+export function ProofStrip({ deliverables, serialBase, items, layout, label }: { deliverables: Deliverable[]; serialBase: number; items: number[]; layout: StripLayout; label: string }) {
   const [playing, setPlaying] = useState<Deliverable | null>(null);
   const dialog = useRef<HTMLDialogElement>(null);
 
@@ -157,8 +152,8 @@ export function ProofStrip({ deliverables, serialBase, part = 'all' }: { deliver
 
   return (
     <>
-      <div className="proofstrip" data-part={part} role="list" aria-label={part === 'rest' ? 'More deliverables' : 'Deliverables'}>
-        {rows(deliverables.slice(0, 8), part).map((row) => (
+      <div className="proofstrip" data-layout={layout} role="list" aria-label={label}>
+        {rows(items.filter((i) => deliverables[i]), layout).map((row) => (
           <div key={row.join('-')} className="proofrow" data-count={row.length}>
             {row.map((i) => {
               const d = deliverables[i];

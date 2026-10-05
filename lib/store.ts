@@ -33,6 +33,9 @@ type BoothState = {
   focusSlug: string | null;
   /** A booth object focused from the keyboard (lifts and shows its spec chip, like a hover). */
   keySlug: string | null;
+  /** C5: the home page's view, swapped in place by the nav (URL unchanged): the 3D booth or the Index list. */
+  homeIndex: boolean;
+  setHomeIndex: (on: boolean) => void;
   setLamp: (lamp: Lamp) => void;
   setStrikeProgress: (p: number) => void;
   setActiveSlug: (slug: string | null) => void;
@@ -52,6 +55,8 @@ export const useBooth = create<BoothState>((set) => ({
   lampPicked: false,
   focusSlug: null,
   keySlug: null,
+  homeIndex: false,
+  setHomeIndex: (homeIndex) => set({ homeIndex }),
   setLamp: (lamp) => set({ lamp }),
   setStrikeProgress: (strikeProgress) => set({ strikeProgress }),
   setActiveSlug: (activeSlug) => set({ activeSlug }),

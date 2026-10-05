@@ -23,21 +23,25 @@ export function BoothFrame({ samples }: { samples: FrameSample[] }) {
   const current = samples[index];
 
   useEffect(() => (ref.current ? registerFrame(ref.current) : undefined), []);
-  // D1: the cabinet's height at the full content width, capped at 78svh and at the room left on the
-  // first screen above the floating lamp bar. Wider than the cabinet → the camera centres it.
+  // C2: one centred column. The stage is min(content width, 1.6 × the height left on the first screen
+  // under the headline and above the lamp panel), at the cabinet's own aspect, so the booth and the
+  // panel fit in one screen at every size. Phones (< 600px) have their own portrait composition.
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
     const fit = () => {
-      if (window.innerWidth < 700) {
-        el.style.height = '';
+      if (window.innerWidth < 600) {
+        el.style.height = el.style.width = '';
         return;
       }
-      const clear = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--panel-clear')) || 0;
+      const wrap = el.parentElement!;
+      const slot = document.getElementById('panel-slot');
+      const panelH = slot ? Math.max(56, slot.getBoundingClientRect().height) + 14 : 0;
       const top = el.getBoundingClientRect().top + window.scrollY;
-      const byWidth = el.clientWidth / (CABINET_FACE.w / CABINET_FACE.h);
-      const room = window.innerHeight - top - clear - 14;
-      el.style.height = `${Math.round(Math.max(300, Math.min(byWidth, window.innerHeight * 0.78, room)))}px`;
+      const avail = window.innerHeight - top - panelH - 18;
+      const w = Math.max(280, Math.min(wrap.clientWidth, 1.6 * avail));
+      el.style.width = `${Math.round(w)}px`;
+      el.style.height = `${Math.round(w / 1.6)}px`;
       el.style.maxHeight = 'none';
     };
     fit();

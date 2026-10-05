@@ -2,6 +2,7 @@
 
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { LAMPS, lampById } from '@/lib/lampPresets';
 import { pickLamp } from '@/lib/lampController';
 import { bedLevel, enableSound, playEvent } from '@/lib/sound';
@@ -35,8 +36,6 @@ function SoundMeter({ on }: { on: boolean }) {
     </span>
   );
 }
-
-const FOLD_KEY = 'vm:panelFolded:v1';
 
 /**
  * Hardware-style lamp switches. Real buttons, aria-pressed, keys 1–7, I for house lights.
@@ -94,26 +93,62 @@ export function SwitchPanel() {
     return () => window.removeEventListener('keydown', onKey);
   });
 
-  // D3: the panel floats bottom right; it folds to a pill showing the active lamp (kept per session)
-  const [folded, setFolded] = useState(false);
+  // C4: on home the panel sits in the flow under the booth (portalled into #panel-slot). On the other
+  // booth pages it floats bottom centre as a pill that opens on hover or click, and folds back when
+  // the page scrolls content under it.
+  const home = pathname === '/';
+  const [slot, setSlot] = useState<HTMLElement | null>(null);
   useEffect(() => {
-    try {
-      setFolded(sessionStorage.getItem(FOLD_KEY) === '1');
-    } catch {}
-  }, []);
-  const fold = (on: boolean) => {
-    setFolded(on);
-    try {
-      sessionStorage.setItem(FOLD_KEY, on ? '1' : '0');
-    } catch {}
-  };
+    setSlot(home ? document.getElementById('panel-slot') : null);
+  }, [home, pathname]);
+  const [open, setOpen] = useState(false);
+  const pinned = useRef(false);
+  useEffect(() => {
+    setOpen(false);
+    pinned.current = false;
+  }, [pathname]);
+  useEffect(() => {
+    if (home || !open) return;
+    const y0 = window.scrollY;
+    const onScroll = () => {
+      if (Math.abs(window.scrollY - y0) > 24) {
+        pinned.current = false;
+        setOpen(false);
+      }
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [home, open]);
 
   if (!hasBooth) return null;
+  if (home && !slot) return null;
   const active = lampById(lamp);
-  return (
-    <nav className="panel" aria-label="Booth lamps" data-folded={folded} data-house={onIndex}>
+  const folded = !home && !open;
+  const panel = (
+    <nav
+      className="panel"
+      aria-label="Booth lamps"
+      data-place={home ? 'inline' : 'float'}
+      data-folded={folded}
+      data-house={onIndex}
+      onPointerEnter={(e) => {
+        if (!home && e.pointerType === 'mouse') setOpen(true);
+      }}
+      onPointerLeave={(e) => {
+        if (!home && e.pointerType === 'mouse' && !pinned.current) setOpen(false);
+      }}
+    >
       {folded ? (
-        <button type="button" className="panel__pill" onClick={() => fold(false)} aria-expanded="false" aria-label={`Lamps: ${onIndex ? 'house lights on' : active.ariaLabel}. Show the lamp panel`}>
+        <button
+          type="button"
+          className="panel__pill"
+          onClick={() => {
+            pinned.current = true;
+            setOpen(true);
+          }}
+          aria-expanded="false"
+          aria-label={`Lamps: ${onIndex ? 'house lights on' : active.ariaLabel}. Show the lamp panel`}
+        >
           <span className="panel__status-led" style={{ ['--lamp' as string]: onIndex ? '#f2f0ea' : active.indicator }} aria-hidden="true" />
           <span>{onIndex ? 'House lights' : active.label}</span>
           <span className="panel__pill-open" aria-hidden="true">＋</span>
@@ -159,11 +194,23 @@ export function SwitchPanel() {
               </button>
             </>
           )}
-          <button type="button" className="panel__fold" onClick={() => fold(true)} aria-expanded="true" aria-label="Fold the lamp panel">
-            <span aria-hidden="true">−</span>
-          </button>
+          {!home && (
+            <button
+              type="button"
+              className="panel__fold"
+              onClick={() => {
+                pinned.current = false;
+                setOpen(false);
+              }}
+              aria-expanded="true"
+              aria-label="Fold the lamp panel"
+            >
+              <span aria-hidden="true">−</span>
+            </button>
+          )}
         </>
       )}
     </nav>
   );
+  return home ? createPortal(panel, slot!) : panel;
 }

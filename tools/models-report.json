@@ -62,8 +62,8 @@
     ]
   },
   "totals": {
-    "desktopMB": 9.25,
-    "mobileMB": 3.42
+    "desktopMB": 9.58,
+    "mobileMB": 3.58
   },
   "too-yumm/desktop": {
     "file": "public/models/too-yumm/too-yumm.glb",
@@ -304,7 +304,7 @@
   "mitooshi/desktop": {
     "file": "public/models/mitooshi/mitooshi.glb",
     "sourceMB": 5.48,
-    "MB": 0.88,
+    "MB": 0.95,
     "triangles": 32884,
     "sourceTriangles": 32884,
     "art": 1024,
@@ -330,7 +330,7 @@
   "mitooshi/mobile": {
     "file": "public/models/mitooshi/mitooshi.mobile.glb",
     "sourceMB": 1.96,
-    "MB": 0.35,
+    "MB": 0.37,
     "triangles": 9273,
     "sourceTriangles": 9273,
     "art": 512,
@@ -356,7 +356,7 @@
   "house-of-hex/desktop": {
     "file": "public/models/house-of-hex/house-of-hex.glb",
     "sourceMB": 3.22,
-    "MB": 0.57,
+    "MB": 0.74,
     "triangles": 22975,
     "sourceTriangles": 22975,
     "art": 1024,
@@ -387,7 +387,7 @@
   "house-of-hex/mobile": {
     "file": "public/models/house-of-hex/house-of-hex.mobile.glb",
     "sourceMB": 1.22,
-    "MB": 0.25,
+    "MB": 0.34,
     "triangles": 7196,
     "sourceTriangles": 7196,
     "art": 512,
@@ -418,7 +418,7 @@
   "sonde/desktop": {
     "file": "public/models/sonde/sonde.glb",
     "sourceMB": 3.27,
-    "MB": 0.52,
+    "MB": 0.61,
     "triangles": 18643,
     "sourceTriangles": 18643,
     "art": 1024,
@@ -449,7 +449,7 @@
   "sonde/mobile": {
     "file": "public/models/sonde/sonde.mobile.glb",
     "sourceMB": 1.29,
-    "MB": 0.26,
+    "MB": 0.31,
     "triangles": 7311,
     "sourceTriangles": 7311,
     "art": 512,

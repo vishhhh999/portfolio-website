@@ -76,7 +76,7 @@ async function build(slug, tier) {
   const inTris = triangles(doc);
   await doc.transform(
     dedup(),
-    prune(),
+    prune({ keepAttributes: true }), // A3: the screen mesh has no texture in the file, but its UV0 maps the logo
     weld(),
     textureCompress({ encoder: sharp, targetFormat: 'png', resize: [size.art, size.art], slots: ART }),
     textureCompress({ encoder: sharp, targetFormat: 'png', resize: [size.data, size.data], slots: new RegExp(`${NORMAL.source}|${DATA.source}`, 'i') }),

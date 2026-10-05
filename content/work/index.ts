@@ -60,3 +60,9 @@ export function nextWork(slug: string): Work {
   const i = lineup.findIndex((w) => w.slug === slug);
   return lineup[(i + 1) % lineup.length];
 }
+
+/** Previous project on the tray (D5): the lineup, wrapping round. */
+export function prevWork(slug: string): Work {
+  const i = lineup.findIndex((w) => w.slug === slug);
+  return lineup[(i - 1 + lineup.length) % lineup.length];
+}

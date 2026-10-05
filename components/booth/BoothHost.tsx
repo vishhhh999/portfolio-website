@@ -7,6 +7,7 @@ import { autoHouseLights, failsPerformanceCaveat } from '@/lib/resilience';
 import { isInLineup } from '@/content/work';
 import { lampById } from '@/lib/lampPresets';
 import { useBooth } from '@/lib/store';
+import { resetSpins } from '@/lib/spin';
 import { onViewsChanged, registerStage, viewCount } from '@/lib/views';
 
 const BoothCanvas = dynamic(() => import('./BoothCanvas'), { ssr: false });
@@ -39,13 +40,20 @@ export function BoothHost({ lightmap = null }: { lightmap?: string | null }) {
   const stageRef = useRef<HTMLDivElement>(null);
   // house lights (a mode of this page): no stage is registered, so the canvas draws nothing
   const houseLights = useBooth((s) => s.houseLights);
-  const live = mode !== 'off' && !houseLights;
+  // C5: the home page's Index view: the booth is off on "/", like house lights, until 3D viewport
+  const homeIndex = useBooth((s) => s.homeIndex) && mode === 'full';
+  const live = mode !== 'off' && !houseLights && !homeIndex;
+  useEffect(() => {
+    document.documentElement.toggleAttribute('data-home-index', homeIndex);
+  }, [homeIndex]);
 
   // Project pages: the sample goes on the tray. The lamp is never changed by a route: it stays
   // whatever the visitor picked (D50 until they pick); the native lamp is offered as a chip.
   useEffect(() => {
     setActiveSlug(mode === 'header' ? pathname.split('/')[2] : null);
   }, [pathname, mode, setActiveSlug]);
+  // I3: a turned object faces front again when the route changes
+  useEffect(() => resetSpins(), [pathname]);
 
   useEffect(() => {
     if (!live || !stageRef.current) return;

@@ -3,13 +3,13 @@ import { notFound } from 'next/navigation';
 import { preload } from 'react-dom';
 import { avifFor } from '@/content/masters';
 import { sizedFile, srcSetFor } from '@/lib/responsive';
-import { getWork, nextWork, works } from '@/content/work';
+import { getWork, nextWork, prevWork, works } from '@/content/work';
 import { NextLink } from '@/components/ui/NextLink';
-import { OutboundLink } from '@/components/ui/OutboundLink';
 import { ProofStrip } from '@/components/ui/ProofStrip';
 import { SlugLine } from '@/components/ui/SlugLine';
 import { SpecPlate } from '@/components/ui/SpecPlate';
 import { UvCaption } from '@/components/ui/UvCaption';
+import { TrayTurn } from '@/components/ui/TrayTurn';
 import { JsonLd, workLd } from '@/lib/jsonld';
 
 type Props = { params: Promise<{ slug: string }> };
@@ -38,6 +38,7 @@ export default async function WorkPage({ params }: Props) {
   const work = getWork((await params).slug);
   if (!work) notFound();
   const next = nextWork(work.slug);
+  const prev = prevWork(work.slug);
   // the first proof is the page's largest paint: fetch it first (AVIF where a master exists)
   const first = work.deliverables[0];
   // H5: preload the sized set the <picture> will actually pick (srcset + sizes), so phones never
@@ -51,63 +52,78 @@ export default async function WorkPage({ params }: Props) {
   const index = works.indexOf(work) + 1;
   const serial = 40 + index * 6;
 
+  const sections = work.sections ?? [];
+  const more = work.deliverables.map((_, i) => i).slice(3);
+
   return (
     <article className="work">
       <JsonLd data={workLd(work)} />
-      {work.inLineup && <div className="work__stage" aria-hidden="true" />}
-      <div className="work__body rail g12">
-        <header className="work__head">
-          <SlugLine id={serial} archive={!work.inLineup} />
-          <h1>{work.title}</h1>
-          <p className="work__meta">
-            {work.role} · {work.year}
-          </p>
-        </header>
-
-        {/* work first: the opening deliverable sits straight under the title */}
-        <ProofStrip deliverables={work.deliverables} serialBase={serial} part="hero" />
-        <UvCaption notes={work.uvNotes.map((n) => n.text)} />
-
-        <div className="work__intro g12">
-          <SpecPlate work={work} serial={serial} />
-          <div className="work__copy">
-            {work.description?.length ? (
-              <>
-                {work.description.map((p) => <p key={p.slice(0, 32)}>{p}</p>)}
-                {work.sections?.map((sec) => (
-                  <section key={sec.heading} className="work__section">
-                    <h2>{sec.heading}</h2>
-                    {sec.body.map((p) => <p key={p.slice(0, 32)}>{p}</p>)}
-                  </section>
-                ))}
-              </>
-            ) : null}
-            {work.uvNotes.length > 0 && (
-              <section className="sr-only" aria-label="Proofer's notes, printed in UV ink">
-                <h2>Proofer&apos;s notes (visible under the UV lamp)</h2>
-                <ul>
-                  {work.uvNotes.map((n) => (
-                    <li key={n.text}>{n.text}</li>
-                  ))}
-                </ul>
-              </section>
-            )}
+      {work.inLineup && (
+        <div className="work__stage">
+          <TrayTurn slug={work.slug} title={work.title} />
+        </div>
+      )}
+      <div className="work__body rail">
+        {/* D2: left, the title block stacked on the calibration label; right, the first frame (M1),
+            its top on the title block's */}
+        <div className="work__top">
+          <div className="work__left">
+            <header className="work__head">
+              <SlugLine id={serial} archive={!work.inLineup} />
+              <h1>{work.title}</h1>
+              <p className="work__meta">
+                {work.role} · {work.year}
+              </p>
+            </header>
+            <SpecPlate work={work} serial={serial} />
+          </div>
+          <div className="work__m1">
+            <ProofStrip deliverables={work.deliverables} serialBase={serial} items={[0]} layout="one" label="Opening deliverable" />
+            <UvCaption notes={work.uvNotes.map((n) => n.text)} />
           </div>
         </div>
 
-        <ProofStrip deliverables={work.deliverables} serialBase={serial} part="rest" />
-
-        <div className="work__links">
-          {work.links?.map((l) => (
-            <OutboundLink key={l.href} href={l.href} name={`${work.slug}: ${l.label}`} className="proofset">
-              {l.label} ↗
-            </OutboundLink>
-          ))}
-          <NextLink href={`/work/${next.slug}`}>
-            <span className="mono">Next on the tray</span> {next.title} →
-          </NextLink>
-        </div>
+        {/* D3: the story. P1 centred; M2 and M3 side by side; P2 and P3 side by side; then the rest */}
+        {work.description?.length ? (
+          <div className="work__p1 work__copy">
+            {work.description.map((p) => <p key={p.slice(0, 32)}>{p}</p>)}
+          </div>
+        ) : null}
+        <ProofStrip deliverables={work.deliverables} serialBase={serial} items={[1, 2]} layout="pair" label="Deliverables 2 and 3" />
+        {sections.length > 0 && (
+          <div className="work__pp work__copy" data-count={Math.min(2, sections.length)}>
+            {sections.map((sec) => (
+              <section key={sec.heading} className="work__section">
+                <h2>{sec.heading}</h2>
+                {sec.body.map((p) => <p key={p.slice(0, 32)}>{p}</p>)}
+              </section>
+            ))}
+          </div>
+        )}
+        {more.length > 0 && <ProofStrip deliverables={work.deliverables} serialBase={serial} items={more} layout="grid" label="More deliverables" />}
+        {work.uvNotes.length > 0 && (
+          <section className="sr-only" aria-label="Proofer's notes, printed in UV ink">
+            <h2>Proofer&apos;s notes (visible under the UV lamp)</h2>
+            <ul>
+              {work.uvNotes.map((n) => (
+                <li key={n.text}>{n.text}</li>
+              ))}
+            </ul>
+          </section>
+        )}
       </div>
+
+      {/* D5: full width, wrapping round the lineup */}
+      <nav className="worknav rail" aria-label="Projects">
+        <NextLink href={`/work/${prev.slug}`} className="worknav__prev">
+          <span className="mono">← Previous project</span>
+          <span className="worknav__title">{prev.title}</span>
+        </NextLink>
+        <NextLink href={`/work/${next.slug}`} className="worknav__next">
+          <span className="mono">Next on the tray →</span>
+          <span className="worknav__title">{next.title}</span>
+        </NextLink>
+      </nav>
     </article>
   );
 }

@@ -110,7 +110,7 @@ export const LAMPS: LampPreset[] = [
     id: 'D50', label: 'D50 · Daylight', ariaLabel: 'Daylight, D50', readout: '5000K', spec: 'D50 · 5000K · CRI 98', key: '1', indicator: '#F4F3EE',
     // The full diffuser: even, near-shadowless light, broad soft speculars, a soft gradient down the back wall.
     panel: { intensity: 2.1, colour: D50, w: 1.36, d: 0.68, z: -0.1 },
-    diffuser: 0.78,
+    diffuser: 0.95,
     keyLight: { intensity: 1.6, colour: D50, position: [0.1, 0.78, 0.42], target: [0, 0.05, -0.15], angle: 1.4, penumbra: 1, decay: 2, shadowRadius: 9, shadowIntensity: 0.35 },
     fill: { intensity: 0.32, sky: D50, ground: [0.55, 0.55, 0.54] },
     front: 0.25,
@@ -126,7 +126,7 @@ export const LAMPS: LampPreset[] = [
     // A tube bank set back over the row: top-light, front faces fall off, crisp shadows thrown
     // forward, narrow specular streaks on gloss. Floor stays within a stop (booth lamp).
     panel: { intensity: 2.9, colour: TL84, w: 1.36, d: 0.45, z: -0.14 },
-    diffuser: 0.74,
+    diffuser: 0.9,
     keyLight: { intensity: 1.5, colour: TL84, position: [0, 0.78, -0.38], target: [0, 0, 0.18], angle: 1.3, penumbra: 0.35, decay: 2, shadowRadius: 2.5, shadowIntensity: 0.55 },
     fill: { intensity: 0.42, sky: TL84, ground: [0.42, 0.45, 0.42] },
     front: 0.45,

@@ -20,6 +20,9 @@ function pose(dist: number): Shot {
   return { position, target, dist };
 }
 
+/** C3: how much taller than the portrait box the cabinet is framed on phones. */
+const PHONE_ZOOM = 1.22;
+
 const cam = new PerspectiveCamera(FOV, 1, 0.05, 20);
 const v = new Vector3();
 
@@ -68,7 +71,9 @@ export function cabinetShot(
   for (let i = 0; i < 40; i++) {
     const mid = (lo + hi) / 2;
     const fb = faceBox(pose(mid), stage);
-    const fits = portrait ? fb.h <= box.height : fb.w <= box.width && fb.h <= box.height;
+    // C3: phones get their own, closer shot: the cabinet 22% taller than the box, the black hood and
+    // sill cropped equally, so the samples read larger while one is panned to the centre
+    const fits = portrait ? fb.h <= box.height * PHONE_ZOOM : fb.w <= box.width && fb.h <= box.height;
     if (fits) hi = mid;
     else lo = mid;
   }
@@ -85,7 +90,7 @@ export function cabinetShot(
     dx = box.left + box.width / 2 - fx;
     dx = Math.min(box.left - fb.l, Math.max(box.left + box.width - fb.r, dx));
   }
-  const dy = box.top + box.height - fb.b;
+  const dy = portrait ? box.top + box.height / 2 - (fb.t + fb.b) / 2 : box.top + box.height - fb.b;
   // setViewOffset moves the picture by -offset: a positive dx (move right) is a negative offset
   const out: FramedShot = { ...shot, offset: [-dx, -dy] };
   if (cache.size > 64) cache.clear();

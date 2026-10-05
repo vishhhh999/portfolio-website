@@ -15,7 +15,7 @@ export type BaseKind = 'plinth' | 'riser' | 'tray';
  * the front. Small, tall pieces stand at the front corners so perspective does not shrink them
  * below 12% of the cabinet width (tools/check-sizes.mjs).
  */
-export type Staging = { object: Size3; base: Size3 & { kind: BaseKind }; x: number; z: number; scale?: number; yaw?: number };
+export type Staging = { object: Size3; base: Size3 & { kind: BaseKind }; x: number; z: number; scale?: number; yaw?: number; backing?: { w: number; h: number } };
 
 const sized = (o: Size3, s: number): Size3 => ({ w: o.w * s, h: o.h * s, d: o.d * s });
 
@@ -62,7 +62,7 @@ export const STAGING: Record<string, Staging> = {
     scale: 0.78,
   },
   sook: { object: sized({ w: 0.3016, h: 0.1012, d: 0.0951 }, 0.78), base: { kind: 'plinth', w: 0.27, d: 0.12, h: 0.06 }, x: frontX.sook, z: FRONT_Z, scale: 0.78 },
-  shunya: { object: sized({ w: 0.42, h: 0.0905, d: 0.27 }, 0.55), base: { kind: 'riser', w: 0.25, d: 0.17, h: 0.07 }, x: frontX.shunya, z: FRONT_Z - 0.01, scale: 0.55 },
+  shunya: { object: sized({ w: 0.42, h: 0.0905, d: 0.27 }, 0.55), base: { kind: 'riser', w: 0.25, d: 0.17, h: 0.07 }, x: frontX.shunya, z: FRONT_Z - 0.01, scale: 0.55, backing: { w: 0.27, h: 0.19 } },
   'house-of-hex': { object: sized({ w: 0.09, h: 0.1758, d: 0.13 }, 2.2), base: { kind: 'plinth', w: 0.2, d: 0.2, h: 0.03 }, x: frontX['house-of-hex'], z: FRONT_Z - 0.04, scale: 2.2 },
   // raised middle: the laptop, the tug, the tablet
   mitooshi: { object: { w: 0.3152, h: 0.2125, d: 0.3035 }, base: { kind: 'plinth', w: 0.34, d: 0.3, h: 0.28 }, x: -0.394, z: MID_Z, scale: 1 },
@@ -75,8 +75,8 @@ export const STAGING: Record<string, Staging> = {
 /** The About object (B2): a small framed certificate standing on the shelf, top right. */
 export const CERTIFICATE = { w: 0.16, h: 0.12, d: 0.012, x: 0.56, lean: 0.12 } as const;
 
-/** Plinths: matte, Munsell N8, a touch warmer than the N7 walls. */
-export const PLINTH_GREY = '#BDBCB8';
+/** Plinths: matte, Munsell N8.5, a touch warmer than the N8 walls. */
+export const PLINTH_GREY = '#CBCAC6';
 /** 2mm bevel on every plinth edge. */
 export const PLINTH_CHAMFER = 0.002;
 

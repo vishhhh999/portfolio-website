@@ -7,6 +7,7 @@ import { useBooth } from '@/lib/store';
 import { useReducedMotion } from '@/lib/useReducedMotion';
 import { frameRect, stageRect } from '@/lib/views';
 import { cabinetShot, lineupShot, trayShot } from './shots';
+import { spinDragging } from '@/lib/spin';
 import { FOV, STAGING } from './staging';
 
 const PARALLAX_YAW = MathUtils.degToRad(1.5);
@@ -47,7 +48,7 @@ export function CameraRig() {
       return;
     }
     const onMove = (e: PointerEvent) => {
-      if (e.pointerType !== 'mouse') return;
+      if (e.pointerType !== 'mouse' || spinDragging()) return; // turning an object never moves the camera
       pointer.current = { x: (e.clientX / innerWidth) * 2 - 1, y: (e.clientY / innerHeight) * 2 - 1 };
       invalidate();
     };

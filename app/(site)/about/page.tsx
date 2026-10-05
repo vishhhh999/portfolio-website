@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { about } from '@/content/about';
-import { CvLink, PassStamp } from '@/components/ui/AboutBits';
+import { CvLink, IstClock } from '@/components/ui/AboutBits';
 import { OutboundLink } from '@/components/ui/OutboundLink';
 import { SOCIALS } from '@/lib/site';
 
@@ -40,8 +40,8 @@ export default function AboutPage() {
               </div>
               <div>
                 <dt>Location</dt>
-                <dd>
-                  {about.location} · {about.remote}
+                <dd className="cert__where">
+                  {about.location} <IstClock />
                 </dd>
               </div>
             </dl>
@@ -117,13 +117,6 @@ export default function AboutPage() {
           </div>
         </div>
 
-        <footer className="cert__foot">
-          <span className="cert__sign">
-            <span className="cert__line" aria-hidden="true" />
-            <span className="mono">Checked under D50 · TL84 · A · UV-A</span>
-          </span>
-          <PassStamp />
-        </footer>
       </article>
     </section>
   );

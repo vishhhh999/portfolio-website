@@ -3,6 +3,7 @@ import { lineup } from '@/content/work';
 import { BoothFrame } from '@/components/booth/BoothFrame';
 import { STAGING } from '@/components/booth/staging';
 import { HouseIndex } from '@/components/ui/HouseIndex';
+import { HomeIndex } from '@/components/ui/HomeIndex';
 
 export default function Home() {
   return (
@@ -22,6 +23,9 @@ export default function Home() {
             .sort((a, b) => STAGING[a.slug].x - STAGING[b.slug].x)
             .map((w) => ({ slug: w.slug, title: w.title, meta: w.disciplines.join(' · ') }))}
         />
+        {/* C4: the lamp panel sits here on home, centred under the booth, in the flow */}
+        <div id="panel-slot" className="panel-slot" />
+        <HomeIndex />
       </section>
       {/* house lights mode: the flat index in place of the booth, same URL (shown by <html data-house-lights>) */}
       <section className="houselights houselights--inline" aria-label="Index">

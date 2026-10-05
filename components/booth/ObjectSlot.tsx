@@ -6,7 +6,7 @@ import { ContactShadows, Html } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { AnimationMixer, LoopOnce, Box3, Color, FrontSide, Matrix4, Mesh, MeshStandardMaterial, Vector3, type AnimationAction, type Camera, type Group, type Material, type Object3D } from 'three';
+import { AnimationMixer, LoopOnce, Box3, BufferGeometry, ExtrudeGeometry, Shape, Color, FrontSide, Matrix4, Mesh, MeshStandardMaterial, Vector3, type AnimationAction, type Camera, type Group, type Material, type Object3D } from 'three';
 import type { Work } from '@/lib/types';
 import { isMobileTier } from '@/lib/perfTier';
 import { useBooth } from '@/lib/store';
@@ -14,12 +14,13 @@ import { useReducedMotion } from '@/lib/useReducedMotion';
 import { baseFor, baseMaterial, ContactBlob } from './BoothRoom';
 import { loadModel } from './models';
 import { attachScreen } from './deviceScreen';
-import { RECEDE_DZ, STAGING, TRAY } from './staging';
+import { PLINTH_GREY, RECEDE_DZ, STAGING, TRAY } from './staging';
 import { applyUV, blankInk, createProofInk } from './uvMaterial';
 import { setFocusRect } from './focus';
 import { playEvent } from '@/lib/sound';
 import { track } from '@/lib/analytics';
 import { openProject, warmProject } from '@/lib/navigate';
+import { DRAG_PX, RAD_PER_PX, onSpin, setSpinDragging, spinDragging, spinOf } from '@/lib/spin';
 
 const _v = new Vector3();
 /** drei Html places labels in canvas space; the booth camera's projection spans the canvas too. */
@@ -34,6 +35,13 @@ const htmlLayer = {
     return (typeof document !== 'undefined' ? document.querySelector<HTMLElement>('.booth-canvas') : null) as HTMLElement;
   },
 };
+
+let wedgeMat: MeshStandardMaterial | null = null;
+/** The Bengal set's wedge: the same matte N8 as the plinths. */
+const wedgeMaterial = () => (wedgeMat ??= new MeshStandardMaterial({ color: PLINTH_GREY, roughness: 0.9, envMapIntensity: 0.4 }));
+/** SHUNYA's backing board: matte N3.5, so the white pieces on the clear riser read against it. */
+let backingMat: MeshStandardMaterial | null = null;
+const backingMaterial = () => (backingMat ??= new MeshStandardMaterial({ color: '#4A4A48', roughness: 0.92, envMapIntensity: 0.3 }));
 
 /** How dark the lineup gets while another sample is on the tray. */
 const RECEDE_DIM = 0.9;
@@ -57,6 +65,7 @@ function ModelObject({ work, onReady }: { work: Work; onReady: () => void }) {
   const gl = useThree((s) => s.gl);
   const invalidate = useThree((s) => s.invalidate);
   const [root, setRoot] = useState<Object3D | null>(null);
+  const [wedge, setWedge] = useState<BufferGeometry | null>(null);
   const m = work.model!;
   const anim = useRef<{ mixer: AnimationMixer; action: AnimationAction; duration: number; p: number } | null>(null);
   const reduced = useReducedMotion();
@@ -118,6 +127,26 @@ function ModelObject({ work, onReady }: { work: Work; onReady: () => void }) {
             anim.current = { mixer, action, duration: clip.duration, p: 0 };
           }
         }
+        // B3: a flat set stands on its own sloped wedge, cut to the model's tilt (its bottom plane)
+        if (m.stand === 'wedge') {
+          const bb = new Box3().setFromObject(scene);
+          const t = m.rotation?.[0] ?? 0, off = m.plinthOffset ?? 0;
+          const yAt = (zz: number) => Math.max(0.004, off - zz * Math.sin(t) - 0.0015);
+          const zf = bb.max.z * Math.cos(t), zb = bb.min.z * Math.cos(t);
+          const shape = new Shape();
+          shape.moveTo(zf, 0);
+          shape.lineTo(zf, yAt(bb.max.z));
+          shape.lineTo(zb, yAt(bb.min.z));
+          shape.lineTo(zb, 0);
+          shape.closePath();
+          const width = (bb.max.x - bb.min.x) * 0.86;
+          const g = new ExtrudeGeometry(shape, { depth: width, bevelEnabled: true, bevelThickness: 0.002, bevelSize: 0.002, bevelSegments: 1 });
+          // the shape is drawn in (z, y): turn it so the extrusion runs along x, centred
+          g.rotateY(-Math.PI / 2);
+          g.translate(width / 2, 0, 0);
+          g.computeVertexNormals();
+          setWedge(g);
+        }
         setRoot(scene);
         invalidate();
         onReady();
@@ -144,7 +173,12 @@ function ModelObject({ work, onReady }: { work: Work; onReady: () => void }) {
     invalidate();
   });
   if (!root) return null;
-  return <primitive object={root} rotation={m.rotation ?? [0, 0, 0]} position={[0, m.plinthOffset ?? 0, 0]} />;
+  return (
+    <>
+      <primitive object={root} rotation={m.rotation ?? [0, 0, 0]} position={[0, m.plinthOffset ?? 0, 0]} />
+      {wedge && <mesh geometry={wedge} material={wedgeMaterial()} castShadow receiveShadow />}
+    </>
+  );
 }
 
 /**
@@ -157,6 +191,9 @@ export function ObjectSlot({ work, lineup }: { work: Work; lineup: string[] }) {
   const slotRef = useRef<Group>(null);
   const objRef = useRef<Group>(null);
   const liftRef = useRef<Group>(null);
+  const spinRef = useRef<Group>(null);
+  const wasSpinning = useRef(false);
+  const [shadowKey, setShadowKey] = useState(0);
   const router = useRouter();
   const invalidate = useThree((s) => s.invalidate);
   const activeSlug = useBooth((s) => s.activeSlug);
@@ -207,6 +244,7 @@ export function ObjectSlot({ work, lineup }: { work: Work; lineup: string[] }) {
   const size = useThree((st) => st.size);
   const box = useMemo(() => ({ v: new Vector3(), corners: [-1, 1].flatMap((sx) => [0, 1].flatMap((sy) => [-1, 1].map((sz) => [sx, sy, sz] as const))) }), []);
   useEffect(() => () => setFocusRect(work.slug, null), [work.slug]);
+  useEffect(() => onSpin(() => invalidate()), [invalidate]);
 
   useFrame((_, rawDt) => {
     // a non-monotonic or stalled clock never jumps or inverts the motion: 0 ≤ dt ≤ 100ms
@@ -255,7 +293,33 @@ export function ObjectSlot({ work, lineup }: { work: Work; lineup: string[] }) {
       obj.visible = !(receded && d.obj > 0.45);
     }
 
+    // I: the turntable. Drag sets the yaw directly; on release it coasts and damps (none under
+    // reduced motion); the keyboard eases to a 15° step. Only this object's own group turns.
+    const sp = spinOf(work.slug);
+    let spinning = false;
+    if (spinDragging() !== work.slug) {
+      if (sp.target !== null) {
+        sp.yaw = reduced ? sp.target : sp.yaw + (sp.target - sp.yaw) * (1 - Math.exp(-dt * 12));
+        if (Math.abs(sp.target - sp.yaw) < 1e-3) (sp.yaw = sp.target), (sp.target = null);
+        else spinning = true;
+      } else if (sp.v !== 0) {
+        sp.yaw += sp.v * dt;
+        sp.v *= Math.exp(-dt * 3.2);
+        if (Math.abs(sp.v) < 0.03) sp.v = 0;
+        spinning = true;
+      }
+    }
+    if (spinRef.current && spinRef.current.rotation.y !== sp.yaw) {
+      spinRef.current.rotation.y = sp.yaw;
+      spinning = true;
+    }
+
+    // the contact shadow is baked once: re-bake it when a turn comes to rest
+    if (wasSpinning.current && !spinning && spinDragging() !== work.slug) setShadowKey((k) => k + 1);
+    wasSpinning.current = spinning || spinDragging() === work.slug;
+
     const moving =
+      spinning ||
       Math.abs(slotZ - slot.position.z) > 1e-4 ||
       Math.abs(tx - obj.position.x) + Math.abs(ty - obj.position.y) + Math.abs(tz - obj.position.z) > 1e-4 ||
       Math.abs(td - d.obj) > 1e-3 ||
@@ -263,8 +327,10 @@ export function ObjectSlot({ work, lineup }: { work: Work; lineup: string[] }) {
       Math.abs(liftGoal - d.lift) > 1e-3;
     if (moving) invalidate();
 
-    // where this object is on screen, for the keyboard layer's focusable button (home lineup only)
-    if (activeSlug === null && obj.visible) {
+    // where this object is on screen: the keyboard layer's focusable button (home lineup only), and
+    // B4: a sample is pickable only with ≥ 60% of its projected box inside the view
+    let pick = obj.visible;
+    if (obj.visible) {
       obj.updateWorldMatrix(true, false);
       let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
       for (const [sx, sy, sz] of box.corners) {
@@ -272,8 +338,20 @@ export function ObjectSlot({ work, lineup }: { work: Work; lineup: string[] }) {
         const px = ((box.v.x + 1) / 2) * size.width, py = ((1 - box.v.y) / 2) * size.height;
         x0 = Math.min(x0, px); x1 = Math.max(x1, px); y0 = Math.min(y0, py); y1 = Math.max(y1, py);
       }
-      setFocusRect(work.slug, { x: x0, y: y0, w: x1 - x0, h: y1 - y0 });
+      const r = window.__boothStageRect?.();
+      if (r) {
+        const ix = Math.max(0, Math.min(x1, r.right) - Math.max(x0, r.left));
+        const iy = Math.max(0, Math.min(y1, r.bottom) - Math.max(y0, r.top));
+        pick = (ix * iy) / Math.max(1, (x1 - x0) * (y1 - y0)) >= 0.6;
+      }
+      if (activeSlug === null) setFocusRect(work.slug, { x: x0, y: y0, w: x1 - x0, h: y1 - y0 });
+      else setFocusRect(work.slug, null);
     } else setFocusRect(work.slug, null);
+    slot.userData.pickable = pick;
+    if (!pick && hovered) {
+      setHovered(false);
+      document.body.style.cursor = '';
+    }
   });
 
   const keySlug = useBooth((st) => st.keySlug);
@@ -283,9 +361,46 @@ export function ObjectSlot({ work, lineup }: { work: Work; lineup: string[] }) {
     <group
       ref={slotRef}
       position={[x, 0, z]}
+      onPointerDown={(e) => {
+        // I: press and drag turns the object (phones: only the one on the project tray)
+        if (!work.model || (mobile && !active) || e.button !== 0) return;
+        e.stopPropagation();
+        const sp = spinOf(work.slug);
+        let last = e.nativeEvent.clientX, travel = 0, t = performance.now();
+        sp.target = null;
+        sp.v = 0;
+        const move = (ev: PointerEvent) => {
+          const dx = ev.clientX - last;
+          last = ev.clientX;
+          travel += Math.abs(dx);
+          if (travel < DRAG_PX) return;
+          setSpinDragging(work.slug);
+          const now = performance.now();
+          const step = dx * RAD_PER_PX;
+          sp.yaw += step;
+          const dtm = Math.max(8, now - t) / 1000;
+          sp.v = sp.v * 0.6 + (step / dtm) * 0.4;
+          t = now;
+          invalidate();
+        };
+        const up = () => {
+          window.removeEventListener('pointermove', move);
+          window.removeEventListener('pointerup', up);
+          window.removeEventListener('pointercancel', up);
+          if (spinDragging() === work.slug) {
+            // a pause before letting go leaves nothing to coast on
+            if (reduced || performance.now() - t > 90) sp.v = 0;
+            setSpinDragging(null);
+            invalidate();
+          }
+        };
+        window.addEventListener('pointermove', move);
+        window.addEventListener('pointerup', up);
+        window.addEventListener('pointercancel', up);
+      }}
       onClick={(e) => {
         e.stopPropagation();
-        if (e.delta > 12) return; // a swipe across the cabinet, not a tap on this sample
+        if (e.delta >= DRAG_PX) return; // a drag (turning the object) or a swipe, not a tap on this sample
         if (active) return;
         playEvent('select', e.nativeEvent.clientX);
         track('Project opened', { slug: work.slug, from: 'booth' });
@@ -305,10 +420,16 @@ export function ObjectSlot({ work, lineup }: { work: Work; lineup: string[] }) {
     >
       {basePart && <mesh geometry={basePart.geometry} material={baseMat} position={[0, base.h / 2, 0]} castShadow receiveShadow />}
       <ContactBlob w={base.w} d={base.d} spread={1.18} />
+      {st.backing && (
+        // B3: a dark board standing just behind the riser, leaning back a little
+        <mesh position={[0, st.backing.h / 2, -base.d / 2 - 0.012]} rotation={[-0.08, 0, 0]} material={backingMaterial()} castShadow receiveShadow>
+          <boxGeometry args={[st.backing.w, st.backing.h, 0.008]} />
+        </mesh>
+      )}
       <group ref={objRef} position={[0, base.h, 0]}>
         {/* the object's own contact shadow, rendered once (it moves with the object) */}
         {!perfOff('contact') && <ContactShadows
-          key={`${modelReady ? 'ready' : 'wait'}-${lamp}`}
+          key={`${modelReady ? 'ready' : 'wait'}-${lamp}-${shadowKey}`}
           frames={3}
           position={[0, 0.001, 0]}
           scale={[object.w * 1.5, object.d * 1.6]}
@@ -319,8 +440,10 @@ export function ObjectSlot({ work, lineup }: { work: Work; lineup: string[] }) {
           color="#1a1a19"
         />}
         <group ref={liftRef}>
-          <group scale={st.scale ?? 1}>
-            {work.model && <ModelObject work={work} onReady={onModelReady} />}
+          <group ref={spinRef}>
+            <group scale={st.scale ?? 1}>
+              {work.model && <ModelObject work={work} onReady={onModelReady} />}
+            </group>
           </group>
         </group>
         {/* portalled into the fixed, clipped canvas layer: drei defaults to the event source (body), where chips widen the page */}
