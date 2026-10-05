@@ -36,11 +36,26 @@ function worstDrop(lums) {
   }
   return { worst, at };
 }
-function report(name, lums, extra = '') {
-  const { worst, at } = worstDrop(lums);
+/**
+ * Worst valley: a frame darker than the brightest of the 3 frames before it AND of the 3 after it.
+ * A transition from one level to another (a lamp change, a dolly to the tray) is a step, not a
+ * flicker; a frame that dips below both sides is one.
+ */
+function worstValley(lums) {
+  let worst = 0, at = -1;
+  for (let i = 1; i < lums.length - 1; i++) {
+    const before = Math.max(...lums.slice(Math.max(0, i - 3), i)), after = Math.max(...lums.slice(i + 1, i + 4));
+    const ref = Math.min(before, after);
+    const drop = ref > 0 ? (ref - lums[i]) / ref : 0;
+    if (drop > worst) (worst = drop), (at = i);
+  }
+  return { worst, at };
+}
+function report(name, lums, extra = '', valley = false) {
+  const { worst, at } = valley ? worstValley(lums) : worstDrop(lums);
   const ok = lums.length > 5 && worst <= 0.05;
   if (!ok) fails++;
-  console.log(`${ok ? 'PASS' : 'FAIL'} ${name}: ${lums.length} frames, luminance ${Math.min(...lums).toFixed(1)}-${Math.max(...lums).toFixed(1)}, worst drop ${(worst * 100).toFixed(1)}%${at >= 0 ? ` at frame ${at}` : ''}${extra}`);
+  console.log(`${ok ? 'PASS' : 'FAIL'} ${name}: ${lums.length} frames, luminance ${Math.min(...lums).toFixed(1)}-${Math.max(...lums).toFixed(1)}, worst ${valley ? 'dip below both sides' : 'drop'} ${(worst * 100).toFixed(1)}%${at >= 0 ? ` at frame ${at}` : ''}${extra}`);
 }
 async function capture(p, action) {
   await p.evaluate(() => (window.__boothCapture = { on: true, lums: [] }));
@@ -89,7 +104,7 @@ if (run('reveal')) {
 const p = await b.newPage({ viewport: { width: W, height: H } });
 await p.addInitScript(() => sessionStorage.setItem('vm:opened:v1', '1')); // J5: no opening strike in steady-state checks
 p.setDefaultTimeout(900000);
-await p.goto(BASE + '/?perf', { waitUntil: 'networkidle' });
+await p.goto(BASE + '/?perf&events', { waitUntil: 'networkidle' });
 await p.waitForSelector('.booth-stage[data-ready="true"]', { timeout: 900000 });
 await p.waitForTimeout(2000);
 
@@ -118,13 +133,19 @@ if (run('lamp')) {
   await p.mouse.move(4, 4);
   await key(p, '1');
   await p.waitForTimeout(3500);
+  // the lamps' interiors are captured while idle after the reveal (in software rendering that takes
+  // minutes); wait for A's, so the switch measures the switch, then force a few steady frames on each side
+  await p.waitForFunction(() => document.body.innerText.includes('env capture A'), null, { timeout: 900000 }).catch(() => {});
+  const steady = () => p.evaluate(() => window.__boothBench?.(1)); // one presented frame, nothing changed
   const lums = await capture(p, async () => {
-    await key(p, '3');
-    await p.waitForTimeout(3500);
-    await key(p, '1');
-    await p.waitForTimeout(3500);
+    for (const k of ['3', '1']) {
+      for (let i = 0; i < 3; i++) (await steady(), await p.waitForTimeout(300));
+      await key(p, k);
+      await p.waitForTimeout(3500);
+    }
+    for (let i = 0; i < 3; i++) (await steady(), await p.waitForTimeout(300));
   });
-  report('lamp change D50 → A → D50', lums);
+  report('lamp change D50 → A → D50', lums, '', true);
 }
 
 // ── turntable: drag a sample, release, let it coast and re-bake its contact shadow ──────────
@@ -152,7 +173,7 @@ if (run('jsw')) {
     await p.waitForURL('**/work/jsw-sports');
     await p.waitForTimeout(5000);
   });
-  report('JSW open (dolly, tray, open)', lums);
+  report('JSW open (dolly, tray, open)', lums, '', true);
 }
 
 await b.close();

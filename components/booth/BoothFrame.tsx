@@ -19,10 +19,11 @@ export function BoothFrame({ samples: given }: { samples: FrameSample[] }) {
   const ref = useRef<HTMLDivElement>(null);
   // G (08): on phones the swipe follows the phone arrangement, front row first, left to right
   const [samples, setSamples] = useState(given);
+  const [ordered, setOrdered] = useState(false);
   useEffect(() => {
-    if (!PHONE_LAYOUT) return setSamples(given);
     const tier = (slug: string) => Math.round(STAGING[slug].z * 4);
-    setSamples([...given].sort((a, b) => tier(b.slug) - tier(a.slug) || STAGING[a.slug].x - STAGING[b.slug].x));
+    setSamples(PHONE_LAYOUT ? [...given].sort((a, b) => tier(b.slug) - tier(a.slug) || STAGING[a.slug].x - STAGING[b.slug].x) : given);
+    setOrdered(true);
   }, [given]);
   const focusSlug = useBooth((s) => s.focusSlug);
   const setFocus = useBooth((s) => s.setFocusSlug);
@@ -65,8 +66,8 @@ export function BoothFrame({ samples: given }: { samples: FrameSample[] }) {
   }, []);
   // start on the centre sample
   useEffect(() => {
-    if (!useBooth.getState().focusSlug && samples.length) setFocus(samples[Math.floor(samples.length / 2)].slug);
-  }, [samples, setFocus]);
+    if (ordered && !useBooth.getState().focusSlug && samples.length) setFocus(samples[Math.floor(samples.length / 2)].slug);
+  }, [ordered, samples, setFocus]);
 
   const go = (d: number) => {
     const i = Math.min(samples.length - 1, Math.max(0, index + d));

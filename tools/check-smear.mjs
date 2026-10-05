@@ -86,7 +86,9 @@ for (const W of widths) {
   let v = await check(p, `${W} / → /work/too-yumm (opened from the booth)`);
   report(kinds(v) === 'stage', `${W} views on /work/too-yumm = ${kinds(v)} (expected stage)`);
   await p.evaluate(() => document.querySelector('a[href="/work/sonde"]')?.click() || window.next?.router?.push('/work/sonde'));
-  if (!p.url().endsWith('/work/sonde')) await p.goto(BASE + '/work/sonde', { waitUntil: 'networkidle' });
+  // the soft navigation can take a while in software rendering: wait for it before falling back to a
+  // load (a fallback that races it pushes a second history entry)
+  await p.waitForURL('**/work/sonde', { timeout: 30000 }).catch(() => p.goto(BASE + '/work/sonde', { waitUntil: 'networkidle' }));
   await p.waitForTimeout(2500);
   await scrollTo(p, 900);
   v = await check(p, `${W} /work/sonde scrolled 900`);

@@ -195,10 +195,14 @@ export function LampRig() {
     const lamp = lampOverride ?? liveLamp;
     const strikeProgress = override ?? liveProgress;
     const P = lampById(lamp);
-    const curve = useBooth.getState().opening ? 'opening' : P.strike.curve;
-    const ch = strikeChannels(curve, strikeProgress);
+    const opening = useBooth.getState().opening;
+    const curve = opening ? 'opening' : P.strike.curve;
+    // C (08): only the first-visit opening strikes from dark. A lamp change is at full output from its
+    // first frame (a strike from black read as a blink on every switch); FLOOD keeps its exposure
+    // settle, which only ever brightens
+    const ch = opening ? strikeChannels(curve, strikeProgress) : { ...strikeChannels(curve, 1), exposure: strikeChannels(curve, strikeProgress).exposure };
     const env = ch.light;
-    const ramp = strikeKelvin(curve, strikeProgress);
+    const ramp = opening ? strikeKelvin(curve, strikeProgress) : null;
     const onTray = activeSlug !== null;
 
     scene.environmentIntensity = ENV_INTENSITY[lamp] * env;
