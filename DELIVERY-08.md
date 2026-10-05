@@ -8,7 +8,22 @@ Work is on branch `claude/session-access-question-dqidr4`. The screenshots are i
 
 ## 1. Tests
 
-@@TESTS@@
+| Check | What it proves | Result |
+|---|---|---|
+| `check-flicker` (extended, C7) | No presented frame dips: the reveal (poster vs live ≤ 4%), hover on and off every sample under D50 and A, a lamp change, a turntable spin and release, the JSW open | **PASS**. Reveal: poster vs live 1.03%. Hover: worst 0.5% (D50), 0.7% (A). Lamp change: worst dip 0.1% (it was 83.6% before the fix below). Spin: 0.6%. JSW open: 0.0% |
+| `check-poster` (new, C1) | The poster matches the live booth | **PASS**: 1.34% desktop, 0.52% phone (limit 2.5%) |
+| `poster-hash --check` (in the build) | The build refuses a poster older than the booth | **PASS** |
+| `check-sizes` (E, G) | Long side ≥ 11% (9% raised); boxes overlap ≤ 3%; ≥ 8cm clear. Phones: ≥ 14% of the box, all in frame, ≥ 5cm | **PASS** at 1440, 1568, 2560×1271, 1920, 1366, 725. Smallest: the phone, 9.1% (raised); Too Yumm 11.9%; worst overlap 1.0% (725); gap 11.0cm. Phones 390×844 and 430×932: smallest 14.9%, overlap 0.0%, gap 5.5cm, all in frame |
+| `check-picking` (B4) | A click opens only what is seen, on `/` and all nine project pages, at 1568×980, 390×844 and 430×932 | **PASS**, every point on all 30 route × size runs |
+| `check-views` | The booth drawn on its DOM rect | **PASS**, 12 of 12 (after fitting the cabinet 1px inside its frame: the antialiased silhouette had overhung by 2.5–3px at 1920 and 2560) |
+| `check-layout` | Centred stage at the cabinet's aspect; booth and panel in one screen | **PASS**, 43 of 43 |
+| `check-smear` | No stale booth pixels; each route registers only its own views | **PASS** |
+| `check-houselights`, `check-lamp`, `check-sound`, `check-07`, `check-switch`, `check-overflow`, `check-redirects` | | **PASS** (check-07: 21 of 21) |
+| Typecheck, production build, Vercel preview | | **PASS** |
+
+**Two bugs the new checks caught:**
+- **The lamp blink.** After the first-visit opening, every lamp change replayed its strike from black: the tubes flickered, the filament ramped, the screens came up from dark. On a GPU that reads as a flash to black on each switch. Now only the first-visit opening strikes; a lamp change is at full output from its first frame. FLOOD keeps its exposure settle, which only brightens.
+- **Hover never reached the booth.** The faded-out poster sat over the canvas and caught the pointer, so there was no hover, chip or focus. It now ignores pointer events.
 
 ## 2. Frame budget (B)
 
@@ -57,7 +72,7 @@ The still frame is 24% cheaper than the moving one. On a still frame the normal 
 - **The poster is the live booth.** `tools/make-posters.mjs` renders it from the current staging: the cabinet frame crop at 1200 and 2400, plus a 4:5 phone poster.
   - The build refuses a stale poster (`tools/poster-hash.mjs --check` hashes every input of the booth image).
   - `check-poster` compares the poster with the live render: 1.34% mean difference on desktop, 0.52% on the phone (limit 2.5%).
-  - 07's poster was a different staging. It fails both this check and the reveal check in `check-flicker`.
+  - 07's poster showed an older staging (it was a still from before the 07 layout). The build's hash check now makes that impossible: any change to the staging, models, lamps or materials changes the hash and stops the build until the posters are regenerated.
 - **Reveal.** The poster stays until the visible models are in, the lamp's interior is captured and one full frame has rendered (programs compiled first). It then crossfades over 300ms; a model that arrives later fades in over 250ms. Contact sheet: `reveal-sheet.jpg`.
 - **No runtime pass changes.** Every pass exists from the first frame. Lights that switch on, like the hover key and the certificate spot, stay in the scene at intensity 0, so no material recompiles mid-session.
 - **Pre-capture.** Every lamp's environment is captured while idle, after the reveal, so the first switch to a lamp no longer captures on screen.
@@ -92,7 +107,9 @@ The still frame is 24% cheaper than the moving one. On a still frame the normal 
 
 - **Per-project framing.** In a tray shot, any neighbour that would overlap the tray object or be cut by the frame edge drops out with its base (`shots.ts` `trayHidden`). The rest stay dimmed and whole. The tray object's own empty plinth always drops out. This fixes the JSW book above the laptop on /work/mitooshi.
 - **Screen glass:** coat roughness ~0.12, environment 0.35, and no direct specular from the lamps' small sources, so there is no hot spot.
-- **JSW artwork:** desktop now carries WebP at the full 2048, encoded from the lossless PNG art, not the JPEG embedded in the GLB. That removes UASTC+RDO's block grid and softness, and the file is 0.64MB (was 1.52MB). Side by side with `ref-open.png`: `jsw-compare.jpg`.
+- **JSW artwork:** desktop now carries WebP at the full 2048, encoded from the lossless PNG art, not the JPEG embedded in the GLB. The file is 0.64MB (was 1.52MB; the 07 file was UASTC with RDO at 1536). Side by side (07 encoding · 08 encoding · `ref-open.png`, at 2560, book held open): `jsw-compare.jpg`.
+  - **What actually made the pages sharp is filtering, not the encoding.** The open pages are seen at an angle, and the model textures were loading with anisotropy 1, so trilinear filtering smeared the type. Every model's artwork now gets 8× anisotropic filtering. With it, the 07 and 08 encodings are nearly indistinguishable at tray zoom, so the WebP's win is its smaller file.
+  - **The grid is in the artwork, not the encoding.** The inner pages of `jsw-sports_basecolor.png` carry a printed layout grid, faintly visible in the Blender reference too. I left it, since removing it would change the art. If it isn't meant to print, it needs taking out of the texture in Blender (then `node tools/optimize-models.mjs jsw-sports`).
 - **Other models at tray zoom:** @@TEXTURES@@
 
 ## 7. Phone staging (G)
@@ -127,4 +144,10 @@ Also: `reveal-sheet.jpg` (12 frames, first paint → poster → crossfade → li
 
 ## 10. Budgets
 
-@@BUDGETS@@
+| Budget | Target | Now |
+|---|---|---|
+| Frame at 1440p (RTX) | p50 ≤ 8ms, p95 ≤ 11ms | Read on the RTX with the §2 commands. In software rendering, a still frame costs 76% of a moving one |
+| Models, desktop | | 8.77MB in total across nine files, loaded in view priority (JSW 1.52 → 0.64MB) |
+| Models, mobile | | 2.22MB |
+| SCREEN on pouch / book / SOOK | 15–25 L* | 19.3 / 22.4 / 20.8 |
+| Poster vs live | ≤ 2.5% | 1.34% desktop, 0.52% phone |

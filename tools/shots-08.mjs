@@ -37,35 +37,45 @@ const lampKey = { D50: '1', A: '3', SCREEN: '6', AFTERDARK: '7' };
 for (const [w, h] of [[2560, 1440], [1568, 980], [390, 844]]) {
   if (only && !only.includes(`${w}`)) continue;
   const tag = `${w}x${h}`;
-  const p = await open(w, h, '/');
-  for (const lamp of ['D50', 'A', 'SCREEN', 'AFTERDARK']) {
-    await key(p, lampKey[lamp]);
-    if (lamp === 'AFTERDARK' && w > 600) {
-      const r = await p.locator('.booth-frame').boundingBox();
-      await p.mouse.move(r.x + r.width * 0.42, r.y + r.height * 0.6, { steps: 4 });
+  const jswOnly = only.includes('jsw');
+  const p = jswOnly ? null : await open(w, h, '/');
+  if (!jswOnly) {
+    for (const lamp of ['D50', 'A', 'SCREEN', 'AFTERDARK']) {
+      await key(p, lampKey[lamp]);
+      if (lamp === 'AFTERDARK' && w > 600) {
+        const r = await p.locator('.booth-frame').boundingBox();
+        await p.mouse.move(r.x + r.width * 0.42, r.y + r.height * 0.6, { steps: 4 });
+      }
+      await p.waitForTimeout(4000);
+      await snap(p, `${tag}-home-${lamp}`);
     }
-    await p.waitForTimeout(4000);
-    await snap(p, `${tag}-home-${lamp}`);
+    await key(p, '1');
+    await p.waitForTimeout(3000);
+    if (w > 600) {
+      const { boxes } = await p.evaluate(() => window.__boothBoxes());
+      const r = boxes.mitooshi;
+      await p.mouse.move((r.x0 + r.x1) / 2 - 30, (r.y0 + r.y1) / 2 - 30);
+      await p.mouse.move((r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2, { steps: 6 });
+      await p.waitForFunction(() => document.querySelector('.specchip[data-visible="true"]'));
+      await p.waitForTimeout(2500);
+      await snap(p, `${tag}-home-hover-mitooshi`);
+    } else {
+      await p.evaluate(() => document.querySelectorAll('.booth-swipe__btn')[1]?.click());
+      await p.waitForTimeout(2500);
+      await snap(p, `${tag}-home-swipe`);
+    }
+    await p.close();
   }
-  await key(p, '1');
-  await p.waitForTimeout(3000);
-  if (w > 600) {
-    const { boxes } = await p.evaluate(() => window.__boothBoxes());
-    const r = boxes.mitooshi;
-    await p.mouse.move((r.x0 + r.x1) / 2 - 30, (r.y0 + r.y1) / 2 - 30);
-    await p.mouse.move((r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2, { steps: 6 });
-    await p.waitForFunction(() => document.querySelector('.specchip[data-visible="true"]'));
-    await p.waitForTimeout(2500);
-    await snap(p, `${tag}-home-hover-mitooshi`);
-  } else {
-    await p.evaluate(() => document.querySelectorAll('.booth-swipe__btn')[1]?.click());
-    await p.waitForTimeout(2500);
-    await snap(p, `${tag}-home-swipe`);
-  }
-  await p.close();
-  for (const slug of ['mitooshi', 'jsw-sports', 'shunya', 'indo-thai']) {
+  for (const slug of jswOnly ? ['jsw-sports'] : ['mitooshi', 'jsw-sports', 'shunya', 'indo-thai']) {
     const q = await open(w, h, `/work/${slug}`);
-    if (slug === 'jsw-sports') await q.waitForTimeout(3000);
+    if (slug === 'jsw-sports') {
+      // the open clip held fully open (software rendering advances it ≤ 0.1s per frame)
+      await q.evaluate(() => {
+        window.__boothAnimHold = 1;
+        window.dispatchEvent(new Event('resize'));
+      });
+      await q.waitForTimeout(5000);
+    }
     await snap(q, `${tag}-work-${slug}`);
     await q.close();
   }
@@ -78,11 +88,14 @@ if (!only || only.includes('reveal')) {
   p.setDefaultTimeout(900000);
   await p.addInitScript(() => {
     sessionStorage.setItem('vm:opened:v1', '1');
-    new MutationObserver(() => {
-      if (!document.documentElement.hasAttribute('data-booth-ready') || window.__fadeHeld) return;
-      window.__fadeHeld = true;
-      requestAnimationFrame(() => document.getAnimations().forEach((a) => (a.pause(), (a.currentTime = 0))));
-    }).observe(document.documentElement, { attributes: true });
+    // polled every frame (an observer set up here would run before <html> exists)
+    const watch = () => {
+      if (document.documentElement?.hasAttribute('data-booth-ready')) {
+        window.__fadeHeld = true;
+        requestAnimationFrame(() => document.getAnimations().forEach((a) => (a.pause(), (a.currentTime = 0))));
+      } else requestAnimationFrame(watch);
+    };
+    requestAnimationFrame(watch);
   });
   const t0 = Date.now();
   await p.goto(BASE + '/?gpu=high', { waitUntil: 'domcontentloaded' });
@@ -92,14 +105,14 @@ if (!only || only.includes('reveal')) {
   const clip = { x: r.x, y: r.y, width: r.width, height: r.height };
   const pick = [];
   for (let i = 0; i < 4; i++) {
-    if (await p.evaluate(() => window.__fadeHeld === true)) break;
+    if (pick.length >= 2 || (await p.evaluate(() => window.__fadeHeld === true))) break;
     pick.push({ png: await p.screenshot({ clip }), t: Date.now() - t0, label: 'poster, loading' });
     await p.waitForTimeout(2500);
   }
   await p.waitForFunction(() => window.__fadeHeld === true, null, { timeout: 900000 });
   const readyAt = Date.now() - t0;
   await p.waitForTimeout(300);
-  for (const ms of [0, 50, 100, 150, 200, 250, 300]) {
+  for (const ms of [0, 40, 80, 120, 160, 200, 240, 270, 300]) {
     await p.evaluate((ms) => document.getAnimations().forEach((a) => (a.currentTime = ms)), ms);
     await p.waitForTimeout(150);
     pick.push({ png: await p.screenshot({ clip }), t: ms, label: `crossfade ${ms}ms` });

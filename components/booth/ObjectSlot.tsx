@@ -225,6 +225,10 @@ function ModelObject({ work, onReady }: { work: Work; onReady: () => void }) {
           // a material per mesh (the ink matrix is per mesh), shared textures untouched
           const mat = (mesh.material as Material).clone() as MeshStandardMaterial;
           if (m.frontSide) mat.side = FrontSide;
+          // F3 (08): artwork is often seen at an angle (the open book, a pouch's side): anisotropic
+          // filtering keeps the type sharp where trilinear alone smears it
+          const aniso = Math.min(8, gl.capabilities.getMaxAnisotropy());
+          for (const t of [mat.map, mat.emissiveMap]) if (t && t.anisotropy < aniso) (t.anisotropy = aniso), (t.needsUpdate = true);
           mat.envMapIntensity = 0.8;
           toRoot.copy(mesh.matrixWorld);
           applyUV(mat, { fluorFromBase: true, inkProj: { ...ink, space: toRoot.clone() } });

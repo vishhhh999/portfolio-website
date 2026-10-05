@@ -35,6 +35,11 @@ p.setDefaultTimeout(900000);
 await p.addInitScript(() => sessionStorage.setItem('vm:opened:v1', '1'));
 await p.goto(BASE + '/work/jsw-sports?gpu=high&perf&no=focus', { waitUntil: 'networkidle' });
 await p.waitForSelector('.booth-stage[data-ready="true"]');
+// the open clip held fully open (software rendering advances it ≤ 0.1s per frame); a resize redraws
+await p.evaluate(() => {
+  window.__boothAnimHold = 1;
+  window.dispatchEvent(new Event('resize'));
+});
 await p.waitForTimeout(6000);
 const r = await p.locator('.booth-stage').boundingBox();
 // the open book sits in the middle of the tray shot
