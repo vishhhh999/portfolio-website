@@ -63,7 +63,9 @@ let pick = null;
 const cand = await p.evaluate(() => {
   const st = window.__boothStageRect?.();
   const boxes = window.__boothBoxes?.().boxes ?? {};
-  return ['mitooshi', 'sonde', 'house-of-hex'].map((slug) => ({ slug, b: boxes[slug], st: st && { top: st.top, bottom: st.bottom } })).filter((c) => c.b && c.st);
+  // F1 (08): the tray shot hides neighbours that overlap or are cut, so scan every sample's box and
+  // take the sample the booth actually picks there
+  return Object.keys(boxes).filter((s) => s !== 'jsw-sports' && s !== 'about').map((slug) => ({ slug, b: boxes[slug], st: st && { top: st.top, bottom: st.bottom } })).filter((c) => c.b && c.st);
 });
 for (const c of cand) {
   for (let i = 1; i < 5 && !pick; i++)
@@ -72,7 +74,10 @@ for (const c of cand) {
       if (y > c.st.bottom - 4) continue;
       await p.mouse.move(x, y);
       await p.waitForTimeout(120);
-      if (await p.evaluate(() => document.body.style.cursor === 'pointer')) pick = { slug: c.slug, x, y };
+      if (await p.evaluate(() => document.body.style.cursor === 'pointer')) {
+        const hit = await p.evaluate(([x, y]) => window.__boothPickAt?.(x, y)?.pick ?? null, [x, y]);
+        if (hit && hit !== 'jsw-sports' && hit !== 'about') pick = { slug: hit, x, y };
+      }
     }
   if (pick) break;
 }

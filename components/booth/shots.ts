@@ -66,6 +66,9 @@ export function cabinetShot(
   const hit = cache.get(key);
   if (hit) return hit;
   const portrait = box.width / box.height < 1;
+  // the drawn silhouette (antialiased edge, chamfered frame) reaches ~1px past the face's projected
+  // corners: fit a landscape cabinet 1px inside the box on each side, so it never draws past its frame
+  if (!portrait) box = { left: box.left + 1, top: box.top + 1, width: box.width - 2, height: box.height - 1 };
   // bisection on distance: projected size falls monotonically as the camera backs off
   let lo = 0.3, hi = 30;
   for (let i = 0; i < 40; i++) {
