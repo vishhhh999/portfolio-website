@@ -20,8 +20,8 @@ function pose(dist: number): Shot {
   return { position, target, dist };
 }
 
-/** C3: how much taller than the portrait box the cabinet is framed on phones. */
-const PHONE_ZOOM = 1.22;
+/** C3: the cabinet's height relative to the portrait box on phones (1: exactly the box). */
+const PHONE_ZOOM = 1;
 
 const cam = new PerspectiveCamera(FOV, 1, 0.05, 20);
 const v = new Vector3();
@@ -71,8 +71,9 @@ export function cabinetShot(
   for (let i = 0; i < 40; i++) {
     const mid = (lo + hi) / 2;
     const fb = faceBox(pose(mid), stage);
-    // C3: phones get their own, closer shot: the cabinet 22% taller than the box, the black hood and
-    // sill cropped equally, so the samples read larger while one is panned to the centre
+    // C3: phones get their own portrait shot: the cabinet's height fills the box, panned to the focused
+    // sample. (It can't be framed tighter: the booth draws into the whole stage, so anything past the
+    // box would land on the headline.)
     const fits = portrait ? fb.h <= box.height * PHONE_ZOOM : fb.w <= box.width && fb.h <= box.height;
     if (fits) hi = mid;
     else lo = mid;

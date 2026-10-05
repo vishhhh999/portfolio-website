@@ -69,7 +69,11 @@ if (!only || only.includes('sheet')) {
   const q = await open(1568, 980, '/work/jsw-sports');
   const frames = [];
   for (let i = 0; i < 12; i++) {
-    await q.evaluate((v) => (window.__boothAnimHold = v), i / 11);
+    // the canvas renders on demand: a resize makes it draw the held frame
+    await q.evaluate((v) => {
+      window.__boothAnimHold = v;
+      window.dispatchEvent(new Event('resize'));
+    }, i / 11);
     await q.waitForTimeout(700);
     const f = `${OUT}_sheet-${String(i).padStart(2, '0')}.png`;
     const r = await q.locator('.booth-stage').boundingBox();
