@@ -74,7 +74,7 @@ The full original concept, phases and locked rules are in `BRIEF.md` in the repo
 
 | Route | What |
 |---|---|
-| `/` | One centred column: the headline "Tested under every light.", the subtext, the booth (nine samples plus the About certificate on the shelf), the lamp panel in the flow under it. Stage width = min(content width, 1.6 × the height left), so booth and panel fit one screen. Phones (< 600px) have their own closer portrait shot, swiped sample to sample. The nav's first item swaps the home view in place (URL unchanged): **Index** (a clean list: number, project, discipline, year, image preview on hover) ⇄ **3D viewport**. In house lights mode: the flat house-lights index, same URL. |
+| `/` | One centred column: the headline "Tested under every light.", the subtext, the booth (nine samples plus the About certificate on the shelf), the lamp panel in the flow under it. Stage width = min(content width, 1.6 × the height left), so booth and panel fit one screen. Phones (< 600px) have their own portrait shot (the cabinet's height fills a 4:5 box), swiped sample to sample. The nav's first item swaps the home view in place (URL unchanged): **Index** (a clean list: number, project, discipline, year, image preview on hover) ⇄ **3D viewport**. In house lights mode: the flat house-lights index, same URL. |
 | `/work/[slug]` | The booth header (≥ 62svh desktop, ≥ 48svh phone, starting under the masthead) with that sample on the tray; drag (or ← → on the focused header) turns it. Below, the story: title block on the calibration label (left) beside M1 (right, tops aligned); P1 centred (~62ch); M2 + M3 side by side; P2 + P3 side by side; then the rest in a grid. The live link ("Live site ↗" / "Full case study ↗") is a row inside the calibration label (Mitooshi, Sonde, House of Hex, Indo Thai only). Footer: "← Previous project" / "Next on the tray →", full width, wrapping round the lineup. Images are the plain files under every lamp (torch only under AFTER DARK). In house lights mode: no booth header, same content. |
 | `/house-lights` | A shareable direct link to the flat index (no WebGL). No UI link points here. House lights is only the rocker / I; the nav's Index is a separate home view. |
 | `/about` | "Certificate of Calibration", full width: two columns from 1100px (name, discipline, location, what I do, portrait · experience, education, awards, tool stack, clients), one column below. LOCATION reads "India" plus a live IST clock (24h, ticks each minute, client-only). No "checked under" / PASS strip. CV PDF (`/Vishesh-Mahendru-CV.pdf`) and socials. No CTA and no email block on the certificate (the email lives in the footer). |
@@ -180,7 +180,7 @@ The data shape is in `lib/types.ts`. Key fields:
 | File | Role |
 |---|---|
 | `staging.ts` | Booth dimensions (1.5 × 0.8m), cove, cabinet header, hood, diffuser; the 9 samples in 3 tiers (front row packed with 8.3cm gaps, raised middle tier, JSW high at the back) with per-sample scale and position, SHUNYA's backing, JSW's open width on the tray (`trayW`); the certificate; lens FOV 35; eye height and pitch |
-| `shots.ts` | Camera shots: `cabinetShot` contain-fits the cabinet to the stage, with lens shift (phones: their own closer portrait shot, `PHONE_ZOOM`); `trayShot` for project pages |
+| `shots.ts` | Camera shots: `cabinetShot` contain-fits the cabinet to the stage, with lens shift (phones: their own portrait shot, panned to the focused sample); `trayShot` for project pages |
 | `CameraRig.tsx` | Smooth camera moves; pointer parallax max 1.5° (0.6° vertical) |
 | `shell.ts` | Booth shell geometry (rounded boxes, second UV set for the baked AO/lightmap atlas) |
 | `BoothRoom.tsx` | Shell materials (N8 walls), floor (reflective on desktop), diffuser, lightmap hook; the cabinet's solid parts are picking occluders |
@@ -190,7 +190,7 @@ The data shape is in `lib/types.ts`. Key fields:
 | `deviceScreen.ts`, `screens.ts` | A device GLB's `screen` mesh: the brand logo on its `bg.txt` colour by UV0, a glass coat with fingerprints, an area light the size of the display (desktop) |
 | `imperfections.ts` | Fingerprints and scratches (acrylic, glass, screens), paper fibre normal, wiped wall roughness |
 | `uvMaterial.ts` | UV fluorescence and invisible-ink shader chunk, hover rim |
-| `environment.ts` | Reflection environment per lamp (PMREM): a built stand-in first, then the real booth interior captured on the GPU once the lamp has settled (desktop, cached per lamp) |
+| `environment.ts` | Reflection environment per lamp (PMREM): the real booth interior, captured on the GPU the first time each lamp is on screen with the rig at that lamp's full output (desktop, cached per lamp); a built stand-in on phones |
 | `LampRig.tsx` | All seven lamp rigs, strike animation, shadow invalidation |
 | `Post.tsx` | Post chain: scissored views (full MSAA resolve only when the view rects change), tone mapping only inside the booth (PBR Neutral for D50 / TL84 / A, AgX for the dark lamps), a gentle stage vignette, desktop depth of field (tray or hovered object), bloom, colour matrix, grain only in the stage box, MSAA with SMAA fallback, SSAO on desktop, loupe pixel reads; `?perf` per-pass profiler |
 | `PerfProbe.tsx` | Frame timing, resolution step-down, slow GPU → automatic house lights |

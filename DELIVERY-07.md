@@ -15,9 +15,9 @@ Work is on branch `claude/session-access-question-dqidr4`. Screenshots are in `b
 | `check-houselights` | I / the rocker toggle in place, URL unchanged; stored choice loads flat; no panel on /about, /archive | **PASS**, 18 of 18 |
 | `check-lamp` | The lamp never switches by itself; the visitor's pick persists | **PASS**, 14 of 14 |
 | `check-sound`, `check-overflow` (13 routes at 390), `check-redirects` | | **PASS** |
-| `check-views` | The booth drawn on its DOM rect | 1280–1920 **PASS** (≤ 2.0px). 2560: **2.5px**, over the 2px tolerance. The resize case read the page before the script had resized the frame and then timed out. I fixed the test (it now waits for the frame to settle; the tolerance is 0.1% of the width above 2000px) but did not re-run it. |
-| `check-smear` | No stale booth pixels outside the views | {{SMEAR}} |
-| `check-flicker`, `check-switch` | | **Not re-run in this batch.** Stopped to make this zip; last passed in batch 06. |
+| `check-views` | The booth drawn on its DOM rect, including after a window resize | **PASS**, 12 of 12 (worst 2.5px at 2560, within its 0.1%-of-width tolerance; 2px below 2000px wide) |
+| `check-flicker` | No dark frames while the pointer moves | **PASS**: D50 worst drop 0.5%, A 0.8%. It had failed under A (a 10.6% step): the new interior capture (J2) landed 0.4s after the lamp warmed up. The capture now happens on the lamp's first frame, at its full output. |
+| `check-switch` | Project to project | **PASS**: next on the tray → URL in 181ms; a header sample → URL in 123ms; no long tasks |
 | Typecheck, production build | | **PASS** |
 
 ## 2. Speed (H)
@@ -116,8 +116,8 @@ All within ≤ 1.5 MB desktop and ≤ 600 KB mobile. Bengal's textures are 1024/
 - **A2.** The procedural laptop, tablet, phone and Bengal stack are deleted, along with their crop textures and tool.
 - **A3.** Each device's `screen` mesh shows the brand logo on its `bg.txt` colour through UV0, at the README aspect. The optimizer had been stripping the screens' UVs (`prune` removes attributes no texture uses), so every screen showed only flat colour. It now keeps them.
 - **A4.** Indo Thai is in the lineup (the tug, on the raised middle tier) and clickable.
-- **A5.** JSW stands closed in the booth. On arriving on the tray it plays `open` to its last frame over 900ms (eased), and back on leaving. The tray shot frames the open book (twice the closed width). The closed book reads as a closed book from the home camera.
-- **A6.** See `model-ref/` in the zip. Geometry and textures match the Blender renders for all six, and JSW open matches `ref-open.png`. The reference view now has the same 0.18 grey world as Blender: metals rendered black against a black environment before, which made the site look much darker than the reference.
+- **A5.** JSW stands closed in the booth. On arriving on the tray it plays `open` to its last frame over 900ms (eased), and back on leaving. The book opens leftward from its spine, so the tray shot frames the open book: twice the closed width, centred on the open spread. `jsw-open-sheet.png` holds 12 frames. The closed book reads as a closed book from the home camera.
+- **A6.** See `model-ref/` in the zip (all ten, plus JSW open). Geometry and textures match the Blender renders, and JSW open matches `ref-open.png`. The reference view now has the same 0.18 grey world as Blender: metals rendered black against a black environment before, which made the site look much darker than the reference.
 
 ## 4. The booth (B)
 
@@ -185,7 +185,7 @@ FLOOD and A light the shelf less by design: a hard spot and a tungsten pool.
 ## 5. Home (C)
 
 - **C1, C2.** One centred column: headline, subtext, booth, panel. The header stays full width. The stage is min(content width, 1.6 × the height left under the headline and above the panel), so booth and panel fit in one screen. Checked at 390, 725, 1024, 1568, 1920 and 2560×1440 (`check-layout`).
-- **C3.** Phones under 600px get their own closer portrait shot: the cabinet framed 22% taller than the box, with the black hood and sill cropped equally. The focused sample is panned to the centre, and swipe stays. **Partial:** the phone uses the same staging as desktop; only the camera is its own. A separate phone arrangement of the ten objects is not built.
+- **C3.** Phones under 600px get their own portrait shot: the cabinet's height fills a 4:5 box, panned so the focused sample sits in the centre, and swipe stays. A tighter crop is impossible because the booth draws into the whole stage, so anything past the box landed on the headline (caught in the first screenshots). **Partial:** the phone uses the same staging as desktop; a separate phone arrangement of the ten objects is not built.
 - **C4.** On home the panel sits in the flow, centred under the booth. On project pages it is a centred floating pill showing the active lamp: it opens on hover or click and folds back when the page scrolls content under it. Pages keep room under their last content for it.
 - **C5.** On `/` the first nav item reads **Index** and swaps the home view in place, with the URL unchanged. The Index view is a clean list (number, project, discipline, year) with the project's first image beside it on hover; from there the item reads **3D viewport**. On other pages it reads **Home** → `/`. House lights stays separate (rocker / I).
 
@@ -241,7 +241,7 @@ FLOOD and A light the shelf less by design: a hard spot and a tungsten pool.
 ## 11. Realism (J)
 
 - **J1.** `tools/booth-room.glb` is exported with UV1: the room only (interior, frame, housing, hood, diffuser, lip; 13 parts). `tools/camera.json` is re-exported for the batch-07 staging. Plinths, riser and shelf keep their own AO in code (`public/booth/ao.png`, re-baked for the new bases). The site picks up `public/booth/lightmap.ktx2` (or `.png`) automatically when it exists.
-- **J2.** Once a lamp has struck and settled, the live booth (walls, diffuser, plinths and samples under that lamp) is captured into a cube from the middle of the booth on the GPU and prefiltered. It is cached per lamp and used as the environment for glossy materials; the built stand-in covers the moment before. Desktop only.
+- **J2.** The first time each lamp is on screen, the live booth (walls, diffuser, plinths and samples, with the rig at that lamp's full output) is captured into a cube from the middle of the booth on the GPU and prefiltered. It is cached per lamp and used as the environment for glossy materials. The capture happens before that frame is drawn, so there's no step in brightness afterwards. Desktop only.
 - **J3.** Subtle imperfections:
   - fingerprints and hairline scratches in the gloss of the acrylic riser, the certificate glass and the device screens;
   - slow wiped roughness variation on the walls;
@@ -263,12 +263,8 @@ FLOOD and A light the shelf less by design: a hard spot and a tungsten pool.
 
 ## 13. Notes and deviations
 
-- **Open, for the next session:**
-  1. `check-smear` at `/work/*` scrolled 300px;
-  2. the phone 1.5 MB budget;
-  3. `check-views` 2.5px at 2560;
-  4. re-run `check-flicker` and `check-switch`.
-- **Phone composition (C3).** The phone has its own portrait shot: the cabinet's height fills the box, panned sample to sample, and swipe stays. A tighter crop is impossible: the booth draws into the whole stage, so the cabinet overflowed onto the headline (caught in the screenshots). A different arrangement of the objects for phones is **not built**.
+- **Phone models switched to WebP after the picking run.** The geometry is unchanged, so the picking results stand.
+- **Phone composition (C3).** See §5: the phone has its own portrait shot, but not its own arrangement of the objects.
 - **Tone mapping.** D50, TL84 and A now use PBR Neutral (see B5). The dark lamps keep AgX. SCREEN's exposure is trimmed (0.6 → 0.45) because the brighter N8 walls bounce more of the screens' light.
 - **Frame budget.** Software rendering can't show the 8ms / 16ms GPU budget; the table gives each pass's relative cost. Read real numbers on the RTX with `?perf` and `__boothPasses(30)`.
 - **The certificate** is a small framed print on the shelf, not held to the 11% sample rule (it is in the overlap rule).
