@@ -15,7 +15,7 @@ export type BaseKind = 'plinth' | 'riser' | 'tray';
  * the front. Small, tall pieces stand at the front corners so perspective does not shrink them
  * below 12% of the cabinet width (tools/check-sizes.mjs).
  */
-export type Staging = { object: Size3; base: Size3 & { kind: BaseKind }; x: number; z: number; scale?: number; yaw?: number; backing?: { w: number; h: number }; trayW?: number };
+export type Staging = { object: Size3; base: Size3 & { kind: BaseKind }; x: number; z: number; scale?: number; yaw?: number; backing?: { w: number; h: number }; trayW?: number; trayX?: number };
 
 const sized = (o: Size3, s: number): Size3 => ({ w: o.w * s, h: o.h * s, d: o.d * s });
 
@@ -69,8 +69,9 @@ export const STAGING: Record<string, Staging> = {
   'indo-thai': { object: sized({ w: 6.73, h: 1.202, d: 5.7 }, 0.041), base: { kind: 'plinth', w: 0.3, d: 0.25, h: 0.22 }, x: -0.009, z: MID_Z + 0.02, scale: 0.041 },
   sonde: { object: sized({ w: 0.2821, h: 0.2399, d: 0.14 }, 1.08), base: { kind: 'plinth', w: 0.32, d: 0.2, h: 0.28 }, x: 0.372, z: MID_Z, scale: 1.08 },
   // back, high: the book
-  // closed in the booth; on the tray it opens to two covers wide (trayW frames the open book)
-  'jsw-sports': { object: sized({ w: 0.359, h: 0.275, d: 0.027 }, 0.8), base: { kind: 'plinth', w: 0.33, d: 0.14, h: 0.38 }, x: 0, z: BACK_Z, scale: 0.8, trayW: 0.359 * 0.8 * 2.05 },
+  // closed in the booth; on the tray it opens to two covers wide, leftward from its spine (trayW and
+  // trayX frame the open book)
+  'jsw-sports': { object: sized({ w: 0.359, h: 0.275, d: 0.027 }, 0.8), base: { kind: 'plinth', w: 0.33, d: 0.14, h: 0.38 }, x: 0, z: BACK_Z, scale: 0.8, trayW: 0.359 * 0.8 * 2.05, trayX: (-0.359 * 0.8) / 2 },
 };
 
 /** The About object (B2): a small framed certificate standing on the shelf, top right. */

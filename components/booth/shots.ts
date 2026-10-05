@@ -107,7 +107,7 @@ export function lineupShot(aspect: number): FramedShot {
 
 /** Tray shot: the active sample alone on the tray, the same lens and pitch, owning the frame. */
 export function trayShot(slug: string, aspect: number): Shot {
-  const { object, trayW } = STAGING[slug];
+  const { object, trayW, trayX = 0 } = STAGING[slug];
   const { h } = object;
   const w = trayW ?? object.w;
   const tanH = tanV * aspect;
@@ -116,6 +116,6 @@ export function trayShot(slug: string, aspect: number): Shot {
   const dist = Math.max(fitH / 2 / tanV, fitW / 2 / tanH);
   const cy = TRAY.top + h * 0.5;
   // stand back along the pitched axis from the sample's centre
-  const position: [number, number, number] = [0, cy - Math.sin(PITCH) * dist, TRAY.z + Math.cos(PITCH) * dist];
-  return { target: [0, cy, TRAY.z], position, dist };
+  const position: [number, number, number] = [trayX, cy - Math.sin(PITCH) * dist, TRAY.z + Math.cos(PITCH) * dist];
+  return { target: [trayX, cy, TRAY.z], position, dist };
 }

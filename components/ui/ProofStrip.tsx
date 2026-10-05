@@ -59,13 +59,14 @@ function ProofFrame({ d, index, serial, onPlay, sizes }: { d: Deliverable; index
     const v = el as HTMLVideoElement;
     v.muted = true;
     v.defaultMuted = true;
-    // decode only near the screen: play within one viewport, pause beyond it (battery, GPU upload)
+    // H3: nothing is fetched before the video nears the screen (no autoplay attribute, preload none):
+    // it starts a quarter screen before it scrolls in and pauses once it has left
     const io = new IntersectionObserver(
       ([e]) => {
         if (e.isIntersecting) void v.play().catch(() => {});
         else v.pause();
       },
-      { rootMargin: '100% 0px' },
+      { rootMargin: '25% 0px' },
     );
     io.observe(v);
     return () => io.disconnect();
@@ -94,7 +95,7 @@ function ProofFrame({ d, index, serial, onPlay, sizes }: { d: Deliverable; index
         <div className="proof__image">
           {d.type === 'video' ? (
             <>
-              <video ref={ref} poster={d.poster ? sizedFile(d.poster, 1200) : undefined} muted loop playsInline autoPlay preload="metadata" aria-label={d.alt} style={{ aspectRatio: `${aspectOf(d)}` }}>
+              <video ref={ref} poster={d.poster ? sizedFile(d.poster, 1200) : undefined} muted loop playsInline preload="none" aria-label={d.alt} style={{ aspectRatio: `${aspectOf(d)}` }}>
                 {d.sources?.map((s) => <source key={s.src} src={s.src} type={s.type} />)}
                 <source src={d.src} type="video/mp4" />
               </video>
