@@ -1,5 +1,7 @@
 'use client';
 
+import { perfOff } from '@/lib/perfFlags';
+
 import { useFrame, useThree } from '@react-three/fiber';
 import {
   BlendFunction,
@@ -62,6 +64,8 @@ export const postState = {
 /** ?exposure=0.6: multiply every lamp's exposure (calibration only). */
 const EXPOSURE_OVERRIDE = typeof window !== 'undefined' ? Number(new URLSearchParams(window.location.search).get('exposure') ?? 1) || 1 : 1;
 const VIEW_DEBUG = typeof window !== 'undefined' && window.location.search.includes('viewdebug');
+/** ?perf: profiling and test hooks (the only paths besides the held loupe that read pixels back). */
+const PERF = typeof window !== 'undefined' && window.location.search.includes('perf');
 let debugScene: Scene | null = null;
 const MAGENTA = new MeshBasicMaterial({ color: 0xff00ff, toneMapped: false });
 /** The booth's opaque geometry in flat magenta (transparent layers such as the page shadow left out). */
@@ -99,8 +103,9 @@ function debugQuad() {
   return debugScene;
 }
 
-/** Rendered once per frame with the scissor off, only to resolve the MSAA buffer in full. */
+/** Rendered once per frame, only to resolve the MSAA buffer (in full, or the stage's rect: H2). */
 const EMPTY = new Scene();
+const resolveState = { key: '', fullLeft: 2 };
 
 /** The booth's scissor in buffer px this frame (the normal pass for SSAO uses the same). */
 const boothScissor = new Vector4();
@@ -162,9 +167,27 @@ class ViewsPass extends Pass {
     // the current stage the texture kept old frames: trails as the stage moved, and old views
     // (the home cabinet, proofs at old positions) under the page. One empty render with the
     // scissor off resolves the whole buffer, every frame.
-    inputBuffer.scissorTest = false;
-    renderer.setRenderTarget(inputBuffer);
-    renderer.render(EMPTY, this.boothCamera);
+    // H2: the full, unscissored copy is only needed while old content could survive outside the
+    // current view: for two frames after the stage rect changed (moved, resized, appeared, left).
+    // Otherwise only the stage's own rect is copied (nothing else was drawn this frame).
+    const key = `${boothScissor.x},${boothScissor.y},${boothScissor.z},${boothScissor.w},${inputBuffer.width},${inputBuffer.height}`;
+    if (key !== resolveState.key) {
+      resolveState.key = key;
+      resolveState.fullLeft = 2;
+    }
+    if (resolveState.fullLeft > 0) {
+      resolveState.fullLeft--;
+      inputBuffer.scissorTest = false;
+      renderer.setRenderTarget(inputBuffer);
+      renderer.render(EMPTY, this.boothCamera);
+    } else if (boothScissor.z > 0) {
+      inputBuffer.scissor.copy(boothScissor);
+      inputBuffer.scissorTest = true;
+      renderer.setRenderTarget(inputBuffer);
+      renderer.render(EMPTY, this.boothCamera);
+      inputBuffer.scissorTest = false;
+      renderer.setRenderTarget(inputBuffer);
+    }
     renderer.autoClear = autoClear;
   }
 }
@@ -407,10 +430,10 @@ export function Post() {
   // mobile tier: 2× MSAA and half-resolution bloom
   const mobile = isMobileTier();
   // ?nobloom: A/B test a lamp's look without bloom
-  const noBloom = typeof window !== 'undefined' && window.location.search.includes('nobloom');
+  const noBloom = (typeof window !== 'undefined' && window.location.search.includes('nobloom')) || perfOff('bloom');
   // MSAA on the composer's render target (the canvas's own antialias does nothing under a post
   // chain): 4× desktop, 2× mobile, capped at what the GPU supports. SMAA when MSAA is unavailable.
-  const samples = Math.min(mobile ? 2 : 4, gl.capabilities.isWebGL2 ? gl.capabilities.maxSamples : 0);
+  const samples = perfOff('msaa') ? 0 : Math.min(mobile ? 2 : 4, gl.capabilities.isWebGL2 ? gl.capabilities.maxSamples : 0);
   const composer = useMemo(() => new EffectComposer(gl, { frameBufferType: HalfFloatType, multisampling: samples }), [gl, samples]);
   postApi.samples = samples;
   const fx = useMemo(() => {
@@ -423,7 +446,7 @@ export function Post() {
       if (bloom.intensity > 0.001) update(renderer, inputBuffer, deltaTime);
     };
     // desktop: subtle SSAO at half resolution (mobile relies on the baked AO only)
-    const normals = mobile ? null : new BoothNormalPass(scene, camera, { resolutionScale: 0.5 });
+    const normals = mobile || perfOff('ssao') ? null : new BoothNormalPass(scene, camera, { resolutionScale: 0.5 });
     const ssao = normals
       ? new SSAOEffect(camera, normals.texture, {
           resolutionScale: 0.5,
@@ -453,6 +476,49 @@ export function Post() {
       mask: new ViewMaskEffect(coverage.target),
     };
   }, [mobile, scene, camera]);
+
+  // ?perf: per-pass timing. Each pass is closed with a 1px readback (a real GPU sync point), so the
+  // numbers are each pass's own cost; window.__boothPasses(n) renders n frames and averages them.
+  useEffect(() => {
+    if (!PERF) return;
+    const times = new Map<string, number[]>();
+    let on = false;
+    const ctx = gl.getContext();
+    const px = new Uint8Array(4);
+    const sync = () => ctx.readPixels(0, 0, 1, 1, ctx.RGBA, ctx.UNSIGNED_BYTE, px);
+    const wrap = () => {
+      for (const pass of composer.passes as (Pass & { __timed?: boolean })[]) {
+        if (pass.__timed) continue;
+        pass.__timed = true;
+        const orig = pass.render.bind(pass);
+        pass.render = (...a: Parameters<Pass['render']>) => {
+          if (!on) return orig(...a);
+          const t0 = performance.now();
+          orig(...a);
+          sync();
+          const name = pass.name || 'pass';
+          (times.get(name) ?? times.set(name, []).get(name)!).push(performance.now() - t0);
+        };
+      }
+    };
+    (window as unknown as { __boothPasses: (n?: number) => unknown }).__boothPasses = (n = 20) => {
+      wrap();
+      times.clear();
+      on = true;
+      const total = window.__boothBench?.(n);
+      on = false;
+      const out: Record<string, number> = {};
+      let sum = 0;
+      for (const [k, v] of times) {
+        v.sort((a, b) => a - b);
+        out[k] = +v[Math.floor(v.length / 2)].toFixed(2);
+        sum += out[k];
+      }
+      out['scene prep (useFrame: reflector, contact shadows, shadow map)'] = total ? +(total.p50 - sum).toFixed(2) : NaN;
+      out.frameP50 = total?.p50 ?? NaN;
+      return out;
+    };
+  }, [gl, composer]);
 
   useEffect(() => {
     const prev = gl.toneMapping;
@@ -493,8 +559,9 @@ export function Post() {
     gl.setClearColor(0x000000, 0);
     gl.clear(true, true, false);
     composer.render(dt);
-    // A2 test hook: the mean luminance of the stage as presented, one entry per frame
-    const cap = window.__boothCapture;
+    // A2 test hook: the mean luminance of the stage as presented, one entry per frame. A GPU
+    // readback, so it exists only with ?perf (H1): production never reads pixels back.
+    const cap = PERF ? window.__boothCapture : undefined;
     if (cap?.on) {
       const r = stageRect();
       const ctx = gl.getContext();

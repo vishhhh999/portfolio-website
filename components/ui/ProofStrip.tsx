@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useBooth } from '@/lib/store';
 import type { Deliverable } from '@/lib/types';
 import { avifFor } from '@/content/masters';
+import { sizedFile, srcSetFor } from '@/lib/responsive';
 
 import { PALETTES } from '@/content/palettes';
 
@@ -42,10 +43,17 @@ function rows(list: Deliverable[], part: StripPart): number[][] {
   return out;
 }
 
+/** The rendered width of a frame in a row of n (desktop rail minus gaps; phones are full width). */
+const SIZES_FOR: Record<number, string> = {
+  1: '(max-width: 760px) 100vw, min(70vw, 1400px)',
+  2: '(max-width: 760px) 100vw, 48vw',
+  3: '(max-width: 760px) 100vw, 32vw',
+};
+
 /** 'hero' = the opening frame (work first, straight under the title); 'rest' = everything after it. */
 type StripPart = 'all' | 'hero' | 'rest';
 
-function ProofFrame({ d, index, serial, onPlay }: { d: Deliverable; index: number; serial: number; onPlay: (d: Deliverable) => void }) {
+function ProofFrame({ d, index, serial, onPlay, sizes }: { d: Deliverable; index: number; serial: number; onPlay: (d: Deliverable) => void; sizes: string }) {
   const ref = useRef<HTMLImageElement & HTMLVideoElement>(null);
   const lamp = useBooth((s) => s.lamp);
 
@@ -91,7 +99,7 @@ function ProofFrame({ d, index, serial, onPlay }: { d: Deliverable; index: numbe
         <div className="proof__image">
           {d.type === 'video' ? (
             <>
-              <video ref={ref} poster={d.poster} muted loop playsInline autoPlay preload="metadata" aria-label={d.alt} style={{ aspectRatio: `${aspectOf(d)}` }}>
+              <video ref={ref} poster={d.poster ? sizedFile(d.poster, 1200) : undefined} muted loop playsInline autoPlay preload="metadata" aria-label={d.alt} style={{ aspectRatio: `${aspectOf(d)}` }}>
                 {d.sources?.map((s) => <source key={s.src} src={s.src} type={s.type} />)}
                 <source src={d.src} type="video/mp4" />
               </video>
@@ -101,7 +109,15 @@ function ProofFrame({ d, index, serial, onPlay }: { d: Deliverable; index: numbe
             </>
           ) : (
             <picture>
-              {avifFor(d.src) && <source srcSet={avifFor(d.src)!} type="image/avif" />}
+              {/* H3: sized AVIF / WebP for the real layout width; the full file stays the fallback */}
+              {srcSetFor(d.src, 'avif') ? (
+                <>
+                  <source srcSet={srcSetFor(d.src, 'avif')!} sizes={sizes} type="image/avif" />
+                  <source srcSet={srcSetFor(d.src, 'webp')!} sizes={sizes} type="image/webp" />
+                </>
+              ) : (
+                avifFor(d.src) && <source srcSet={avifFor(d.src)!} type="image/avif" />
+              )}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 ref={ref}
@@ -109,7 +125,7 @@ function ProofFrame({ d, index, serial, onPlay }: { d: Deliverable; index: numbe
                 alt={d.alt}
                 width={d.width ?? 1600}
                 height={d.height ?? 1200}
-                loading={index < 3 ? 'eager' : 'lazy'}
+                loading={index === 0 ? 'eager' : 'lazy'}
                 fetchPriority={index === 0 ? 'high' : 'auto'}
                 decoding="async"
                
@@ -149,7 +165,7 @@ export function ProofStrip({ deliverables, serialBase, part = 'all' }: { deliver
               const a = aspectOf(d);
               return (
                 <div key={d.src} role="listitem" className="proofrow__item" style={{ flexGrow: a, flexBasis: 0, ['--aspect' as string]: a }}>
-                  <ProofFrame d={d} index={i} serial={serialBase + i} onPlay={setPlaying} />
+                  <ProofFrame d={d} index={i} serial={serialBase + i} onPlay={setPlaying} sizes={SIZES_FOR[Math.min(3, row.length)]} />
                 </div>
               );
             })}

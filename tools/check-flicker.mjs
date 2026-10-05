@@ -4,7 +4,7 @@
  * luminance is recorded (window.__boothCapture, read straight after the frame is drawn). No frame
  * may drop more than 5% below the median of its neighbours (±3 frames). Under D50 and A.
  *
- *   node tools/check-flicker.mjs [width=1568]
+ *   node tools/check-flicker.mjs (with ?perf) [width=1568]
  */
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
@@ -15,7 +15,7 @@ const b = await pw.chromium.launch({ args: ['--use-gl=angle', '--use-angle=swift
 const p = await b.newPage({ viewport: { width: W, height: H } });
 p.setDefaultTimeout(600000);
 let fails = 0;
-await p.goto(BASE + '/', { waitUntil: 'networkidle' });
+await p.goto(BASE + '/?perf', { waitUntil: 'networkidle' });
 await p.waitForSelector('.booth-stage[data-ready="true"]', { timeout: 600000 });
 await p.waitForTimeout(2000);
 for (const [lamp, key] of [['D50', '1'], ['A', '3']]) {

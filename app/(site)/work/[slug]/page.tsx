@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { preload } from 'react-dom';
 import { avifFor } from '@/content/masters';
+import { sizedFile, srcSetFor } from '@/lib/responsive';
 import { getWork, nextWork, works } from '@/content/work';
 import { NextLink } from '@/components/ui/NextLink';
 import { OutboundLink } from '@/components/ui/OutboundLink';
@@ -39,8 +40,14 @@ export default async function WorkPage({ params }: Props) {
   const next = nextWork(work.slug);
   // the first proof is the page's largest paint: fetch it first (AVIF where a master exists)
   const first = work.deliverables[0];
-  const firstSrc = first ? (first.type === 'video' ? first.poster : avifFor(first.src) ?? first.src) : null;
-  if (firstSrc) preload(firstSrc, { as: 'image', fetchPriority: 'high', type: firstSrc.endsWith('.avif') ? 'image/avif' : undefined });
+  // H5: preload the sized set the <picture> will actually pick (srcset + sizes), so phones never
+  // preload a file they then do not use
+  const firstSet = first && first.type === 'image' ? srcSetFor(first.src, 'avif') : null;
+  if (firstSet) preload(first!.src.replace(/\.webp$/, '.avif'), { as: 'image', fetchPriority: 'high', type: 'image/avif', imageSrcSet: firstSet, imageSizes: '(max-width: 760px) 100vw, min(70vw, 1400px)' });
+  else if (first) {
+    const one = first.type === 'video' ? first.poster && sizedFile(first.poster, 1200) : avifFor(first.src) ?? first.src;
+    if (one) preload(one, { as: 'image', fetchPriority: 'high' });
+  }
   const index = works.indexOf(work) + 1;
   const serial = 40 + index * 6;
 

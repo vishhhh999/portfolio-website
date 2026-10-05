@@ -390,10 +390,10 @@ export function LampRig() {
     if (useBooth.getState().lampPicked) proofUniforms.uNeutralize.value.identity();
     else proofUniforms.uNeutralize.value.copy(postState.matrix).invert();
 
-    // Diagnostics: log the rig once each time FLOOD (or any lamp, with ?lampdebug) settles.
+    // Diagnostics (?lampdebug only: it reads pixels back): log the rig once each time a lamp settles.
     if (strikeProgress >= 1 && lastLamp.current !== lamp) {
       lastLamp.current = lamp;
-      if (lamp === 'FLOOD' || window.location.search.includes('lampdebug')) {
+      if (window.location.search.includes('lampdebug')) {
         postState.diagnose = {
           lamp,
           key: {

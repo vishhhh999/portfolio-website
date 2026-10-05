@@ -149,7 +149,7 @@ export function createInkTexture(notes: string[], aspect: number, seed = 1) {
   c.height = H;
   const tex = new CanvasTexture(c);
   const draw = () => {
-    const g = c.getContext('2d')!;
+    const g = c.getContext('2d', { willReadFrequently: true })!;
     let r = seed * 9301;
     const rand = () => (r = (r * 9301 + 49297) % 233280) / 233280;
     const mono = monoFamily();
@@ -241,7 +241,7 @@ export function createProofInk(notes: { text: string; at: [number, number] }[], 
   c.height = H;
   const tex = new CanvasTexture(c);
   const draw = () => {
-    const g = c.getContext('2d')!;
+    const g = c.getContext('2d', { willReadFrequently: true })!;
     const mono = monoFamily();
     const u = Math.min(W, H) / 100;
     g.fillStyle = '#000';
