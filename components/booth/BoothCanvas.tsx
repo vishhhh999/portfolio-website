@@ -64,6 +64,8 @@ function stageEvents(store: Parameters<typeof createPointerEvents>[0]) {
         !onUi && r && event.clientX >= r.left && event.clientX <= r.left + r.width && event.clientY >= r.top && event.clientY <= r.top + r.height;
       if (!r || !inside) state.pointer.set(9, 9);
       else state.pointer.set((event.clientX / state.size.width) * 2 - 1, -(event.clientY / state.size.height) * 2 + 1);
+      // world matrices as drawn: some GLB subtrees are only refreshed inside the render itself
+      state.scene.updateMatrixWorld();
       state.raycaster.setFromCamera(state.pointer, state.camera);
     },
     /**
@@ -72,21 +74,31 @@ function stageEvents(store: Parameters<typeof createPointerEvents>[0]) {
      * solid of the cabinet (frame, hood, housing, lip) is in front of it.
      */
     filter(items: Intersection[], state: RootState) {
-      const seen = items.filter((i) => pickable(i.object) && isPart(i.object));
+      const seen = items.filter((i) => pickable(i.object) && isPart(i.object) && solid(i.object));
       if (!seen.length) return seen;
+      // anything solid that is not a sample (walls, cabinet, tray, floor) nearer than the first
+      // sample hides it; and only the nearest sample is hit (never one behind it)
       occluders ??= collectOccluders(state.scene);
-      const wall = state.raycaster.intersectObjects(occluders, false)[0];
-      return wall ? seen.filter((i) => i.distance <= wall.distance + 1e-4) : seen;
+      const first = seen[0];
+      const wall = state.raycaster.intersectObjects(occluders, false).find((h) => pickable(h.object) && solid(h.object));
+      if (wall && wall.distance < first.distance - 1e-4) return [];
+      const slug = slugOf(first.object);
+      return seen.filter((i) => slugOf(i.object) === slug);
     },
   };
 }
 let occluders: Object3D[] | null = null;
+/** Every mesh of the booth that is not part of a sample (collected once: the booth shell and tray are static). */
 function collectOccluders(scene: Object3D) {
   const out: Object3D[] = [];
   scene.traverse((o) => {
-    if ((o as Mesh).isMesh && o.userData.occluder) out.push(o);
+    if ((o as Mesh).isMesh && !slugOf(o)) out.push(o);
   });
   return out;
+}
+function slugOf(o: Object3D | null) {
+  for (; o; o = o.parent) if (o.userData.slug) return o.userData.slug as string;
+  return null;
 }
 function isPart(o: Object3D | null) {
   for (; o; o = o.parent) if (o.userData.part) return true;
@@ -94,8 +106,8 @@ function isPart(o: Object3D | null) {
 }
 /** A surface the eye stops at: drawn opaque (not a shadow catcher or a sheet of glass). */
 function solid(o: Object3D) {
-  const m = (o as Mesh).material as { transparent?: boolean; depthWrite?: boolean; visible?: boolean } | undefined;
-  return !!m && m.visible !== false && !(m.transparent && m.depthWrite === false);
+  const m = (o as Mesh).material as { transparent?: boolean; depthWrite?: boolean; visible?: boolean; opacity?: number } | undefined;
+  return !!m && !Array.isArray(m) ? m.visible !== false && !(m.transparent && (m.depthWrite === false || (m.opacity ?? 1) < 0.05)) : !!m;
 }
 function pickable(o: Object3D | null) {
   for (; o; o = o.parent) if (!o.visible || o.userData.pickable === false) return false;
@@ -109,15 +121,12 @@ function pickable(o: Object3D | null) {
 function PickProbe() {
   const get = useThree((s) => s.get);
   useEffect(() => {
-    const slugOf = (o: Object3D | null) => {
-      for (; o; o = o.parent) if (o.userData.slug) return o.userData.slug as string;
-      return null;
-    };
     window.__boothPickAt = (cx: number, cy: number) => {
       const state = get();
       const r = stageRect();
       if (!r || cx < r.left || cx > r.left + r.width || cy < r.top || cy > r.top + r.height) return { pick: null, seen: null };
       state.pointer.set((cx / state.size.width) * 2 - 1, -(cy / state.size.height) * 2 + 1);
+      state.scene.updateMatrixWorld();
       state.raycaster.setFromCamera(state.pointer, state.camera);
       const hits = state.raycaster.intersectObjects(state.internal.interaction, true);
       const kept = state.events.filter ? state.events.filter(hits, state) : hits;

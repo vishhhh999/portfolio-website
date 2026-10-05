@@ -444,7 +444,7 @@ export function ObjectSlot({ work, lineup }: { work: Work; lineup: string[] }) {
       <ContactBlob w={base.w} d={base.d} spread={1.18} />
       {st.backing && (
         // B3: a dark board standing just behind the riser, leaning back a little
-        <mesh position={[0, st.backing.h / 2, -base.d / 2 - 0.012]} rotation={[-0.08, 0, 0]} material={backingMaterial()} castShadow receiveShadow>
+        <mesh position={[0, st.backing.h / 2, -base.d / 2 - 0.012]} rotation={[-0.08, 0, 0]} material={backingMaterial()} userData={{ part: true }} castShadow receiveShadow>
           <boxGeometry args={[st.backing.w, st.backing.h, 0.008]} />
         </mesh>
       )}

@@ -300,7 +300,9 @@ if (isMain && !process.argv.includes('--selftest')) {
     const webDir = path.join(ROOT, 'public/work', slug);
     mkdirSync(srcDir, { recursive: true });
     mkdirSync(webDir, { recursive: true });
-    let media = page.media.map((m) => ({ ...m, file: sourceFile(srcDir, m.src) }));
+    // F1 (07): Mitooshi's live 04-07 are retired; its 04 and 05 are the two GIF loops, added by hand
+    // in content/work/imported.ts (keep them if this import is ever re-run)
+    let media = page.media.map((m) => ({ ...m, file: sourceFile(srcDir, m.src) })).filter((_, i) => !(slug === 'mitooshi' && i >= 3));
     if (!DRY) {
       for (const m of media) if (!existsSync(m.file)) curl(m.src, m.file);
       media = dedupeBreakpointVideos(media);

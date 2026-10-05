@@ -378,8 +378,6 @@ export function BoothRoom({ lineup, lightmap = null }: { lineup: string[]; light
           material={matFor(p)}
           position={p.position}
           rotation={p.rotation ?? [0, 0, 0]}
-          // B4: the cabinet's solid parts block picking (the walls are behind every sample)
-          userData={{ occluder: p.role === 'frame' || p.role === 'housing' || p.role === 'hood' || p.role === 'lip' }}
           receiveShadow={p.role === 'interior' || p.role === 'lip' || p.role === 'shelf'}
           castShadow={p.role === 'lip' || p.role === 'shelf' || p.role === 'hood'}
         />

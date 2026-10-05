@@ -42,6 +42,9 @@ const press = async (k) => {
 for (const route of ['/work/jsw-sports', '/']) {
   await p.goto(BASE + route, { waitUntil: 'networkidle' });
   await p.waitForTimeout(800);
+  // C4: on project pages the panel is a floating pill until it is opened
+  if (await p.locator('.panel__pill').count()) await p.click('.panel__pill');
+  await p.waitForTimeout(200);
   const a = await state();
   ok(!a.on && a.stage && a.rocker === 'false', `${route}: loads with the booth (stage ${a.stage}, house lights ${a.on})`);
   await press('i');

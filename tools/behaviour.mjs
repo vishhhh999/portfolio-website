@@ -38,7 +38,7 @@ if (hit) {
 results.clickedTo = new URL(p.url()).pathname;
 await p.waitForTimeout(3500);
 await p.screenshot({ path: OUT + 'behaviour-tray.png' });
-await p.evaluate(() => document.querySelector('a.next')?.click());
+await p.evaluate(() => document.querySelector('a.worknav__next')?.click());
 await p.waitForTimeout(3500);
 results.next = new URL(p.url()).pathname;
 await p.click('a.wordmark');
