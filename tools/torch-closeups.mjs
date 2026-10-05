@@ -19,6 +19,7 @@ const CASES = [['sonde', 2], ['too-yumm', 0], ['jsw-sports', 1]];
 const b = await pw.chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 const ctx = await b.newContext({ viewport: { width: 1568, height: 980 }, deviceScaleFactor: 1 });
 const p = await ctx.newPage();
+await p.addInitScript(() => sessionStorage.setItem('vm:opened:v1', '1')); // J5: no opening strike in steady-state checks
 p.setDefaultTimeout(600000);
 let fails = 0;
 const key = (k) => p.evaluate((k) => window.dispatchEvent(new KeyboardEvent('keydown', { key: k })), k);

@@ -2,6 +2,7 @@
 
 import type { WebGLRenderer } from 'three';
 import type { GLTF, GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { isMobileTier } from '@/lib/perfTier';
 
 /**
  * GLB loading for the booth objects (D1): GLTFLoader + MeshoptDecoder + KTX2Loader, created on the
@@ -39,12 +40,28 @@ let running = 0;
 let pendingNeeded = 0;
 const CONCURRENCY = 2;
 const idle = (cb: () => void) => (typeof requestIdleCallback === 'function' ? requestIdleCallback(cb, { timeout: 2500 }) : setTimeout(cb, 300));
+/**
+ * H3: on phones the models a view does not need wait for the visitor's first scroll or touch, so a
+ * project page costs only its tray object before scrolling (the 1.5MB budget).
+ */
+let engaged = typeof window === 'undefined' || !isMobileTier();
+if (!engaged) {
+  const go = () => {
+    if (engaged) return;
+    engaged = true;
+    window.removeEventListener('scroll', go);
+    window.removeEventListener('pointerdown', go);
+    pump();
+  };
+  window.addEventListener('scroll', go, { passive: true });
+  window.addEventListener('pointerdown', go, { passive: true });
+}
 
 function pump() {
   queue.sort((a, b) => a.priority - b.priority);
   while (running < CONCURRENCY && queue.length) {
     const job = queue[0];
-    if (job.priority >= 10 && pendingNeeded > 0) return; // background models wait for the view's own
+    if (job.priority >= 10 && (pendingNeeded > 0 || !engaged)) return; // background models wait for the view's own
     queue.shift();
     running++;
     const start = () =>

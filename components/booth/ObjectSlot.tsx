@@ -22,6 +22,13 @@ import { track } from '@/lib/analytics';
 import { openProject, warmProject } from '@/lib/navigate';
 import { DRAG_PX, RAD_PER_PX, onSpin, setSpinDragging, spinDragging, spinOf } from '@/lib/spin';
 
+declare global {
+  interface Window {
+    /** Test hook: hold every animated object at this clip progress (0–1); undefined = live. */
+    __boothAnimHold?: number;
+  }
+}
+
 const _v = new Vector3();
 /** drei Html places labels in canvas space; the booth camera's projection spans the canvas too. */
 function stagePosition(el: Object3D, camera: Camera, size: { width: number; height: number }): [number, number] {
@@ -164,6 +171,18 @@ function ModelObject({ work, onReady }: { work: Work; onReady: () => void }) {
     const a = anim.current;
     if (!a) return;
     const dt = Math.min(0.1, Math.max(0, rawDt || 0));
+    // test hook (tools/shots-07.mjs): hold the clip at a fixed progress for a frame-exact sheet
+    const hold = typeof window !== 'undefined' ? window.__boothAnimHold : undefined;
+    if (typeof hold === 'number') {
+      if (a.p !== hold) {
+        a.p = hold;
+        const eh = a.p < 0.5 ? 4 * a.p ** 3 : 1 - (-2 * a.p + 2) ** 3 / 2;
+        a.action.time = eh * a.duration;
+        a.mixer.update(0);
+        invalidate();
+      }
+      return;
+    }
     const goal = useBooth.getState().activeSlug === work.slug ? 1 : 0;
     if (a.p === goal) return;
     a.p = reduced ? goal : goal > a.p ? Math.min(goal, a.p + dt / 0.9) : Math.max(goal, a.p - dt / 0.9);
@@ -360,6 +379,7 @@ export function ObjectSlot({ work, lineup }: { work: Work; lineup: string[] }) {
   return (
     <group
       ref={slotRef}
+      userData={{ slug: work.slug }}
       position={[x, 0, z]}
       onPointerDown={(e) => {
         // I: press and drag turns the object (phones: only the one on the project tray)
@@ -420,7 +440,7 @@ export function ObjectSlot({ work, lineup }: { work: Work; lineup: string[] }) {
         document.body.style.cursor = '';
       }}
     >
-      {basePart && <mesh geometry={basePart.geometry} material={baseMat} position={[0, base.h / 2, 0]} castShadow receiveShadow />}
+      {basePart && <mesh geometry={basePart.geometry} material={baseMat} position={[0, base.h / 2, 0]} userData={{ part: true }} castShadow receiveShadow />}
       <ContactBlob w={base.w} d={base.d} spread={1.18} />
       {st.backing && (
         // B3: a dark board standing just behind the riser, leaning back a little
@@ -441,7 +461,8 @@ export function ObjectSlot({ work, lineup }: { work: Work; lineup: string[] }) {
           opacity={0.55}
           color="#1a1a19"
         />}
-        <group ref={liftRef}>
+        {/* B4: only the object itself and its base pick (never its shadows on the floor) */}
+        <group ref={liftRef} userData={{ part: true }}>
           <group ref={spinRef}>
             <group scale={st.scale ?? 1}>
               {work.model && <ModelObject work={work} onReady={onModelReady} />}

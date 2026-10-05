@@ -19,7 +19,7 @@ for (const item of LIST) {
   const [slug, variant] = item.split(':');
   const p = await b.newPage({ viewport: { width: 800, height: 800 }, reducedMotion: 'reduce' });
   p.setDefaultTimeout(600000);
-  await p.goto(`${BASE}/?modelref=${slug}&gpu=high${variant ? '&open' : ''}`, { waitUntil: 'networkidle' });
+  await p.goto(`${BASE}/?modelref=${slug}&gpu=high&tone=agx${variant ? '&open' : ''}`, { waitUntil: 'networkidle' });
   await p.waitForFunction(() => document.documentElement.dataset.modelref === 'ready');
   await p.waitForTimeout(4000);
   await p.addStyleTag({ content: '.masthead,.hero,.panel,.footer,.booth-poster,.booth-focus{visibility:hidden!important}' });

@@ -38,6 +38,7 @@ declare global {
     __boothMounts?: number;
     /** Staging + camera data for tools/export-camera.mjs (Blender scene). */
     __boothExport?: (aspect: number) => unknown;
+    __boothPickAt?: (x: number, y: number) => { pick: string | null; seen: string | null };
     __boothProbePoints?: () => { wall: { x: number; y: number }; paper: { x: number; y: number } };
   }
 }
@@ -71,7 +72,7 @@ function stageEvents(store: Parameters<typeof createPointerEvents>[0]) {
      * solid of the cabinet (frame, hood, housing, lip) is in front of it.
      */
     filter(items: Intersection[], state: RootState) {
-      const seen = items.filter((i) => pickable(i.object));
+      const seen = items.filter((i) => pickable(i.object) && isPart(i.object));
       if (!seen.length) return seen;
       occluders ??= collectOccluders(state.scene);
       const wall = state.raycaster.intersectObjects(occluders, false)[0];
@@ -87,9 +88,44 @@ function collectOccluders(scene: Object3D) {
   });
   return out;
 }
+function isPart(o: Object3D | null) {
+  for (; o; o = o.parent) if (o.userData.part) return true;
+  return false;
+}
+/** A surface the eye stops at: drawn opaque (not a shadow catcher or a sheet of glass). */
+function solid(o: Object3D) {
+  const m = (o as Mesh).material as { transparent?: boolean; depthWrite?: boolean; visible?: boolean } | undefined;
+  return !!m && m.visible !== false && !(m.transparent && m.depthWrite === false);
+}
 function pickable(o: Object3D | null) {
   for (; o; o = o.parent) if (!o.visible || o.userData.pickable === false) return false;
   return true;
+}
+
+/**
+ * B4 test hook (tools/check-picking.mjs): what a click at (clientX, clientY) would open, through
+ * the real event filter, and what is actually seen there (the nearest visible mesh of any kind).
+ */
+function PickProbe() {
+  const get = useThree((s) => s.get);
+  useEffect(() => {
+    const slugOf = (o: Object3D | null) => {
+      for (; o; o = o.parent) if (o.userData.slug) return o.userData.slug as string;
+      return null;
+    };
+    window.__boothPickAt = (cx: number, cy: number) => {
+      const state = get();
+      const r = stageRect();
+      if (!r || cx < r.left || cx > r.left + r.width || cy < r.top || cy > r.top + r.height) return { pick: null, seen: null };
+      state.pointer.set((cx / state.size.width) * 2 - 1, -(cy / state.size.height) * 2 + 1);
+      state.raycaster.setFromCamera(state.pointer, state.camera);
+      const hits = state.raycaster.intersectObjects(state.internal.interaction, true);
+      const kept = state.events.filter ? state.events.filter(hits, state) : hits;
+      const all = state.raycaster.intersectObjects(state.scene.children, true).filter((h) => (h.object as Mesh).isMesh && pickable(h.object) && solid(h.object));
+      return { pick: slugOf(kept[0]?.object ?? null), seen: slugOf(all[0]?.object ?? null) };
+    };
+  }, [get]);
+  return null;
 }
 
 /** Exposes window.__boothSizes for tools/check-sizes.mjs (projects through the live camera, lens shift included). */
@@ -312,6 +348,7 @@ export default function BoothCanvas({ onReady, lightmap = null }: { onReady: () 
       ) : (
         <>
           <SizeProbe />
+      <PickProbe />
           <CameraRig />
           <LampRig />
           {!perfOff('pcss') && <SoftShadows size={mobile ? 18 : 26} samples={mobile ? 8 : 14} focus={0.2} />}

@@ -15,6 +15,7 @@ const b = await pw.chromium.launch({ args: ['--use-gl=angle', '--use-angle=swift
 async function run(vp, q, mobile) {
   const ctx = await b.newContext({ viewport: vp, deviceScaleFactor: mobile ? 2 : 1, isMobile: mobile, hasTouch: mobile });
   const p = await ctx.newPage();
+  await p.addInitScript(() => sessionStorage.setItem('vm:opened:v1', '1')); // J5: no opening strike in steady-state checks
   p.setDefaultTimeout(900000);
   await p.goto(`${BASE}/?perf&gpu=high${q}`, { waitUntil: 'networkidle' });
   await p.waitForSelector('.booth-stage[data-ready="true"]', { timeout: 900000 });

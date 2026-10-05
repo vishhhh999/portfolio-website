@@ -101,6 +101,7 @@ export function Certificate() {
   const border = 0.012;
   return (
     <group
+      userData={{ slug: 'about', part: true }}
       position={[x, top, z]}
       rotation={[-lean, 0, 0]}
       visible={!activeSlug}

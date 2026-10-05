@@ -2,7 +2,7 @@
 
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useMemo, useState } from 'react';
-import { AnimationMixer, Box3, Color, FrontSide, MathUtils, Vector3, type Mesh, type Object3D, type PerspectiveCamera } from 'three';
+import { AnimationMixer, Box3, Color, FrontSide, MathUtils, PMREMGenerator, Scene, Vector3, type Mesh, type Object3D, type PerspectiveCamera } from 'three';
 import { getWork } from '@/content/work';
 import { loadModel } from './models';
 
@@ -46,16 +46,23 @@ export function ModelRef({ slug }: { slug: string }) {
     });
   }, [gl, work, invalidate]);
 
-  // the reference world: flat 0.18 grey, no environment
+  // the reference world: flat 0.18 grey, lighting and reflected by every material as in Blender's
+  // world shader (metals would otherwise reflect nothing and read black)
   useEffect(() => {
     const prevBg = scene.background, prevEnv = scene.environment;
     scene.background = new Color(0.18, 0.18, 0.18);
-    scene.environment = null;
+    const pm = new PMREMGenerator(gl);
+    const world = new Scene();
+    world.background = new Color(0.18, 0.18, 0.18);
+    const env = pm.fromScene(world, 0, 0.1, 10, { size: 32 });
+    scene.environment = env.texture;
     return () => {
       scene.background = prevBg;
       scene.environment = prevEnv;
+      env.dispose();
+      pm.dispose();
     };
-  }, [scene]);
+  }, [scene, gl]);
 
   const fit = useMemo(() => {
     if (!root) return null;
