@@ -96,7 +96,7 @@ export const LIP = { h: 0.022, d: 0.04 } as const;
  * The housing seen from outside: a satin black anodised frame around the opening (posts, a deep
  * lamp hood at the top, a sill under the opening, a shallow base), standing `proud` of the box.
  */
-export const CABINET = { post: 0.035, header: 0.09, sill: 0.055, base: 0.02, proud: 0.025, chamfer: 0.004 } as const;
+export const CABINET = { post: 0.035, header: 0.045, sill: 0.055, base: 0.02, proud: 0.025, chamfer: 0.004 } as const;
 /** Outer front-face size of the cabinet, and its bottom (world y). */
 export const CABINET_FACE = {
   w: BOOTH.width + 2 * CABINET.post,

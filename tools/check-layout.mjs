@@ -2,7 +2,7 @@
  * C1 / C2 (07) and D5 (06): layout edges.
  *  C2  the home booth: one centred column. The cabinet's rendered left and right edges (its opaque
  *      silhouette, drawn in magenta with ?viewdebug=cabinet) are symmetric inside the booth frame to
- *      ±2px; the frame is centred on the page (±2px); its width is min(content width, 1.6 × the
+ *      ±2px; the frame is centred on the page (±2px); its width is min(content width, cabinet aspect × the
  *      height left under the headline and above the panel); booth and panel fit in the first screen.
  *      390, 725, 1024, 1568, 1920 and 2560×1440; under 600px (the phone's own portrait shot, panned
  *      sample to sample) the cabinet must cover the frame.
@@ -59,8 +59,9 @@ for (const [W, H] of [[390, 844], [725, 960], [1024, 768], [1568, 980], [1920, 1
     ok(Math.abs((f.left + f.right) / 2 - f.cw / 2) <= 2, `${W}: stage centred on the page (${f.left.toFixed(0)}–${f.right.toFixed(0)} of ${f.cw})`);
     const content = f.cw - 2 * f.gutter;
     const avail = f.vh - f.top - Math.max(56, f.panelH) - 14 - 18;
-    const want = Math.max(280, Math.min(content, 1.6 * avail));
-    ok(Math.abs(f.width - want) <= 2 && Math.abs(f.width / f.height - 1.6) < 0.01, `${W}: stage = min(content ${content.toFixed(0)}, 1.6 × ${avail.toFixed(0)}) = ${want.toFixed(0)} (is ${f.width.toFixed(0)}×${f.height.toFixed(0)})`);
+    const aspect = 1.57 / (0.8 + 0.045 + 0.055 + 0.02); // CABINET_FACE w / h (staging.ts)
+    const want = Math.max(280, Math.min(content, aspect * avail));
+    ok(Math.abs(f.width - want) <= 2 && Math.abs(f.width / f.height - aspect) < 0.01, `${W}: stage = min(content ${content.toFixed(0)}, ${aspect.toFixed(3)} × ${avail.toFixed(0)}) = ${want.toFixed(0)} (is ${f.width.toFixed(0)}×${f.height.toFixed(0)})`);
     ok(f.panelBottom <= f.vh + 1, `${W}: booth and panel in the first screen (panel ends at ${f.panelBottom.toFixed(0)} of ${f.vh})`);
   }
   await ctx.close();

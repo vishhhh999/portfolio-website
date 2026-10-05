@@ -132,7 +132,7 @@ main a, .work__body, .houselights, .page { pointer-events: auto; }
    capped at 78svh and at the room left above the floating lamp bar (BoothFrame sets it), so on wide or
    short screens the cabinet is centred in the box, never off-centre */
 .booth-frame-wrap { margin-top: clamp(14px, 2.2vh, 28px); display: flex; flex-direction: column; align-items: center; min-height: 0; width: 100%; }
-.booth-frame { width: 100%; aspect-ratio: 1.6; max-height: 78svh; }
+.booth-frame { width: 100%; aspect-ratio: var(--cab-aspect); max-height: 78svh; }
 /* C4: on home the lamp panel sits in the flow, centred under the booth */
 .panel-slot { display: flex; justify-content: center; width: 100%; margin-top: 14px; pointer-events: auto; }
 html[data-house-lights] .panel-slot { margin-top: 0; }

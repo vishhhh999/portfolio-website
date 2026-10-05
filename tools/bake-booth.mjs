@@ -188,6 +188,21 @@ for (const part of parts.filter((p) => ROOM.has(p.role))) {
   scene.addChild(doc.createNode(part.name).setMesh(mesh).setTranslation(part.position).setRotation([q.x, q.y, q.z, q.w]).setExtras({ role: part.role, slug: part.slug ?? null }));
 }
 const io = new NodeIO();
+// A (08): the room is FROZEN for the lightmap bake. tools/booth-room.lock holds its hash; a change is
+// refused unless ROOM_UNFREEZE=1 (and then the lightmap must be re-baked).
+{
+  const { createHash } = await import('crypto');
+  const bytes = await io.writeBinary(doc);
+  const hash = createHash('sha256').update(bytes).digest('hex');
+  const lock = join(ROOT, 'tools/booth-room.lock');
+  const { existsSync, readFileSync } = await import('fs');
+  const locked = existsSync(lock) ? readFileSync(lock, 'utf8').trim() : null;
+  if (locked && locked !== hash && process.env.ROOM_UNFREEZE !== '1') {
+    console.error(`booth-room.glb would change (${hash.slice(0, 12)} ≠ frozen ${locked.slice(0, 12)}): the room is frozen. Set ROOM_UNFREEZE=1 only if the lightmap will be re-baked.`);
+    process.exit(1);
+  }
+  if (!locked || process.env.ROOM_UNFREEZE === '1') writeFileSync(lock, hash + '\n');
+}
 await io.write(join(ROOT, 'tools/booth-room.glb'), doc);
 console.log(`booth-room.glb: ${parts.filter((p) => ROOM.has(p.role)).length} parts`);
 

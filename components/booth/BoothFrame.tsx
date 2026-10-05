@@ -23,7 +23,7 @@ export function BoothFrame({ samples }: { samples: FrameSample[] }) {
   const current = samples[index];
 
   useEffect(() => (ref.current ? registerFrame(ref.current) : undefined), []);
-  // C2: one centred column. The stage is min(content width, 1.6 × the height left on the first screen
+  // C2: one centred column. The stage is min(content width, cabinet aspect × the height left on the first screen
   // under the headline and above the lamp panel), at the cabinet's own aspect, so the booth and the
   // panel fit in one screen at every size. Phones (< 600px) have their own portrait composition.
   useEffect(() => {
@@ -39,9 +39,11 @@ export function BoothFrame({ samples }: { samples: FrameSample[] }) {
       const panelH = slot ? Math.max(56, slot.getBoundingClientRect().height) + 14 : 0;
       const top = el.getBoundingClientRect().top + window.scrollY;
       const avail = window.innerHeight - top - panelH - 18;
-      const w = Math.max(280, Math.min(wrap.clientWidth, 1.6 * avail));
+      // A4 (08): the box takes the cabinet's own aspect, so the slimmer header band goes to the interior
+      const aspect = CABINET_FACE.w / CABINET_FACE.h;
+      const w = Math.max(280, Math.min(wrap.clientWidth, aspect * avail));
       el.style.width = `${Math.round(w)}px`;
-      el.style.height = `${Math.round(w / 1.6)}px`;
+      el.style.height = `${Math.round(w / aspect)}px`;
       el.style.maxHeight = 'none';
     };
     fit();

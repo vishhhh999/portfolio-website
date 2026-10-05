@@ -147,10 +147,20 @@ function addAtlasUv(parts: ShellPart[]) {
       rects.push({ part, group: gi, w: px(ext[0]), h: px(ext[1]), x: 0, y: 0 });
     });
   }
-  // shelf packing
-  const order = [...rects].sort((a, b) => b.h - a.h);
+  // shelf packing. A (08): the room (frozen for the lightmap bake) packs first, on its own, so its
+  // UV1 never moves when the bases, risers or shelf change; everything else packs after it
+  const ROOM = new Set(['interior', 'frame', 'housing', 'hood', 'diffuser', 'lip']);
+  const byHeight = (a: Rect, b: Rect) => b.h - a.h;
+  const order = [...rects.filter((r) => ROOM.has(r.part.role)).sort(byHeight), null, ...rects.filter((r) => !ROOM.has(r.part.role)).sort(byHeight)];
   let x = ATLAS.pad, y = ATLAS.pad, rowH = 0;
   for (const r of order) {
+    if (r === null) {
+      // a fresh row for the movable parts
+      x = ATLAS.pad;
+      y += rowH + ATLAS.pad;
+      rowH = 0;
+      continue;
+    }
     if (x + r.w + ATLAS.pad > ATLAS.size) {
       x = ATLAS.pad;
       y += rowH + ATLAS.pad;
