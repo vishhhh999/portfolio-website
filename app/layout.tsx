@@ -52,7 +52,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         {children}
-        <Analytics />
+        {/* H5: only where Vercel serves the insights script (a local or CI build would log a 404) */}
+        {process.env.VERCEL === "1" && <Analytics />}
       </body>
     </html>
   );

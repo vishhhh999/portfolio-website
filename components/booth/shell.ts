@@ -113,7 +113,7 @@ export function shellParts(lineupSlugs: string[]): ShellPart[] {
 /** A sample's base: plinths and the riser chamfered 2mm, the shallow tray a little softer. */
 export function baseGeometry(st: Staging) {
   const b = st.base;
-  return b.kind === 'tray' ? rbox(b.w, b.h, b.d, 2, 0.004) : rbox(b.w, b.h, b.d, 1, PLINTH_CHAMFER);
+  return b.kind === 'tray' ? rbox(b.w, b.h, b.d, 2, 0.004) : rbox(b.w, b.h, b.d, 3, PLINTH_CHAMFER);
 }
 
 /** Atlas rectangles for every group of every part (simple shelf packing, tallest first). */

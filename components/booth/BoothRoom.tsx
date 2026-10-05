@@ -31,6 +31,7 @@ import { useBooth } from '@/lib/store';
 import { shellParts, type ShellPart } from './shell';
 import { BOOTH, CABINET, CABINET_FACE, COVE, DIFFUSER, PLINTH_GREY, PROPS, STAGING, TRAY } from './staging';
 import { applyUV } from './uvMaterial';
+import { smudgeMap, wallRoughness } from './imperfections';
 
 /** B5: Munsell N8 booth grey for the walls; the floor a satin step darker; plinths a warmer N8.5. */
 export const BOOTH_GREY = '#C4C4C2';
@@ -269,10 +270,11 @@ function shellMaterials(mobile: boolean): ShellMats {
   const rough = roughnessNoise();
   const ao = shellAO();
   const wall = () => {
-    const r = rough.clone();
-    r.repeat.set(3, 2);
+    // J3: slow wiped variation across the paint (the fine grain stays in the bump of the light)
+    const r = wallRoughness().clone();
+    r.repeat.set(2, 1.4);
     r.needsUpdate = true;
-    return new MeshStandardMaterial({ color: BOOTH_GREY, roughness: 0.92, roughnessMap: r, aoMap: ao, aoMapIntensity: 1, side: BackSide, envMapIntensity: 0.35 });
+    return new MeshStandardMaterial({ color: BOOTH_GREY, roughness: 0.98, roughnessMap: r, aoMap: ao, aoMapIntensity: 1, side: BackSide, envMapIntensity: 0.35 });
   };
   const floor = new MeshStandardMaterial({
     // pushed back in depth: anything standing on the floor wins every depth tie
@@ -317,7 +319,8 @@ function baseMaterialFor(kind: 'plinth' | 'riser' | 'tray', mobile: boolean): Ma
   if (kind === 'riser')
     return mobile
       ? new MeshPhysicalMaterial({ color: '#E9EDEE', roughness: 0.55, transmission: 0, transparent: true, opacity: 0.72, clearcoat: 0.6, envMapIntensity: 0.8 })
-      : new MeshPhysicalMaterial({ color: '#F4F8F8', roughness: 0.06, transmission: 1, thickness: 0.03, ior: 1.49, clearcoat: 1, clearcoatRoughness: 0.04, envMapIntensity: 1 });
+      : // J3: polished acrylic with a few fingerprints and hairline scratches in its gloss
+        new MeshPhysicalMaterial({ color: '#F4F8F8', roughness: 0.3, roughnessMap: smudgeMap(), transmission: 1, thickness: 0.03, ior: 1.49, clearcoat: 1, clearcoatRoughness: 0.2, clearcoatRoughnessMap: smudgeMap(), envMapIntensity: 1 });
   if (kind === 'tray') return new MeshPhysicalMaterial({ color: '#5F5F5D', metalness: 0.6, roughness: 0.38, clearcoat: 0.2, envMapIntensity: 0.9 });
   const r = roughnessNoise();
   return new MeshStandardMaterial({ color: PLINTH_GREY, roughness: 0.9, roughnessMap: r, aoMap: shellAO(), envMapIntensity: 0.4 });

@@ -4,11 +4,12 @@ import { Html, RoundedBox } from '@react-three/drei';
 import { useThree } from '@react-three/fiber';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
-import { CanvasTexture, MeshPhysicalMaterial, MeshStandardMaterial, SRGBColorSpace } from 'three';
+import { CanvasTexture, MeshPhysicalMaterial, MeshStandardMaterial, SRGBColorSpace, Vector2 } from 'three';
 import { useBooth } from '@/lib/store';
 import { playEvent } from '@/lib/sound';
 import { track } from '@/lib/analytics';
 import { applyUV } from './uvMaterial';
+import { paperNormal, smudgeMap } from './imperfections';
 import { BOOTH, CERTIFICATE, PROPS } from './staging';
 import { setFocusRect } from './focus';
 
@@ -79,8 +80,9 @@ export function Certificate() {
   }, [invalidate]);
   const mats = useMemo(() => {
     const frame = new MeshPhysicalMaterial({ color: '#141415', metalness: 0.2, roughness: 0.45, clearcoat: 0.3, clearcoatRoughness: 0.35 });
-    const glass = new MeshPhysicalMaterial({ color: '#ffffff', metalness: 0, roughness: 0.04, transparent: true, opacity: 0.08, envMapIntensity: 0.6, depthWrite: false });
-    const paper = new MeshStandardMaterial({ color: '#ffffff', roughness: 0.92, metalness: 0 });
+    // J3: the glass carries faint fingerprints; the paper a fibre grain
+    const glass = new MeshPhysicalMaterial({ color: '#ffffff', metalness: 0, roughness: 0.2, roughnessMap: smudgeMap(), transparent: true, opacity: 0.08, envMapIntensity: 0.6, depthWrite: false });
+    const paper = new MeshStandardMaterial({ color: '#ffffff', roughness: 0.92, metalness: 0, normalMap: paperNormal(), normalScale: new Vector2(0.18, 0.18) });
     applyUV(frame, {});
     applyUV(paper, { fluor: 1 });
     return { frame, glass, paper };

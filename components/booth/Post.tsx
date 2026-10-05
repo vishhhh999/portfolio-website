@@ -7,6 +7,7 @@ import {
   BlendFunction,
   BloomEffect,
   Effect,
+  EffectAttribute,
   EffectComposer,
   EffectPass,
   Pass,
@@ -33,6 +34,7 @@ import {
   ShaderMaterial,
   Uniform,
   Vector2,
+  Vector3,
   Vector4,
   WebGLRenderTarget,
   type Camera,
@@ -41,6 +43,10 @@ import {
 import { stageRect } from '@/lib/views';
 import { isMobileTier } from '@/lib/perfTier';
 import { loupeState } from '@/lib/loupe';
+import { useBooth } from '@/lib/store';
+import { useReducedMotion } from '@/lib/useReducedMotion';
+import { hoverFocus } from './focus';
+import { STAGING, TRAY } from './staging';
 
 declare global {
   interface Window {
@@ -56,11 +62,15 @@ export const postState = {
   grain: 0,
   /** Booth exposure into AgX (per lamp, set by the rig). */
   exposure: 1,
+  /** B5: the room lamps tone-map with Khronos PBR Neutral (paper whites separate from N8 walls); the dark lamps keep AgX. */
+  neutral: true,
   matrix: new Matrix3(),
   /** Set by the rig to request a one-off console report after the next frame. */
   diagnose: null as null | Record<string, unknown>,
 };
 
+/** ?tone=agx|neutral: force one tone map (calibration only). */
+const TONE_OVERRIDE = typeof window === 'undefined' ? null : ({ agx: 0, neutral: 1 } as Record<string, number>)[new URLSearchParams(window.location.search).get('tone') ?? ''] ?? null;
 /** ?exposure=0.6: multiply every lamp's exposure (calibration only). */
 const EXPOSURE_OVERRIDE = typeof window !== 'undefined' ? Number(new URLSearchParams(window.location.search).get('exposure') ?? 1) || 1 : 1;
 const VIEW_DEBUG = typeof window !== 'undefined' && window.location.search.includes('viewdebug');
@@ -274,6 +284,7 @@ class BoothToneEffect extends Effect {
       'BoothToneEffect',
       /* glsl */ `
       uniform float exposure;
+      uniform float neutral;
       uniform vec4 box;
       const mat3 SRGB_TO_2020 = mat3(vec3(0.6274, 0.0691, 0.0164), vec3(0.3293, 0.9195, 0.0880), vec3(0.0433, 0.0113, 0.8956));
       const mat3 REC2020_TO_SRGB = mat3(vec3(1.6605, -0.1246, -0.0182), vec3(-0.5876, 1.1329, -0.1006), vec3(-0.0728, -0.0083, 1.1187));
@@ -290,14 +301,34 @@ class BoothToneEffect extends Effect {
         c = pow(max(c, 0.0), vec3(2.2));
         return clamp(REC2020_TO_SRGB * c, 0.0, 1.0);
       }
+      // Khronos PBR Neutral: linear to 0.76, then a soft shoulder; hue and base colours kept
+      vec3 pbrNeutral(vec3 c) {
+        float x = min(c.r, min(c.g, c.b));
+        float offset = x < 0.08 ? x - 6.25 * x * x : 0.04;
+        c -= offset;
+        float peak = max(c.r, max(c.g, c.b));
+        if (peak < 0.76) return c;
+        float d = 0.24;
+        float newPeak = 1.0 - d * d / (peak + d - 0.76);
+        c *= newPeak / peak;
+        float g = 1.0 - 1.0 / (0.15 * (peak - newPeak) + 1.0);
+        return mix(c, vec3(newPeak), g);
+      }
       void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor) {
         bool inside = uv.x >= box.x && uv.x <= box.z && uv.y >= box.y && uv.y <= box.w;
-        vec3 c = inside ? agx(inputColor.rgb * exposure) : clamp(inputColor.rgb, 0.0, 1.0);
+        vec3 e = inputColor.rgb * exposure;
+        vec3 c = inside ? (neutral > 0.5 ? clamp(pbrNeutral(e), 0.0, 1.0) : agx(e)) : clamp(inputColor.rgb, 0.0, 1.0);
+        // J4: a gentle vignette inside the stage (the corners ~10% down), never on the page
+        if (inside) {
+          vec2 q = (uv - box.xy) / max(box.zw - box.xy, vec2(1e-4)) - 0.5;
+          c *= 1.0 - 0.1 * smoothstep(0.3, 0.72, length(q * vec2(1.0, 0.86)));
+        }
         outputColor = vec4(c, inputColor.a);
       }`,
       {
         uniforms: new Map<string, Uniform>([
           ['exposure', new Uniform(1)],
+          ['neutral', new Uniform(1)],
           ['box', new Uniform(new Vector4(0, 0, 0, 0))],
         ]),
       },
@@ -305,6 +336,52 @@ class BoothToneEffect extends Effect {
   }
   update() {
     (this.uniforms.get('exposure') as Uniform<number>).value = postState.exposure * EXPOSURE_OVERRIDE;
+    (this.uniforms.get('neutral') as Uniform<number>).value = TONE_OVERRIDE ?? (postState.neutral ? 1 : 0);
+    setStageBox(this.uniforms.get('box')!.value as Vector4);
+  }
+}
+
+/**
+ * J4: a subtle depth of field (desktop): focus on the sample on the tray, or on the one under the
+ * pointer; everything nearer or further softens a little (a 12-tap disc, a few px at most, small
+ * bokeh). Off when nothing is in focus, on mobile and under reduced motion. Booth stage only.
+ */
+export const dofState = { focus: 1, blur: 0 };
+class BoothDofEffect extends Effect {
+  constructor() {
+    super(
+      'BoothDofEffect',
+      /* glsl */ `
+      uniform float focusDist;
+      uniform float maxBlur;
+      uniform vec4 box;
+      void mainImage(const in vec4 inputColor, const in vec2 uv, const in float depth, out vec4 outputColor) {
+        bool inside = uv.x >= box.x && uv.x <= box.z && uv.y >= box.y && uv.y <= box.w;
+        if (!inside || maxBlur < 0.05 || depth >= 1.0) { outputColor = inputColor; return; }
+        float z = -getViewZ(depth);
+        float coc = clamp(abs(z - focusDist) / max(z, 1e-3) * 2.4, 0.0, 1.0) * maxBlur;
+        if (coc < 0.4) { outputColor = inputColor; return; }
+        vec4 acc = inputColor;
+        for (int i = 0; i < 12; i++) {
+          float a = float(i) * 2.39996;
+          float r = sqrt((float(i) + 0.5) / 12.0) * coc;
+          acc += texture2D(inputBuffer, uv + vec2(cos(a), sin(a)) * r * texelSize);
+        }
+        outputColor = acc / 13.0;
+      }`,
+      {
+        attributes: EffectAttribute.DEPTH,
+        uniforms: new Map<string, Uniform>([
+          ['focusDist', new Uniform(1)],
+          ['maxBlur', new Uniform(0)],
+          ['box', new Uniform(new Vector4(0, 0, 0, 0))],
+        ]),
+      },
+    );
+  }
+  update() {
+    (this.uniforms.get('focusDist') as Uniform<number>).value = dofState.focus;
+    (this.uniforms.get('maxBlur') as Uniform<number>).value = dofState.blur;
     setStageBox(this.uniforms.get('box')!.value as Vector4);
   }
 }
@@ -420,7 +497,12 @@ function sanitizeMaterial() {
  * Bloom's blur passes are skipped entirely under lamps that don't use it.
  * Takes over rendering at priority 1.
  */
+const dofAt = new Vector3();
+const dofDir = new Vector3();
+
 export function Post() {
+  const invalidate = useThree((s) => s.invalidate);
+  const reducedMotion = useReducedMotion();
   const gl = useThree((s) => s.gl);
   const scene = useThree((s) => s.scene);
   const camera = useThree((s) => s.camera);
@@ -474,6 +556,7 @@ export function Post() {
       noise,
       coverage,
       mask: new ViewMaskEffect(coverage.target),
+      dof: mobile || perfOff('dof') ? null : new BoothDofEffect(),
     };
   }, [mobile, scene, camera]);
 
@@ -528,6 +611,7 @@ export function Post() {
     composer.addPass(fx.coverage);
     composer.addPass(fx.sanitize);
     if (samples < 2) composer.addPass(new EffectPass(camera, new SMAAEffect()));
+    if (fx.dof) composer.addPass(new EffectPass(camera, fx.dof));
     const effects = [fx.ssao, fx.bloom, fx.matrix, fx.tone, fx.noise, fx.mask].filter((e): e is Effect => e !== null);
     const finalPass = new EffectPass(camera, ...effects);
     // dark lamps (UV, AFTER DARK) live in the bottom few 8-bit codes: dither the output so gradients don't contour
@@ -549,6 +633,24 @@ export function Post() {
   useEffect(() => () => composer.dispose(), [composer]);
 
   useFrame((_, dt) => {
+    // J4: focus on the tray object, else the sample under the pointer (or keyboard focus); none otherwise
+    if (fx.dof) {
+      const { activeSlug, keySlug } = useBooth.getState();
+      const slug = activeSlug ?? hoverFocus.slug ?? keySlug;
+      let goal = 0;
+      if (slug && !reducedMotion && STAGING[slug]) {
+        const st = STAGING[slug];
+        if (activeSlug) dofAt.set(0, TRAY.top + st.object.h / 2, TRAY.z);
+        else dofAt.set(st.x, st.base.h + st.object.h / 2, st.z);
+        camera.getWorldDirection(dofDir);
+        dofState.focus = dofAt.sub(camera.position).dot(dofDir);
+        goal = (2.2 * size.height * dpr) / 1000;
+      }
+      const k = 1 - Math.exp(-Math.min(0.1, Math.max(0, dt)) * 6);
+      dofState.blur += (goal - dofState.blur) * k;
+      if (Math.abs(goal - dofState.blur) > 0.02) invalidate();
+      else dofState.blur = goal;
+    }
     fx.bloom.intensity = noBloom ? 0 : postState.bloomIntensity;
     fx.bloom.luminanceMaterial.threshold = postState.bloomThreshold;
     fx.noise.blendMode.opacity.value = postState.grain;

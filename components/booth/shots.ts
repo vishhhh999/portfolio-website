@@ -106,7 +106,9 @@ export function lineupShot(aspect: number): FramedShot {
 
 /** Tray shot: the active sample alone on the tray, the same lens and pitch, owning the frame. */
 export function trayShot(slug: string, aspect: number): Shot {
-  const { w, h } = STAGING[slug].object;
+  const { object, trayW } = STAGING[slug];
+  const { h } = object;
+  const w = trayW ?? object.w;
   const tanH = tanV * aspect;
   const fitH = Math.max(h * 1.7, 0.26);
   const fitW = Math.max(w * 1.6, 0.36);

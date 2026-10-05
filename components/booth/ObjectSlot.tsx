@@ -16,7 +16,7 @@ import { loadModel } from './models';
 import { attachScreen } from './deviceScreen';
 import { PLINTH_GREY, RECEDE_DZ, STAGING, TRAY } from './staging';
 import { applyUV, blankInk, createProofInk } from './uvMaterial';
-import { setFocusRect } from './focus';
+import { hoverFocus, setFocusRect } from './focus';
 import { playEvent } from '@/lib/sound';
 import { track } from '@/lib/analytics';
 import { openProject, warmProject } from '@/lib/navigate';
@@ -411,10 +411,12 @@ export function ObjectSlot({ work, lineup }: { work: Work; lineup: string[] }) {
         if (!hovered && activeSlug === null) playEvent('hover', e.nativeEvent.clientX);
         if (!active) warmProject(router, work.slug);
         setHovered(true);
+        hoverFocus.slug = work.slug;
         document.body.style.cursor = active ? '' : 'pointer';
       }}
       onPointerOut={() => {
         setHovered(false);
+        if (hoverFocus.slug === work.slug) hoverFocus.slug = null;
         document.body.style.cursor = '';
       }}
     >

@@ -34,11 +34,14 @@ import { ceilingMaterial, diffuserMaterial, getBlobMaterial, hoodGlow, lightmapT
 import { postState } from './Post';
 import { onScreenFrame, screens } from './screens';
 import { BOOTH, TRAY } from './staging';
-import { boothEnvironment, ENV_INTENSITY } from './environment';
+import { boothEnvironment, captureEnvironment, capturedEnvironment, ENV_INTENSITY } from './environment';
+import { modelsSettled } from './models';
+import { perfOff } from '@/lib/perfFlags';
 import { uvUniforms } from './uvMaterial';
 import { PRINT_FLOORS, proofUniforms } from './proofUniforms';
 import { torch } from '@/lib/torch';
 import { isMobileTier } from '@/lib/perfTier';
+const MOBILE_TIER = typeof window !== 'undefined' && isMobileTier();
 
 const D50_PRINT = lampById('D50').print;
 const D50_BOUNCE = (() => {
@@ -154,9 +157,11 @@ export function LampRig() {
   // Image-based light: the booth's own interior as a PMREM, re-tinted per lamp (built once each).
   const lampNow = useBooth((st) => st.lamp);
   useEffect(() => {
-    scene.environment = boothEnvironment(gl, lampNow);
+    scene.environment = capturedEnvironment(lampNow) ?? boothEnvironment(gl, lampNow);
+    settledAt.current = 0;
     invalidate();
   }, [gl, scene, lampNow, invalidate]);
+  const settledAt = useRef(0);
   useEffect(() => useBooth.subscribe(() => invalidate()), [invalidate]);
   const size = useThree((s) => s.size);
   const dprNow = useThree((s) => s.viewport.dpr);
@@ -182,12 +187,22 @@ export function LampRig() {
     const dt = Math.min(0.1, Math.max(0, rawDt || 0));
     const { lamp, strikeProgress, activeSlug } = useBooth.getState();
     const P = lampById(lamp);
-    const ch = strikeChannels(P.strike.curve, strikeProgress);
+    const curve = useBooth.getState().opening ? 'opening' : P.strike.curve;
+    const ch = strikeChannels(curve, strikeProgress);
     const env = ch.light;
-    const ramp = strikeKelvin(P.strike.curve, strikeProgress);
+    const ramp = strikeKelvin(curve, strikeProgress);
     const onTray = activeSlug !== null;
 
     scene.environmentIntensity = ENV_INTENSITY[lamp] * env;
+    // J2: capture the real interior for this lamp once it has struck and the models are in
+    if (!MOBILE_TIER && !perfOff('envcapture') && strikeProgress >= 1 && modelsSettled() && !capturedEnvironment(lamp)) {
+      const now = performance.now();
+      if (!settledAt.current) settledAt.current = now;
+      if (now - settledAt.current > 400) {
+        scene.environment = captureEnvironment(gl, scene, lamp);
+        invalidate();
+      } else invalidate();
+    }
     // a baked shell lightmap (if any) is bounce light: the lamp's colour at its bounce level
     lightmapTint.value.setRGB(...P.fill.sky).multiplyScalar((P.fill.intensity + P.panel.intensity * 0.25) * env);
 
@@ -386,6 +401,7 @@ export function LampRig() {
     postState.bloomThreshold = P.bloom.threshold;
     postState.grain = P.grain;
     postState.exposure = P.exposure * ch.exposure;
+    postState.neutral = !P.dark;
     postState.matrix.fromArray(P.matrix).transpose(); // fromArray is column-major; presets are row-major
     if (useBooth.getState().lampPicked) proofUniforms.uNeutralize.value.identity();
     else proofUniforms.uNeutralize.value.copy(postState.matrix).invert();

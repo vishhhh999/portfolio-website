@@ -15,12 +15,12 @@ import { SiteNav } from '@/components/ui/SiteNav';
 import { JsonLd, personLd } from '@/lib/jsonld';
 
 /**
- * The Blender lightmap for the booth shell (tools/booth-shell.glb, TEXCOORD_1), if one has been
+ * The Blender lightmap for the booth room (tools/booth-room.glb, TEXCOORD_1), if one has been
  * baked: decided at build time, so the client never requests a file that is not there.
  */
 function boothLightmap(): string | null {
   // the KTX2 converted from Vishesh's bake (public/booth/lightmap.exr or .png, J) or an older location
-  for (const rel of ['booth/lightmap.ktx2', 'models/booth-shell/lightmap.ktx2', 'models/booth-shell/lightmap.png']) {
+  for (const rel of ['booth/lightmap.ktx2', 'booth/lightmap.png']) {
     if (existsSync(path.join(process.cwd(), 'public', rel))) return `/${rel}`;
   }
   return null;

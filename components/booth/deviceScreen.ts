@@ -5,6 +5,7 @@ import { getWork } from '@/content/work';
 import { perfOff } from '@/lib/perfFlags';
 import { screens, screenTexture } from './screens';
 import { applyUV, type InkProjection } from './uvMaterial';
+import { smudgeMap } from './imperfections';
 
 /** A project's first still (a video's poster), for screens without logo files. */
 const firstStill = (slug: string) => {
@@ -30,7 +31,9 @@ export function attachScreen(root: Object3D, slug: string, aspect: number, mobil
     emissiveMap: tex.texture,
     emissiveIntensity: 0.5,
     clearcoat: 0.35,
-    clearcoatRoughness: 0.08,
+    // J3: the glass's gloss carries a few fingerprints
+    clearcoatRoughness: 0.3,
+    clearcoatRoughnessMap: smudgeMap(),
     envMapIntensity: 0.22,
   });
   applyUV(material, { inkProj: ink ?? null });

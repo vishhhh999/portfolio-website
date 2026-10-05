@@ -8,11 +8,11 @@
  *   public/booth/ao.png          ambient occlusion over the shell atlas (uv1): coves, corners, the
  *                                lip, the shelf, and each base's own faces. Computed from the
  *                                geometry with a signed distance field (no light, no objects).
- *   tools/booth-shell.glb        the shell, frame, hood, diffuser, lip, shelf and bases, at the exact
- *                                site scale, with TEXCOORD_1 = the same non-overlapping atlas.
- *                                Bake a Blender lightmap onto TEXCOORD_1, save it as
- *                                public/models/booth-shell/lightmap.ktx2 (or .png): the site uses
- *                                it automatically (tinted per lamp) when it exists.
+ *   tools/booth-room.glb         the room only (interior, frame, hood, diffuser, housing, lip), at the
+ *                                exact site scale, with TEXCOORD_1 = the same non-overlapping atlas.
+ *                                Bake a Blender lightmap onto TEXCOORD_1 and save it in public/booth/
+ *                                (lightmap.exr / .png, converted to lightmap.ktx2): the site uses it
+ *                                automatically (tinted per lamp) when it exists.
  *   tools/camera.json            lens and shots for Blender (tools/blender_camera.py).
  */
 import { Document, NodeIO } from '@gltf-transform/core';
@@ -27,7 +27,7 @@ import { BOOTH, CABINET_FACE, COVE, EYE, FACE_Z, FOCAL_MM, FOV, HOOD, LIP, PROPS
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 // the booth lineup, in content order (content/work/index.ts; the bases follow STAGING)
-const LINEUP = ['too-yumm', 'jsw-sports', 'mitooshi', 'sonde', 'house-of-hex', 'bengal-t20', 'sook', 'shunya'];
+const LINEUP = ['too-yumm', 'jsw-sports', 'mitooshi', 'sonde', 'house-of-hex', 'bengal-t20', 'sook', 'shunya', 'indo-thai'];
 const parts = shellParts(LINEUP);
 
 // ── signed distance field of the static booth (positive in free space) ──────────────────────
@@ -163,13 +163,16 @@ mkdirSync(join(ROOT, 'public/booth'), { recursive: true });
 await sharp(bytes, { raw: { width: N, height: N, channels: 1 } }).png({ compressionLevel: 9 }).toFile(join(ROOT, 'public/booth/ao.png'));
 console.log(`ao.png: ${N}², ${cnt} texels baked, min ${lo.toFixed(2)}, mean ${(sum / cnt).toFixed(3)}`);
 
-// ── booth-shell.glb for the Blender lightmap bake ───────────────────────────────────────────
+// ── booth-room.glb for the Blender lightmap bake (J1) ───────────────────────────────────────
+// The room only: interior, frame, housing, hood, diffuser and lip. The plinths, the riser and the
+// shelf move or carry props, so they keep their own AO in code (public/booth/ao.png), not the bake.
+const ROOM = new Set(['interior', 'frame', 'housing', 'hood', 'diffuser', 'lip']);
 const doc = new Document();
 const buffer = doc.createBuffer();
-const scene = doc.createScene('booth-shell');
+const scene = doc.createScene('booth-room');
 const mats = {};
 const mat = (role) => (mats[role] ??= doc.createMaterial(role).setRoughnessFactor(0.9).setMetallicFactor(0).setDoubleSided(role === 'interior'));
-for (const part of parts) {
+for (const part of parts.filter((p) => ROOM.has(p.role))) {
   const g = part.geometry.index ? part.geometry : part.geometry;
   const acc = (name, attr, type) => doc.createAccessor(`${part.name}-${name}`).setType(type).setArray(new Float32Array(attr.array)).setBuffer(buffer);
   const prim = doc
@@ -185,8 +188,8 @@ for (const part of parts) {
   scene.addChild(doc.createNode(part.name).setMesh(mesh).setTranslation(part.position).setRotation([q.x, q.y, q.z, q.w]).setExtras({ role: part.role, slug: part.slug ?? null }));
 }
 const io = new NodeIO();
-await io.write(join(ROOT, 'tools/booth-shell.glb'), doc);
-console.log(`booth-shell.glb: ${parts.length} parts`);
+await io.write(join(ROOT, 'tools/booth-room.glb'), doc);
+console.log(`booth-room.glb: ${parts.filter((p) => ROOM.has(p.role)).length} parts`);
 
 // ── camera.json for Blender ─────────────────────────────────────────────────────────────────
 const b3 = (p) => [+p[0].toFixed(5), +(-p[2]).toFixed(5), +p[1].toFixed(5)]; // three (x, y, z) → Blender (x, -z, y)
@@ -203,7 +206,7 @@ const shotOut = (s, w, h) => ({
 const homeBox = (w, h) => ({ left: w * 0.03, top: h * 0.3, width: w * 0.8, height: h * 0.7 });
 const camera = {
   _readme:
-    'Booth camera + staging for Blender. Units: metres. "three" = three.js world (Y-up, +Z towards camera); "blender" = the same point Z-up: (x, y, z)three -> (x, -z, y)blender. tools/blender_camera.py imports tools/booth-shell.glb (shell, bases, TEXCOORD_1 lightmap atlas) and builds the cameras from this file.',
+    'Booth camera + staging for Blender. Units: metres. "three" = three.js world (Y-up, +Z towards camera); "blender" = the same point Z-up: (x, y, z)three -> (x, -z, y)blender. tools/blender_camera.py imports tools/booth-room.glb (the room only, TEXCOORD_1 lightmap atlas; plinths, riser and shelf carry their own AO in code) and builds the cameras from this file.',
   units: 'metres',
   lens: {
     fovVerticalDeg: FOV,
@@ -227,8 +230,8 @@ const camera = {
     return { slug, kind: st.base.kind, size: st.base, scale: st.scale ?? 1, blender: { center: b3([st.x, st.base.h / 2, st.z]), objectBase: b3([st.x, st.base.h, st.z]) } };
   }),
   props: PROPS,
-  shellGlb: 'booth-shell.glb',
-  lightmap: { uv: 'TEXCOORD_1', atlas: `${ATLAS.size}px`, output: 'public/models/booth-shell/lightmap.ktx2 (or lightmap.png)' },
+  roomGlb: 'booth-room.glb',
+  lightmap: { uv: 'TEXCOORD_1', atlas: `${ATLAS.size}px`, output: 'public/booth/lightmap.exr (linear half float) or lightmap.png (16-bit linear); converted to public/booth/lightmap.ktx2' },
 };
 writeFileSync(join(ROOT, 'tools/camera.json'), JSON.stringify(camera, null, 2) + '\n');
 console.log('camera.json written');

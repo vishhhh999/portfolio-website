@@ -10,7 +10,7 @@ const BASE = process.env.BASE || 'http://localhost:3100';
 const LAMPS = (process.env.LAMPS || 'D50,TL84,A,FLOOD').split(',');
 const b = await pw.chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 const p = await b.newPage({ viewport: { width: 1568, height: 980 }, reducedMotion: 'reduce' });
-await p.goto(BASE + '/', { waitUntil: 'networkidle' });
+await p.goto(BASE + '/' + (process.env.Q || ''), { waitUntil: 'networkidle' });
 await p.waitForSelector('.booth-stage[data-ready="true"]', { timeout: 180000 });
 await p.waitForTimeout(1500);
 const lin = (c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);

@@ -15,7 +15,7 @@ export type BaseKind = 'plinth' | 'riser' | 'tray';
  * the front. Small, tall pieces stand at the front corners so perspective does not shrink them
  * below 12% of the cabinet width (tools/check-sizes.mjs).
  */
-export type Staging = { object: Size3; base: Size3 & { kind: BaseKind }; x: number; z: number; scale?: number; yaw?: number; backing?: { w: number; h: number } };
+export type Staging = { object: Size3; base: Size3 & { kind: BaseKind }; x: number; z: number; scale?: number; yaw?: number; backing?: { w: number; h: number }; trayW?: number };
 
 const sized = (o: Size3, s: number): Size3 => ({ w: o.w * s, h: o.h * s, d: o.d * s });
 
@@ -35,7 +35,7 @@ const BACK_Z = -0.35;
 const GAP = 0.083;
 /** Front row, left to right, packed from the left wall with GAP between objects. */
 const FRONT: [string, number][] = [
-  ['too-yumm', 0.1425 * 1.45],
+  ['too-yumm', 0.1425 * 1.4],
   ['bengal-t20', 0.3 * 0.78],
   ['sook', 0.3016 * 0.78],
   ['shunya', 0.42 * 0.55],
@@ -43,7 +43,7 @@ const FRONT: [string, number][] = [
 ];
 const frontX: Record<string, number> = {};
 {
-  let left = -0.713;
+  let left = -0.72;
   for (const [slug, w] of FRONT) {
     frontX[slug] = left + w / 2;
     left += w + GAP;
@@ -52,7 +52,7 @@ const frontX: Record<string, number> = {};
 const BENGAL_TILT = 0.8;
 
 export const STAGING: Record<string, Staging> = {
-  'too-yumm': { object: sized({ w: 0.1425, h: 0.24, d: 0.0752 }, 1.45), base: { kind: 'plinth', w: 0.24, d: 0.14, h: 0.04 }, x: frontX['too-yumm'], z: FRONT_Z, scale: 1.45 },
+  'too-yumm': { object: sized({ w: 0.1425, h: 0.24, d: 0.0752 }, 1.4), base: { kind: 'plinth', w: 0.23, d: 0.14, h: 0.04 }, x: frontX['too-yumm'], z: FRONT_Z, scale: 1.4 },
   'bengal-t20': {
     // the flat set on a sloped wedge, tilted 46° toward the camera (its own stand, not a box)
     object: sized({ w: 0.3, h: 0.2 * Math.sin(BENGAL_TILT) + 0.028, d: 0.2 * Math.cos(BENGAL_TILT) }, 0.78),
@@ -69,7 +69,8 @@ export const STAGING: Record<string, Staging> = {
   'indo-thai': { object: sized({ w: 6.73, h: 1.202, d: 5.7 }, 0.041), base: { kind: 'plinth', w: 0.3, d: 0.25, h: 0.22 }, x: -0.009, z: MID_Z + 0.02, scale: 0.041 },
   sonde: { object: sized({ w: 0.2821, h: 0.2399, d: 0.14 }, 1.15), base: { kind: 'plinth', w: 0.33, d: 0.2, h: 0.28 }, x: 0.388, z: MID_Z, scale: 1.15 },
   // back, high: the book
-  'jsw-sports': { object: sized({ w: 0.359, h: 0.275, d: 0.027 }, 0.8), base: { kind: 'plinth', w: 0.33, d: 0.14, h: 0.38 }, x: 0, z: BACK_Z, scale: 0.8 },
+  // closed in the booth; on the tray it opens to two covers wide (trayW frames the open book)
+  'jsw-sports': { object: sized({ w: 0.359, h: 0.275, d: 0.027 }, 0.8), base: { kind: 'plinth', w: 0.33, d: 0.14, h: 0.38 }, x: 0, z: BACK_Z, scale: 0.8, trayW: 0.359 * 0.8 * 2.05 },
 };
 
 /** The About object (B2): a small framed certificate standing on the shelf, top right. */
@@ -77,8 +78,8 @@ export const CERTIFICATE = { w: 0.16, h: 0.12, d: 0.012, x: 0.56, lean: 0.12 } a
 
 /** Plinths: matte, Munsell N8.5, a touch warmer than the N8 walls. */
 export const PLINTH_GREY = '#CBCAC6';
-/** 2mm bevel on every plinth edge. */
-export const PLINTH_CHAMFER = 0.002;
+/** J3: a 3mm rounded bevel on every plinth edge, so the edges catch the light. */
+export const PLINTH_CHAMFER = 0.003;
 
 /**
  * The booth: an open-fronted box with coved inside corners. Interior width × height × depth;
