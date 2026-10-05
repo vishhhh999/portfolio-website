@@ -16,7 +16,7 @@ const b = await pw.chromium.launch({ args: ['--use-gl=angle', '--use-angle=swift
 const p = await b.newPage({ viewport: { width: 1568, height: 980 } });
 await p.addInitScript(() => sessionStorage.setItem('vm:opened:v1', '1')); // J5: no opening strike in steady-state checks
 p.setDefaultTimeout(600000);
-await p.goto(BASE + '/', { waitUntil: 'networkidle' });
+await p.goto(BASE + '/' + (process.env.Q || ''), { waitUntil: 'networkidle' });
 await p.waitForSelector('.booth-stage[data-ready="true"]', { timeout: 600000 });
 await p.waitForTimeout(2000);
 await p.evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown', { key: '6' })));

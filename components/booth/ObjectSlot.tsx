@@ -20,6 +20,8 @@ import { hoverFocus, setFocusRect } from './focus';
 import { playEvent } from '@/lib/sound';
 import { track } from '@/lib/analytics';
 import { openProject, warmProject } from '@/lib/navigate';
+import { markDirty } from '@/lib/dirty';
+import { logEvent } from '@/lib/eventLog';
 import { DRAG_PX, RAD_PER_PX, onSpin, setSpinDragging, spinDragging, spinOf } from '@/lib/spin';
 
 declare global {
@@ -155,6 +157,8 @@ function ModelObject({ work, onReady }: { work: Work; onReady: () => void }) {
           setWedge(g);
         }
         setRoot(scene);
+        markDirty(`model ${work.slug} loaded`, undefined, 3);
+        logEvent(`model ${work.slug} loaded`);
         invalidate();
         onReady();
       })
@@ -189,6 +193,7 @@ function ModelObject({ work, onReady }: { work: Work; onReady: () => void }) {
     const e = a.p < 0.5 ? 4 * a.p ** 3 : 1 - (-2 * a.p + 2) ** 3 / 2;
     a.action.time = e * a.duration;
     a.mixer.update(0);
+    markDirty('JSW clip', undefined, 1);
     invalidate();
   });
   if (!root) return null;
@@ -344,7 +349,11 @@ export function ObjectSlot({ work, lineup }: { work: Work; lineup: string[] }) {
       Math.abs(td - d.obj) > 1e-3 ||
       Math.abs(tp - d.base) > 1e-3 ||
       Math.abs(liftGoal - d.lift) > 1e-3;
-    if (moving) invalidate();
+    if (moving) {
+      invalidate();
+      // B1 (08): a sample moving changes the shadow, the reflection and the normals
+      markDirty('object moving', undefined, 1);
+    }
 
     // where this object is on screen: the keyboard layer's focusable button (home lineup only), and
     // B4: a sample is pickable only with ≥ 60% of its projected box inside the view

@@ -37,11 +37,17 @@ import { BOOTH, TRAY } from './staging';
 import { boothEnvironment, captureEnvironment, capturedEnvironment, ENV_INTENSITY } from './environment';
 import { modelsSettled } from './models';
 import { perfOff } from '@/lib/perfFlags';
+import { markDirty, takeDirty } from '@/lib/dirty';
+import { logEvent } from '@/lib/eventLog';
 import { uvUniforms } from './uvMaterial';
 import { PRINT_FLOORS, proofUniforms } from './proofUniforms';
 import { torch } from '@/lib/torch';
 import { isMobileTier } from '@/lib/perfTier';
 const MOBILE_TIER = typeof window !== 'undefined' && isMobileTier();
+/** 07's one area light per screen (desktop A/B only: `?perf&no=screencombine`). */
+const perScreenLights = typeof window !== 'undefined' && !MOBILE_TIER && perfOff('screencombine');
+/** The combined screen light's level per lit screen (B2: SCREEN reads L* 15–25 on the pouch, book and boxes). */
+const SPILL_GAIN = 0.75;
 
 const D50_PRINT = lampById('D50').print;
 const D50_BOUNCE = (() => {
@@ -109,7 +115,7 @@ function hazeMaterial() {
  */
 export function LampRig() {
   const panel = useRef<RectAreaLight>(null);
-  /** Mobile tier: one spill light for all screens (instead of one area light per screen). */
+  /** One spill light for all screens (B2, 08: desktop too), in the scene only while it is lit. */
   const spill = useRef<RectAreaLight>(null);
   const mobile = isMobileTier();
   const key = useRef<SpotLight>(null);
@@ -141,7 +147,6 @@ export function LampRig() {
   const tmp = useMemo(() => ({ v: new Vector3(), dir: new Vector3() }), []);
   const lastLamp = useRef<string | null>(null);
   const shadowKey = useRef<{ lamp: string | null; slug: string | null; focus: string | null; epoch: number }>({ lamp: null, slug: null, focus: null, epoch: -1 });
-  const shadowUntil = useRef(0);
   const handWasMoving = useRef(false);
   const lastHandLamp = useRef<string | null>(null);
   // pointer in whole-page NDC (for the hand lamp over the proof strip)
@@ -223,21 +228,24 @@ export function LampRig() {
     k.decay = K.decay;
     k.shadow.radius = K.shadowRadius;
     k.shadow.intensity = K.shadowIntensity;
-    // The booth is static: the shadow map (VSM: a depth pass + two blur passes) re-renders only
-    // when something changes it: a lamp strike or switch, samples moving to/from the tray, or the
-    // hand lamp moving. Never under D50 (shadow intensity 0). The measured top per-frame cost otherwise.
-    // Anything that moves a caster or the shadow camera re-renders the map for a while: a lamp
-    // change, the tray, a swipe to another sample, a resize or a DPR step (shadowEpoch).
-    const nowMs = performance.now();
+    // B1 (08): the shadow map (VSM: depth + blur, so its softness is baked into the map) re-renders
+    // only while something moves a caster or the light: a lamp change or strike, a sample moving
+    // (tray, turntable, the JSW clip), a resize or DPR step, a model arriving (lib/dirty.ts), or
+    // the hand lamp moving. Otherwise the last map is reused.
     const { focusSlug } = useBooth.getState();
     const sk = shadowKey.current;
     if (lamp !== sk.lamp || activeSlug !== sk.slug || focusSlug !== sk.focus || shadowEpoch.value !== sk.epoch) {
       shadowKey.current = { lamp, slug: activeSlug, focus: focusSlug, epoch: shadowEpoch.value };
-      shadowUntil.current = nowMs + 2500;
+      markDirty(lamp !== sk.lamp ? 'lamp' : activeSlug !== sk.slug ? 'tray' : 'view', undefined, 3);
     }
+    if (strikeProgress < 1) markDirty('strike', ['shadow', 'reflector'], 1);
+    if (handWasMoving.current) markDirty('hand lamp', ['shadow', 'reflector'], 1);
     k.shadow.autoUpdate = false;
     const shadowsMatter = k.intensity > 0 && K.shadowIntensity > 0;
-    if (shadowsMatter && (strikeProgress < 1 || nowMs < shadowUntil.current || handWasMoving.current)) k.shadow.needsUpdate = true;
+    if (override === undefined && takeDirty('shadow') && shadowsMatter) {
+      k.shadow.needsUpdate = true;
+      logEvent('shadow map re-render');
+    }
 
     let handMoving = false;
     const handJustOn = lamp === 'AFTERDARK' && lastHandLamp.current !== 'AFTERDARK';
@@ -312,8 +320,10 @@ export function LampRig() {
       spillColour.add(s.colour);
     }
     if (spill.current) {
-      // the screens' area together, from one light across the back row
-      spill.current.intensity = screens.size ? P.screens.spill * ch.spill * spillSum * 0.45 : 0;
+      // the screens' area together, from one light across the back row; out of the scene entirely
+      // (not just at 0) when unlit, so it costs nothing under the other lamps
+      spill.current.intensity = screens.size && !perScreenLights ? P.screens.spill * ch.spill * spillSum * SPILL_GAIN : 0;
+      spill.current.visible = spill.current.intensity > 0;
       spill.current.color.copy(screens.size ? spillColour.multiplyScalar(1 / screens.size) : spillColour);
     }
 
@@ -435,6 +445,7 @@ export function LampRig() {
     if (!MOBILE_TIER && !perfOff('envcapture') && modelsSettled() && !capturedEnvironment(lamp)) {
       applyRig(0, 1);
       scene.environment = captureEnvironment(gl, scene, lamp);
+      logEvent(`env capture ${lamp}`);
     }
     applyRig(rawDt);
   });
@@ -442,7 +453,7 @@ export function LampRig() {
   return (
     <>
       <rectAreaLight ref={panel} rotation={[-Math.PI / 2, 0, 0]} />
-      {mobile && <rectAreaLight ref={spill} width={0.8} height={0.16} position={[0, 0.42, -0.2]} rotation={[0, Math.PI, 0]} intensity={0} />}
+      <rectAreaLight ref={spill} width={0.8} height={0.16} position={[0, 0.42, -0.2]} rotation={[0, Math.PI, 0]} intensity={0} visible={false} />
       <primitive object={keyTarget} />
       <spotLight
         ref={key}

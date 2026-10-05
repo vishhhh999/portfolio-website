@@ -45,7 +45,9 @@ export function attachScreen(root: Object3D, slug: string, aspect: number, mobil
     }
   });
   let light: RectAreaLight | null = null;
-  if (mesh && !mobile && !perfOff('screenlights')) {
+  // B2 (08): one combined screen light for all devices (the rig's spill light), on desktop too;
+  // `?perf&no=screencombine` restores 07's one area light per screen for an A/B
+  if (mesh && !mobile && perfOff('screencombine') && !perfOff('screenlights')) {
     // the display's size and facing, from its own geometry (in the model's space)
     root.updateMatrixWorld(true);
     const m = mesh as Mesh;

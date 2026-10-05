@@ -2,7 +2,12 @@
 
 import { perfOff } from '@/lib/perfFlags';
 
-import { MeshReflectorMaterial, RoundedBox, useTexture } from '@react-three/drei';
+import { RoundedBox, useTexture } from '@react-three/drei';
+import { GatedReflectorMaterial } from './vendor/gatedReflector.js';
+import { takeDirty } from '@/lib/dirty';
+
+/** B1 (08): the floor reflection re-renders only while something it shows is changing. */
+const reflectorGate = () => takeDirty('reflector');
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import {
@@ -149,6 +154,8 @@ export function shellAO() {
  * only; the realtime lamps still light the shell directly); the rig colours and levels it here.
  */
 export const lightmapTint = { value: new Color(1, 1, 1) };
+/** B3 (08): a baked room lightmap is in use (then SSAO darkens the objects only, not the room). */
+export const roomLightmap = { on: false };
 
 /** Uses a baked lightmap (uv1) on a shell material, tinted per lamp through lightmapTint. */
 function applyLightmap(m: MeshStandardMaterial, map: Texture) {
@@ -356,6 +363,7 @@ export function BoothRoom({ lineup, lightmap = null }: { lineup: string[]; light
         if (!live) return;
         const lit = [...mats.interior, mats.lip, mats.shelf, mats.hood].filter((m): m is MeshStandardMaterial => (m as MeshStandardMaterial).isMeshStandardMaterial);
         lit.forEach((m) => applyLightmap(m, t));
+        roomLightmap.on = true;
         invalidate();
       })
       .catch(() => {});
@@ -374,6 +382,7 @@ export function BoothRoom({ lineup, lightmap = null }: { lineup: string[]; light
         <mesh
           key={p.name}
           name={p.name}
+          userData={{ room: p.role !== 'shelf' }}
           geometry={p.geometry}
           material={matFor(p)}
           position={p.position}
@@ -417,7 +426,8 @@ function FloorReflection() {
   return (
     <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.001, (BOOTH.backZ + BOOTH.frontZ) / 2 - 0.02]} receiveShadow>
       <planeGeometry args={[BOOTH.width - 2 * COVE, depth - 2 * COVE - 0.04]} />
-      <MeshReflectorMaterial
+      <GatedReflectorMaterial
+        gate={reflectorGate}
         resolution={384}
         blur={[420, 140]}
         mixBlur={1}

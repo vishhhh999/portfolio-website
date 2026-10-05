@@ -6,6 +6,7 @@ import { advance, Canvas, events as createPointerEvents, useFrame, useThree, typ
 import { SoftShadows } from '@react-three/drei';
 import { Suspense, useEffect, useRef, useState } from 'react';
 import { loadLTC } from '@/lib/ltc';
+import { markDirty } from '@/lib/dirty';
 import { Euler, Matrix4, Quaternion, Vector3, type Intersection, type Mesh, type Object3D } from 'three';
 import { lineup } from '@/content/work';
 import { attachRenderer, requestFrames, setContinuous } from '@/lib/clock';
@@ -28,7 +29,7 @@ import { BOOTH, CABINET_FACE, CERTIFICATE, FACE_Z, FOCAL_MM, FOV, PLINTH_CHAMFER
 
 declare global {
   interface Window {
-    __boothBench?: (n?: number) => { p50: number; p95: number };
+    __boothBench?: (n?: number, moving?: boolean) => { p50: number; p95: number };
   }
   interface Window {
     /** Projected width of every sample (object only, no plinth) as % of the viewport width, from the live camera. */
@@ -235,10 +236,13 @@ function ClockBridge({ onReady }: { onReady: () => void }) {
     // ?perf: render N frames synchronously, each closed with a 1px readback, and time them. A
     // like-for-like cost per lamp / per tier, independent of the display's refresh cadence.
     if (window.location.search.includes('perf')) {
-      window.__boothBench = (n = 30) => {
+      window.__boothBench = (n = 30, moving = false) => {
         const ctx = get().gl.getContext();
         const px = new Uint8Array(4);
         const frame = () => {
+          // B5 (08): `moving` forces every side render (reflector, shadow, normals) on every frame, as
+          // while the camera drifts; otherwise frames where nothing changed reuse them
+          if (moving) markDirty('bench (moving)', undefined, 1);
           advance(performance.now() / 1000, true, get());
           ctx.readPixels(0, 0, 1, 1, ctx.RGBA, ctx.UNSIGNED_BYTE, px); // a real sync point (finish() may not block)
         };
@@ -335,7 +339,10 @@ export default function BoothCanvas({ onReady, lightmap = null }: { onReady: () 
   return (
     <Canvas
       frameloop="never"
-      shadows="percentage"
+      // B2 (08): variance shadow maps: the softness is a blur baked into the map when it re-renders (only
+      // on a change, lib/dirty.ts), so receiving a soft shadow costs one lookup per pixel. `?perf&no=vsm`
+      // restores the 07 path (PCF + per-pixel PCSS) for an A/B on the GPU.
+      shadows={perfOff('vsm') ? 'percentage' : 'variance'}
       dpr={typeof window !== 'undefined' ? Math.min(window.devicePixelRatio || 1, perf.dprCap) : 1}
       gl={{ antialias: false, alpha: true, premultipliedAlpha: true, powerPreference: 'high-performance', stencil: false }}
       camera={{ fov: FOV, position: [0, 0.4, 5] }}
@@ -357,10 +364,10 @@ export default function BoothCanvas({ onReady, lightmap = null }: { onReady: () 
       ) : (
         <>
           <SizeProbe />
-      <PickProbe />
+          <PickProbe />
           <CameraRig />
           <LampRig />
-          {!perfOff('pcss') && <SoftShadows size={mobile ? 18 : 26} samples={mobile ? 8 : 14} focus={0.2} />}
+          {perfOff('vsm') && !perfOff('pcss') && <SoftShadows size={mobile ? 18 : 26} samples={mobile ? 8 : 14} focus={0.2} />}
           <BoothRoom lineup={SLUGS} lightmap={lightmap} />
           {lineup.map((w) => (
             <ObjectSlot key={w.slug} work={w} lineup={SLUGS} />

@@ -44,8 +44,10 @@ import { stageRect } from '@/lib/views';
 import { isMobileTier } from '@/lib/perfTier';
 import { loupeState } from '@/lib/loupe';
 import { useBooth } from '@/lib/store';
+import { markDirty, takeDirty } from '@/lib/dirty';
 import { useReducedMotion } from '@/lib/useReducedMotion';
 import { hoverFocus } from './focus';
+import { roomLightmap } from './BoothRoom';
 import { STAGING, TRAY } from './staging';
 
 declare global {
@@ -209,6 +211,8 @@ class ViewsPass extends Pass {
  */
 class BoothNormalPass extends NormalPass {
   render(renderer: WebGLRenderer, inputBuffer: WebGLRenderTarget | null, outputBuffer: WebGLRenderTarget | null, deltaTime?: number, stencilTest?: boolean) {
+    // B3 (08): normals and depth change only with the camera or the objects: otherwise reuse them
+    if (!takeDirty('normals')) return;
     const rt = (this as unknown as { renderTarget: WebGLRenderTarget }).renderTarget;
     rt.scissorTest = false;
     renderer.setRenderTarget(rt);
@@ -219,7 +223,18 @@ class BoothNormalPass extends NormalPass {
     const k = rt.width / inputBuffer.width;
     rt.scissor.set(Math.floor(boothScissor.x * k), Math.floor(boothScissor.y * k), Math.ceil(boothScissor.z * k), Math.ceil(boothScissor.w * k));
     rt.scissorTest = true;
+    // B3 (08): with a baked room lightmap the room already has its occlusion: SSAO sees the objects only
+    const hidden: Object3D[] = [];
+    if (roomLightmap.on) {
+      (this as unknown as { renderPass: { scene: Object3D } }).renderPass.scene.traverse((o) => {
+        if (o.userData.room && o.visible) {
+          o.visible = false;
+          hidden.push(o);
+        }
+      });
+    }
     super.render(renderer, inputBuffer, outputBuffer, deltaTime, stencilTest);
+    for (const o of hidden) o.visible = true;
     rt.scissorTest = false;
   }
 }
@@ -497,6 +512,7 @@ function sanitizeMaterial() {
  * Bloom's blur passes are skipped entirely under lamps that don't use it.
  * Takes over rendering at priority 1.
  */
+const camKey = new Float64Array(32);
 const dofAt = new Vector3();
 const dofDir = new Vector3();
 
@@ -515,7 +531,9 @@ export function Post() {
   const noBloom = (typeof window !== 'undefined' && window.location.search.includes('nobloom')) || perfOff('bloom');
   // MSAA on the composer's render target (the canvas's own antialias does nothing under a post
   // chain): 4× desktop, 2× mobile, capped at what the GPU supports. SMAA when MSAA is unavailable.
-  const samples = perfOff('msaa') ? 0 : Math.min(mobile ? 2 : 4, gl.capabilities.isWebGL2 ? gl.capabilities.maxSamples : 0);
+  // B2 (08): MSAA 4x kept on desktop (SMAA broke the frame's thin chamfer highlights into dashes that
+  // crawl under parallax: tools/lamp-review/08/aa-compare.png). `?perf&no=msaa4` tries 2x, `no=msaa` SMAA.
+  const samples = perfOff('msaa') ? 0 : Math.min(mobile || perfOff('msaa4') ? 2 : 4, gl.capabilities.isWebGL2 ? gl.capabilities.maxSamples : 0);
   const composer = useMemo(() => new EffectComposer(gl, { frameBufferType: HalfFloatType, multisampling: samples }), [gl, samples]);
   postApi.samples = samples;
   const fx = useMemo(() => {
@@ -584,11 +602,11 @@ export function Post() {
         };
       }
     };
-    (window as unknown as { __boothPasses: (n?: number) => unknown }).__boothPasses = (n = 20) => {
+    (window as unknown as { __boothPasses: (n?: number, moving?: boolean) => unknown }).__boothPasses = (n = 20, moving = false) => {
       wrap();
       times.clear();
       on = true;
-      const total = window.__boothBench?.(n);
+      const total = window.__boothBench?.(n, moving);
       on = false;
       const out: Record<string, number> = {};
       let sum = 0;
@@ -599,6 +617,7 @@ export function Post() {
       }
       out['scene prep (useFrame: reflector, contact shadows, shadow map)'] = total ? +(total.p50 - sum).toFixed(2) : NaN;
       out.frameP50 = total?.p50 ?? NaN;
+      out.frameP95 = total?.p95 ?? NaN;
       return out;
     };
   }, [gl, composer]);
@@ -633,6 +652,16 @@ export function Post() {
   useEffect(() => () => composer.dispose(), [composer]);
 
   useFrame((_, dt) => {
+    // B1 (08): the camera moved (parallax, a scroll moving the stage, a resize, a dolly): every
+    // side render that depends on the view is dirty for this frame
+    camera.updateMatrixWorld();
+    const cm = camera.matrixWorld.elements, pm = camera.projectionMatrix.elements;
+    let moved = false;
+    for (let i = 0; i < 16; i++) if (Math.abs(cm[i] - camKey[i]) > 1e-6 || Math.abs(pm[i] - camKey[16 + i]) > 1e-6) moved = true;
+    if (moved) {
+      for (let i = 0; i < 16; i++) (camKey[i] = cm[i]), (camKey[16 + i] = pm[i]);
+      markDirty('camera', ['reflector', 'normals'], 1);
+    }
     // J4: focus on the tray object, else the sample under the pointer (or keyboard focus); none otherwise
     if (fx.dof) {
       const { activeSlug, keySlug } = useBooth.getState();
