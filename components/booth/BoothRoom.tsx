@@ -34,7 +34,7 @@ import {
 import { isMobileTier } from '@/lib/perfTier';
 import { useBooth } from '@/lib/store';
 import { shellParts, type ShellPart } from './shell';
-import { BOOTH, CABINET, CABINET_FACE, COVE, DIFFUSER, PLINTH_GREY, PROPS, STAGING, TRAY } from './staging';
+import { BOOTH, CABINET, CABINET_FACE, COVE, DIFFUSER, PHONE_LAYOUT, PLINTH_GREY, PROPS, STAGING, TRAY } from './staging';
 import { applyUV } from './uvMaterial';
 import { smudgeMap, wallRoughness } from './imperfections';
 
@@ -141,7 +141,7 @@ let aoTex: Texture | null = null;
 /** The baked AO over the shell atlas (tools/bake-booth.mjs), sampled on uv1. */
 export function shellAO() {
   if (aoTex) return aoTex;
-  aoTex = new TextureLoader().load('/booth/ao.png');
+  aoTex = new TextureLoader().load(PHONE_LAYOUT ? '/booth/ao-phone.png' : '/booth/ao.png');
   aoTex.channel = 1;
   aoTex.colorSpace = NoColorSpace;
   aoTex.minFilter = LinearMipmapLinearFilter;

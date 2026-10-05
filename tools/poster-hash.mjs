@@ -1,0 +1,42 @@
+/**
+ * C1 (08): the LCP posters can never go stale. Their inputs (everything that shapes the booth's
+ * first frame: staging, shell, camera, materials, lamps, post chain, models, AO, brand screens) are
+ * hashed; tools/make-posters.mjs stores the hash it rendered from in public/booth/posters.json.
+ *   node tools/poster-hash.mjs           print the current hash
+ *   node tools/poster-hash.mjs --check   exit 1 if the posters were rendered from other inputs
+ *                                        (runs before every build: a stale poster never deploys)
+ */
+import { createHash } from 'crypto';
+import { existsSync, readdirSync, readFileSync, statSync } from 'fs';
+import { join } from 'path';
+const ROOT = new URL('../', import.meta.url).pathname;
+const FILES = [
+  'components/booth/staging.ts', 'components/booth/shell.ts', 'components/booth/shots.ts', 'components/booth/BoothRoom.tsx',
+  'components/booth/ObjectSlot.tsx', 'components/booth/Certificate.tsx', 'components/booth/LampRig.tsx', 'components/booth/Post.tsx',
+  'components/booth/environment.ts', 'components/booth/imperfections.ts', 'components/booth/deviceScreen.ts', 'components/booth/screens.ts',
+  'components/booth/uvMaterial.ts', 'components/booth/phoneStaging.ts', 'lib/lampPresets.ts', 'content/work/index.ts', 'public/booth/ao.png',
+];
+const DIRS = ['public/models', 'public/brand'];
+const walk = (d) => readdirSync(join(ROOT, d)).sort().flatMap((f) => (statSync(join(ROOT, d, f)).isDirectory() ? walk(`${d}/${f}`) : [`${d}/${f}`]));
+export function posterHash() {
+  const h = createHash('sha256');
+  for (const f of [...FILES, ...DIRS.flatMap(walk)]) {
+    if (!existsSync(join(ROOT, f))) continue;
+    h.update(f);
+    h.update(readFileSync(join(ROOT, f)));
+  }
+  return h.digest('hex');
+}
+if (import.meta.url === `file://${process.argv[1]}`) {
+  const hash = posterHash();
+  if (!process.argv.includes('--check')) console.log(hash);
+  else {
+    const meta = join(ROOT, 'public/booth/posters.json');
+    const at = existsSync(meta) ? JSON.parse(readFileSync(meta, 'utf8')).hash : null;
+    if (at !== hash) {
+      console.error(`✗ the booth posters are stale (rendered from ${at ? at.slice(0, 12) : 'nothing'}, the booth is now ${hash.slice(0, 12)}).\n  Run: npm run build && npx next start -p 3100 & then node tools/make-posters.mjs`);
+      process.exit(1);
+    }
+    console.log(`✓ booth posters match the booth (${hash.slice(0, 12)})`);
+  }
+}

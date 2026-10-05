@@ -18,6 +18,7 @@ import {
 } from 'postprocessing';
 import { useEffect, useLayoutEffect, useMemo } from 'react';
 import {
+  AdditiveBlending,
   DataTexture,
   HalfFloatType,
   LinearFilter,
@@ -38,17 +39,19 @@ import {
   Vector4,
   WebGLRenderTarget,
   type Camera,
+  type Texture,
   type WebGLRenderer,
 } from 'three';
 import { stageRect } from '@/lib/views';
 import { isMobileTier } from '@/lib/perfTier';
 import { loupeState } from '@/lib/loupe';
 import { useBooth } from '@/lib/store';
-import { markDirty, takeDirty } from '@/lib/dirty';
+import { isDirty, markDirty, takeDirty } from '@/lib/dirty';
 import { useReducedMotion } from '@/lib/useReducedMotion';
 import { hoverFocus } from './focus';
 import { roomLightmap } from './BoothRoom';
-import { STAGING, TRAY } from './staging';
+import { STAGING } from './staging';
+import { logEvent } from '@/lib/eventLog';
 
 declare global {
   interface Window {
@@ -357,46 +360,63 @@ class BoothToneEffect extends Effect {
 }
 
 /**
- * J4: a subtle depth of field (desktop): focus on the sample on the tray, or on the one under the
- * pointer; everything nearer or further softens a little (a 12-tap disc, a few px at most, small
- * bokeh). Off when nothing is in focus, on mobile and under reduced motion. Booth stage only.
+ * D (08): the masked focus. Depth of field cannot isolate one sample (they all sit at nearly the
+ * same distance), so the focus is a mask instead: the focused sample's own meshes are drawn into a
+ * half-resolution mask (each sample by its weight, so moving between samples crossfades), and
+ * everything outside the feathered mask (~6px at 1440p) is softened by at most 2.5px at 1440p.
+ * Strength ramps 0 → 1 over 250ms on hover, back over 300ms; the tray object is the focus at rest
+ * on project pages (0.6). In the chain from the start; at strength 0 it costs nothing (no taps).
+ * Off on the mobile tier and under reduced motion.
  */
-export const dofState = { focus: 1, blur: 0 };
-class BoothDofEffect extends Effect {
-  constructor() {
+export const focusState = { strength: 0, weights: new Map<string, number>() };
+class BoothFocusEffect extends Effect {
+  constructor(mask: Texture) {
     super(
-      'BoothDofEffect',
+      'BoothFocusEffect',
       /* glsl */ `
-      uniform float focusDist;
-      uniform float maxBlur;
+      uniform sampler2D maskMap;
+      uniform float strength;
+      uniform float radius;
+      uniform float feather;
       uniform vec4 box;
-      void mainImage(const in vec4 inputColor, const in vec2 uv, const in float depth, out vec4 outputColor) {
+      void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor) {
         bool inside = uv.x >= box.x && uv.x <= box.z && uv.y >= box.y && uv.y <= box.w;
-        if (!inside || maxBlur < 0.05 || depth >= 1.0) { outputColor = inputColor; return; }
-        float z = -getViewZ(depth);
-        float coc = clamp(abs(z - focusDist) / max(z, 1e-3) * 2.4, 0.0, 1.0) * maxBlur;
-        if (coc < 0.4) { outputColor = inputColor; return; }
+        if (!inside || strength < 0.003) { outputColor = inputColor; return; }
+        // the feathered mask (weights normalised by the strength: a focused sample is fully sharp)
+        float m = texture2D(maskMap, uv).r * 2.0;
+        for (int i = 0; i < 8; i++) {
+          float a = float(i) * 0.785398;
+          m += texture2D(maskMap, uv + vec2(cos(a), sin(a)) * feather * texelSize).r;
+        }
+        m = clamp(m / 10.0 / strength, 0.0, 1.0);
+        float k = strength * (1.0 - m);
+        if (k < 0.01) { outputColor = inputColor; return; }
         vec4 acc = inputColor;
         for (int i = 0; i < 12; i++) {
           float a = float(i) * 2.39996;
-          float r = sqrt((float(i) + 0.5) / 12.0) * coc;
+          float r = sqrt((float(i) + 0.5) / 12.0) * radius * k;
           acc += texture2D(inputBuffer, uv + vec2(cos(a), sin(a)) * r * texelSize);
         }
         outputColor = acc / 13.0;
       }`,
       {
-        attributes: EffectAttribute.DEPTH,
         uniforms: new Map<string, Uniform>([
-          ['focusDist', new Uniform(1)],
-          ['maxBlur', new Uniform(0)],
+          ['maskMap', new Uniform(mask)],
+          ['strength', new Uniform(0)],
+          ['radius', new Uniform(2.5)],
+          ['feather', new Uniform(6)],
           ['box', new Uniform(new Vector4(0, 0, 0, 0))],
         ]),
       },
     );
   }
+  setScale(bufferHeight: number) {
+    // 2.5px blur and a 6px feather at 1440p, in buffer pixels
+    (this.uniforms.get('radius') as Uniform<number>).value = (2.5 * bufferHeight) / 1440;
+    (this.uniforms.get('feather') as Uniform<number>).value = (6 * bufferHeight) / 1440;
+  }
   update() {
-    (this.uniforms.get('focusDist') as Uniform<number>).value = dofState.focus;
-    (this.uniforms.get('maxBlur') as Uniform<number>).value = dofState.blur;
+    (this.uniforms.get('strength') as Uniform<number>).value = focusState.strength;
     setStageBox(this.uniforms.get('box')!.value as Vector4);
   }
 }
@@ -513,8 +533,41 @@ function sanitizeMaterial() {
  * Takes over rendering at priority 1.
  */
 const camKey = new Float64Array(32);
-const dofAt = new Vector3();
-const dofDir = new Vector3();
+const maskKey = { value: '' };
+const maskMat = new MeshBasicMaterial({ color: 0xffffff, blending: AdditiveBlending, depthTest: false, depthWrite: false, toneMapped: false });
+/** D (08): draws each focused sample's own meshes (not its base or shadows) into the mask, by weight. */
+function renderFocusMask(gl: WebGLRenderer, scene: Scene, camera: Camera, target: WebGLRenderTarget, weights: Map<string, number>) {
+  const prevTarget = gl.getRenderTarget(), prevAuto = gl.autoClear, prevShadow = gl.shadowMap.autoUpdate;
+  gl.setRenderTarget(target);
+  gl.setClearColor(0x000000, 0);
+  gl.clear(true, false, false);
+  gl.autoClear = false;
+  gl.shadowMap.autoUpdate = false;
+  for (const child of scene.children) {
+    const slug = child.userData.slug as string | undefined;
+    const w = slug ? weights.get(slug) ?? 0 : 0;
+    if (w <= 0.001) continue;
+    let root: Object3D | null = null;
+    child.traverse((o) => {
+      if (!root && o.userData.focusRoot) root = o;
+    });
+    if (!root) continue;
+    const swapped: [Mesh, Material | Material[]][] = [];
+    (root as Object3D).traverse((o) => {
+      const m = o as Mesh;
+      if (m.isMesh) {
+        swapped.push([m, m.material]);
+        m.material = maskMat;
+      }
+    });
+    maskMat.color.setScalar(w);
+    gl.render(root, camera);
+    for (const [m, mat] of swapped) m.material = mat;
+  }
+  gl.autoClear = prevAuto;
+  gl.shadowMap.autoUpdate = prevShadow;
+  gl.setRenderTarget(prevTarget);
+}
 
 export function Post() {
   const invalidate = useThree((s) => s.invalidate);
@@ -537,6 +590,7 @@ export function Post() {
   const composer = useMemo(() => new EffectComposer(gl, { frameBufferType: HalfFloatType, multisampling: samples }), [gl, samples]);
   postApi.samples = samples;
   const fx = useMemo(() => {
+    const focusMask = new WebGLRenderTarget(1, 1, { depthBuffer: false });
     const noise = new GrainEffect();
     noise.blendMode.opacity.value = 0;
     const bloom = new BloomEffect({ mipmapBlur: true, intensity: 0, luminanceThreshold: 1, luminanceSmoothing: 0.2, radius: 0.7, resolutionScale: mobile ? 0.5 : 1 });
@@ -574,7 +628,8 @@ export function Post() {
       noise,
       coverage,
       mask: new ViewMaskEffect(coverage.target),
-      dof: mobile || perfOff('dof') ? null : new BoothDofEffect(),
+      focusMask,
+      focus: mobile || perfOff('focus') ? null : new BoothFocusEffect(focusMask.texture),
     };
   }, [mobile, scene, camera]);
 
@@ -630,7 +685,7 @@ export function Post() {
     composer.addPass(fx.coverage);
     composer.addPass(fx.sanitize);
     if (samples < 2) composer.addPass(new EffectPass(camera, new SMAAEffect()));
-    if (fx.dof) composer.addPass(new EffectPass(camera, fx.dof));
+    if (fx.focus) composer.addPass(new EffectPass(camera, fx.focus));
     const effects = [fx.ssao, fx.bloom, fx.matrix, fx.tone, fx.noise, fx.mask].filter((e): e is Effect => e !== null);
     const finalPass = new EffectPass(camera, ...effects);
     // dark lamps (UV, AFTER DARK) live in the bottom few 8-bit codes: dither the output so gradients don't contour
@@ -646,9 +701,15 @@ export function Post() {
   // changes the drawing buffer without changing the CSS size). Synchronous with the canvas resize,
   // so no frame is ever drawn into a stale-sized buffer.
   useLayoutEffect(() => {
-    composer.setSize(size.width, size.height);
-    postApi.resize = () => composer.setSize(size.width, size.height);
-  }, [composer, size.width, size.height, dpr]);
+    const fit = () => {
+      composer.setSize(size.width, size.height);
+      const pr = gl.getPixelRatio();
+      fx.focusMask.setSize(Math.max(1, Math.round((size.width * pr) / 2)), Math.max(1, Math.round((size.height * pr) / 2)));
+      fx.focus?.setScale(size.height * pr);
+    };
+    fit();
+    postApi.resize = fit;
+  }, [composer, size.width, size.height, dpr, fx, gl]);
   useEffect(() => () => composer.dispose(), [composer]);
 
   useFrame((_, dt) => {
@@ -662,23 +723,35 @@ export function Post() {
       for (let i = 0; i < 16; i++) (camKey[i] = cm[i]), (camKey[16 + i] = pm[i]);
       markDirty('camera', ['reflector', 'normals'], 1);
     }
-    // J4: focus on the tray object, else the sample under the pointer (or keyboard focus); none otherwise
-    if (fx.dof) {
-      const { activeSlug, keySlug } = useBooth.getState();
-      const slug = activeSlug ?? hoverFocus.slug ?? keySlug;
-      let goal = 0;
-      if (slug && !reducedMotion && STAGING[slug]) {
-        const st = STAGING[slug];
-        if (activeSlug) dofAt.set(0, TRAY.top + st.object.h / 2, TRAY.z);
-        else dofAt.set(st.x, st.base.h + st.object.h / 2, st.z);
-        camera.getWorldDirection(dofDir);
-        dofState.focus = dofAt.sub(camera.position).dot(dofDir);
-        goal = (2.2 * size.height * dpr) / 1000;
+    // D (08): the focus weights. The hovered (or keyboard-focused) sample ramps to 1 over 250ms,
+    // the others back to 0 over 300ms; at rest on a project page the tray object holds 0.6.
+    if (fx.focus) {
+      const { activeSlug, keySlug, houseLights } = useBooth.getState();
+      const hover = reducedMotion || houseLights ? null : hoverFocus.slug ?? keySlug;
+      const step = Math.min(0.1, Math.max(0, dt));
+      const W = focusState.weights;
+      for (const slug of Object.keys(STAGING)) {
+        const goal = reducedMotion || houseLights ? 0 : slug === hover ? 1 : !hover && slug === activeSlug ? 0.6 : 0;
+        const w = W.get(slug) ?? 0;
+        const nw = goal > w ? Math.min(goal, w + step / 0.25) : Math.max(goal, w - step / 0.3);
+        if (nw > 0) W.set(slug, nw);
+        else W.delete(slug);
       }
-      const k = 1 - Math.exp(-Math.min(0.1, Math.max(0, dt)) * 6);
-      dofState.blur += (goal - dofState.blur) * k;
-      if (Math.abs(goal - dofState.blur) > 0.02) invalidate();
-      else dofState.blur = goal;
+      let sMax = 0;
+      for (const w of W.values()) sMax = Math.max(sMax, w);
+      const ease = (x: number) => x * x * (3 - 2 * x);
+      const strength = ease(sMax);
+      if ((strength > 0) !== (focusState.strength > 0)) logEvent(`focus pass strength ${strength > 0 ? '0 → on' : '→ 0'}`);
+      focusState.strength = strength;
+      if (strength > 0) {
+        // the mask is redrawn only when the weights, the camera or an object changed
+        const key = [...W].map(([k, v]) => `${k}:${v.toFixed(3)}`).join(',');
+        if (key !== maskKey.value || moved || isDirty('normals')) {
+          maskKey.value = key;
+          renderFocusMask(gl, scene, camera, fx.focusMask, W);
+        }
+        if (W.size && [...W.values()].some((w) => w > 0 && w < 1 && w !== 0.6)) invalidate();
+      }
     }
     fx.bloom.intensity = noBloom ? 0 : postState.bloomIntensity;
     fx.bloom.luminanceMaterial.threshold = postState.bloomThreshold;

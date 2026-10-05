@@ -23,12 +23,19 @@ import { Euler, Quaternion, Vector3 } from 'three';
 import { fileURLToPath } from 'url';
 import { ATLAS, shellParts } from '../components/booth/shell.ts';
 import { cabinetShot, trayShot } from '../components/booth/shots.ts';
-import { BOOTH, CABINET_FACE, COVE, EYE, FACE_Z, FOCAL_MM, FOV, HOOD, LIP, PROPS, SENSOR_HEIGHT_MM, STAGING, TRAY } from '../components/booth/staging.ts';
+import { BOOTH, CABINET_FACE, COVE, EYE, FACE_Z, FOCAL_MM, FOV, HOOD, LIP, SENSOR_HEIGHT_MM, TRAY, DESKTOP_STAGING, DESKTOP_PROPS } from '../components/booth/staging.ts';
+import { PHONE_PROPS, PHONE_STAGING } from '../components/booth/phoneStaging.ts';
+
+// G (08): LAYOUT=phone bakes public/booth/ao-phone.png for the phone arrangement (its bases and
+// shelf) and stops there; the room glb and camera.json come from the desktop run
+const PHONE = process.env.LAYOUT === 'phone';
+const STAGING = PHONE ? PHONE_STAGING : DESKTOP_STAGING;
+const PROPS = { ledge: (PHONE ? PHONE_PROPS : DESKTOP_PROPS).ledge };
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 // the booth lineup, in content order (content/work/index.ts; the bases follow STAGING)
 const LINEUP = ['too-yumm', 'jsw-sports', 'mitooshi', 'sonde', 'house-of-hex', 'bengal-t20', 'sook', 'shunya', 'indo-thai'];
-const parts = shellParts(LINEUP);
+const parts = shellParts(LINEUP, STAGING, PROPS);
 
 // ── signed distance field of the static booth (positive in free space) ──────────────────────
 const sdRoundBox = (p, b, r) => {
@@ -160,8 +167,10 @@ for (let i = 0; i < img.length; i++) {
   }
 }
 mkdirSync(join(ROOT, 'public/booth'), { recursive: true });
-await sharp(bytes, { raw: { width: N, height: N, channels: 1 } }).png({ compressionLevel: 9 }).toFile(join(ROOT, 'public/booth/ao.png'));
-console.log(`ao.png: ${N}², ${cnt} texels baked, min ${lo.toFixed(2)}, mean ${(sum / cnt).toFixed(3)}`);
+const aoName = PHONE ? 'ao-phone.png' : 'ao.png';
+await sharp(bytes, { raw: { width: N, height: N, channels: 1 } }).png({ compressionLevel: 9 }).toFile(join(ROOT, 'public/booth', aoName));
+console.log(`${aoName}: ${N}², ${cnt} texels baked, min ${lo.toFixed(2)}, mean ${(sum / cnt).toFixed(3)}`);
+if (PHONE) process.exit(0);
 
 // ── booth-room.glb for the Blender lightmap bake (J1) ───────────────────────────────────────
 // The room only: interior, frame, housing, hood, diffuser and lip. The plinths, the riser and the

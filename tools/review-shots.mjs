@@ -36,6 +36,12 @@ for (const [name, vp, mobile] of [['1568', { width: 1568, height: 980 }, false],
     await p.waitForTimeout(3000);
     const slug = route.replaceAll('/', '-').replace(/^-/, '');
     await p.screenshot({ path: `${OUT}${name}-${slug}.png` });
+    // H5 (08): a full-page capture waits for every image: lazy ones are made eager, then all decoded
+    await p.evaluate(async () => {
+      const imgs = [...document.images];
+      for (const im of imgs) im.loading = 'eager';
+      await Promise.all(imgs.map((im) => (im.complete && im.naturalWidth ? im.decode().catch(() => {}) : new Promise((r) => { im.addEventListener('load', r, { once: true }); im.addEventListener('error', r, { once: true }); setTimeout(r, 20000); }))));
+    });
     await p.screenshot({ path: `${OUT}${name}-${slug}-full.png`, fullPage: true });
     console.log(LABEL, name, route);
   }

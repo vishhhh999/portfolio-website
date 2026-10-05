@@ -28,7 +28,8 @@ import {
   type Texture,
 } from 'three';
 import { kelvinToAdapted } from '@/lib/kelvin';
-import { lampById, strikeChannels, strikeKelvin } from '@/lib/lampPresets';
+import { LAMPS, lampById, strikeChannels, strikeKelvin } from '@/lib/lampPresets';
+import type { Lamp } from '@/lib/types';
 import { useBooth } from '@/lib/store';
 import { ceilingMaterial, diffuserMaterial, getBlobMaterial, hoodGlow, lightmapTint } from './BoothRoom';
 import { postState } from './Post';
@@ -38,6 +39,7 @@ import { boothEnvironment, captureEnvironment, capturedEnvironment, ENV_INTENSIT
 import { modelsSettled } from './models';
 import { perfOff } from '@/lib/perfFlags';
 import { markDirty, takeDirty } from '@/lib/dirty';
+import { revealed } from '@/lib/reveal';
 import { logEvent } from '@/lib/eventLog';
 import { uvUniforms } from './uvMaterial';
 import { PRINT_FLOORS, proofUniforms } from './proofUniforms';
@@ -186,10 +188,11 @@ export function LampRig() {
   }, [gl, invalidate]);
 
   /** The whole rig for one frame; `override` forces the strike progress (the J2 capture pass at full output). */
-  const applyRig = (rawDt: number, override?: number) => {
+  const applyRig = (rawDt: number, override?: number, lampOverride?: Lamp) => {
     // a non-monotonic or stalled clock never jumps or inverts the motion: 0 ≤ dt ≤ 100ms
     const dt = Math.min(0.1, Math.max(0, rawDt || 0));
-    const { lamp, strikeProgress: liveProgress, activeSlug } = useBooth.getState();
+    const { lamp: liveLamp, strikeProgress: liveProgress, activeSlug } = useBooth.getState();
+    const lamp = lampOverride ?? liveLamp;
     const strikeProgress = override ?? liveProgress;
     const P = lampById(lamp);
     const curve = useBooth.getState().opening ? 'opening' : P.strike.curve;
@@ -234,12 +237,12 @@ export function LampRig() {
     // the hand lamp moving. Otherwise the last map is reused.
     const { focusSlug } = useBooth.getState();
     const sk = shadowKey.current;
-    if (lamp !== sk.lamp || activeSlug !== sk.slug || focusSlug !== sk.focus || shadowEpoch.value !== sk.epoch) {
+    if (override === undefined && (lamp !== sk.lamp || activeSlug !== sk.slug || focusSlug !== sk.focus || shadowEpoch.value !== sk.epoch)) {
       shadowKey.current = { lamp, slug: activeSlug, focus: focusSlug, epoch: shadowEpoch.value };
       markDirty(lamp !== sk.lamp ? 'lamp' : activeSlug !== sk.slug ? 'tray' : 'view', undefined, 3);
     }
-    if (strikeProgress < 1) markDirty('strike', ['shadow', 'reflector'], 1);
-    if (handWasMoving.current) markDirty('hand lamp', ['shadow', 'reflector'], 1);
+    if (override === undefined && strikeProgress < 1) markDirty('strike', ['shadow', 'reflector'], 1);
+    if (override === undefined && handWasMoving.current) markDirty('hand lamp', ['shadow', 'reflector'], 1);
     k.shadow.autoUpdate = false;
     const shadowsMatter = k.intensity > 0 && K.shadowIntensity > 0;
     if (override === undefined && takeDirty('shadow') && shadowsMatter) {
@@ -408,7 +411,7 @@ export function LampRig() {
     else proofUniforms.uNeutralize.value.copy(postState.matrix).invert();
 
     // Diagnostics (?lampdebug only: it reads pixels back): log the rig once each time a lamp settles.
-    if (strikeProgress >= 1 && lastLamp.current !== lamp) {
+    if (override === undefined && strikeProgress >= 1 && lastLamp.current !== lamp) {
       lastLamp.current = lamp;
       if (window.location.search.includes('lampdebug')) {
         postState.diagnose = {
@@ -437,6 +440,26 @@ export function LampRig() {
     if (strikeProgress < 1 || handMoving) invalidate();
   };
 
+  const precapture = useRef<Lamp | null>(null);
+  useEffect(() => {
+    if (MOBILE_TIER || perfOff('envcapture')) return;
+    let id = 0;
+    const idle = (cb: () => void) => (window.requestIdleCallback ? window.requestIdleCallback(cb, { timeout: 4000 }) : window.setTimeout(cb, 500));
+    const next = () => {
+      if (!revealed.value) {
+        id = idle(next) as number;
+        return;
+      }
+      const todo = LAMPS.map((l) => l.id).find((l) => !capturedEnvironment(l));
+      if (!todo) return;
+      precapture.current = todo;
+      invalidate();
+      id = idle(next) as number;
+    };
+    id = idle(next) as number;
+    return () => (window.cancelIdleCallback ?? window.clearTimeout)(id);
+  }, [invalidate]);
+
   useFrame((_, rawDt) => {
     // J2: the real interior is captured the first time a lamp is on screen: the rig is set at the
     // lamp's full output for the capture, then at the actual strike progress for the frame drawn,
@@ -445,7 +468,21 @@ export function LampRig() {
     if (!MOBILE_TIER && !perfOff('envcapture') && modelsSettled() && !capturedEnvironment(lamp)) {
       applyRig(0, 1);
       scene.environment = captureEnvironment(gl, scene, lamp);
-      logEvent(`env capture ${lamp}`);
+      logEvent(`env capture ${lamp} (on screen)`);
+    }
+    // C4 (08): the other lamps are captured ahead, one per idle moment after the reveal, so a first
+    // pick never captures mid-interaction (the rig is set to that lamp at full output for the capture,
+    // then back to the visible lamp before this frame is drawn)
+    const ahead = precapture.current;
+    if (ahead) {
+      precapture.current = null;
+      if (!capturedEnvironment(ahead)) {
+        const keep = scene.environment;
+        applyRig(0, 1, ahead);
+        captureEnvironment(gl, scene, ahead);
+        scene.environment = keep;
+        logEvent(`env capture ${ahead} (ahead, idle)`);
+      }
     }
     applyRig(rawDt);
   });

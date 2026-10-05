@@ -31,12 +31,22 @@ export function attachScreen(root: Object3D, slug: string, aspect: number, mobil
     emissiveMap: tex.texture,
     emissiveIntensity: 0.5,
     clearcoat: 0.35,
-    // J3: the glass's gloss carries a few fingerprints
-    clearcoatRoughness: 0.3,
+    // J3: the glass's gloss carries a few fingerprints. F2 (08): the polished glass reads at
+    // roughness ~0.12 (the map's 0.2 × 0.6), so the lamp spreads into a soft sheen, never a hot spot
+    clearcoatRoughness: 0.6,
     clearcoatRoughnessMap: smudgeMap(),
-    envMapIntensity: 0.22,
+    envMapIntensity: 0.35,
   });
   applyUV(material, { inkProj: ink ?? null });
+  // F2 (08): no hot spot. The glass keeps its environment sheen (envMapIntensity, roughness ~0.12),
+  // but the coat takes no direct specular from the lamps' small sources, which read as a white dot
+  const uvCompile = material.onBeforeCompile;
+  const uvKey = material.customProgramCacheKey.bind(material);
+  material.onBeforeCompile = (shader, renderer) => {
+    uvCompile.call(material, shader, renderer);
+    shader.fragmentShader = shader.fragmentShader.replace('#include <lights_fragment_end>', '#include <lights_fragment_end>\n\tclearcoatSpecularDirect = vec3( 0.0 );');
+  };
+  material.customProgramCacheKey = () => `${uvKey()}-screen-glass`;
   let mesh: Mesh | null = null;
   node.traverse((o) => {
     if ((o as Mesh).isMesh) {

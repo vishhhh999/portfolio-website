@@ -1,28 +1,43 @@
 /**
- * Renders the D50 lineup posters (the LCP image shown before WebGL boots) from
- * the live booth, so the crossfade to the canvas is pixel-matched.
- *   npm run build && npx next start -p 3100 &   then   node tools/make-posters.mjs && python3 tools/encode-posters.py
+ * C1 (08): renders the LCP posters from the live booth: the cabinet's own frame box, cropped exactly,
+ * so the poster sits in .booth-frame at any viewport and the 300ms crossfade to the canvas never
+ * jumps. Desktop: one shot at the cabinet aspect (1200 and 2400 wide). Phone: the 4:5 phone staging.
+ * Records the inputs' hash (tools/poster-hash.mjs) in public/booth/posters.json.
+ *   npm run build && npx next start -p 3100 &   then   node tools/make-posters.mjs
  */
 import { createRequire } from 'module';
-import { mkdirSync } from 'fs';
+import { mkdirSync, writeFileSync } from 'fs';
+import sharp from 'sharp';
+import { posterHash } from './poster-hash.mjs';
 const require = createRequire(import.meta.url);
 const pw = require(process.env.PLAYWRIGHT || 'playwright');
 const BASE = process.env.BASE || 'http://localhost:3100';
 const OUT = new URL('../public/booth/', import.meta.url).pathname;
 mkdirSync(OUT, { recursive: true });
 
+const HIDE = '.booth-poster,.masthead,.hero__copy,.panel-slot,.footer,.booth-swipe,.booth-focus,.specchip{visibility:hidden!important}';
 const browser = await pw.chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
-for (const [name, w, h] of [['16x10', 1440, 900], ['16x9', 1920, 1080], ['portrait', 390, 844]].filter(([n]) => !process.argv[2] || process.argv[2].split(',').includes(n))) {
-  const page = await browser.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: name === 'portrait' ? 2 : 1, reducedMotion: 'reduce' });
-  page.setDefaultTimeout(600000);
+async function capture(w, h, dpr, mobile) {
+  const page = await browser.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: dpr, isMobile: mobile, hasTouch: mobile, reducedMotion: 'reduce' });
+  page.setDefaultTimeout(900000);
+  await page.addInitScript(() => sessionStorage.setItem('vm:opened:v1', '1'));
   await page.goto(BASE + '/?gpu=high', { waitUntil: 'networkidle' });
-  await page.waitForSelector('.booth-stage[data-ready="true"]', { timeout: 600000 });
+  await page.waitForSelector('.booth-stage[data-ready="true"]');
+  await page.addStyleTag({ content: HIDE });
   await page.waitForTimeout(4000);
-  // keep the layout (the camera frames the cabinet into .booth-frame): hide the copy, don't remove it
-  await page.addStyleTag({ content: '.masthead,.hero__copy,.panel,.footer,.booth-poster,.booth-swipe,.booth-focus,.booth-stage::after{visibility:hidden!important}' });
-  await page.waitForTimeout(400);
-  await page.screenshot({ path: `${OUT}poster-${name}.png` });
-  console.log('poster', name);
+  const r = await page.locator('.booth-frame').boundingBox();
+  const png = await page.screenshot({ clip: { x: r.x, y: r.y, width: r.width, height: r.height }, timeout: 900000 });
   await page.close();
+  return png;
 }
+// the paper colour behind the cabinet (the frame box shows the page around the cabinet's shadow)
+const flat = (buf) => sharp(buf).flatten({ background: '#f2f0ea' });
+const desk = await capture(1568, 980, 2, false);
+for (const w of [1200, 2400]) await flat(desk).resize({ width: w }).webp({ quality: 80, effort: 6 }).toFile(`${OUT}poster-cabinet-${w}.webp`);
+await flat(desk).resize({ width: 1200 }).jpeg({ quality: 82, progressive: true, mozjpeg: true }).toFile(`${OUT}poster-cabinet-1200.jpg`);
+const phone = await capture(390, 844, 2, true);
+await flat(phone).webp({ quality: 80, effort: 6 }).toFile(`${OUT}poster-phone.webp`);
 await browser.close();
+const hash = posterHash();
+writeFileSync(`${OUT}posters.json`, JSON.stringify({ hash, rendered: new Date().toISOString() }, null, 2) + '\n');
+console.log('posters written', hash.slice(0, 12));

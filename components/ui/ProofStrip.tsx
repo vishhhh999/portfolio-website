@@ -7,6 +7,9 @@ import { avifFor } from '@/content/masters';
 import { sizedFile, srcSetFor } from '@/lib/responsive';
 
 import { PALETTES } from '@/content/palettes';
+import AUDIO from '@/content/audio.json';
+
+const hasSound = (d: { src: string; sources?: { src: string }[] }) => [d.src, ...(d.sources ?? []).map((x) => x.src)].some((src) => (AUDIO as Record<string, boolean>)[src]);
 
 function RegTarget({ className }: { className: string }) {
   return (
@@ -72,6 +75,23 @@ function ProofFrame({ d, index, serial, onPlay, sizes }: { d: Deliverable; index
     return () => io.disconnect();
   }, [d]);
 
+  // H5 (08): a lazy proof starts loading about one screen before it scrolls in (the browser's own
+  // lazy distance is shorter on fast connections and varies by engine)
+  useEffect(() => {
+    const el = ref.current;
+    if (d.type === 'video' || !el || el.loading !== 'lazy') return;
+    const io = new IntersectionObserver(
+      ([e]) => {
+        if (!e.isIntersecting) return;
+        el.loading = 'eager';
+        io.disconnect();
+      },
+      { rootMargin: '100% 0px' },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [d]);
+
   // C: case-study images keep their authored colour under every lamp: the plain <img>/<video>,
   // never redrawn. Under AFTER DARK the page's TorchOverlay darkens around the hand lamp, above them.
 
@@ -99,9 +119,12 @@ function ProofFrame({ d, index, serial, onPlay, sizes }: { d: Deliverable; index
                 {d.sources?.map((s) => <source key={s.src} src={s.src} type={s.type} />)}
                 <source src={d.src} type="video/mp4" />
               </video>
-              <button type="button" className="proof__play" onClick={() => onPlay(d)}>
-                Play with sound
-              </button>
+              {/* H1 (08): offered only for a video with an audio stream (ffprobe at build: content/audio.json) */}
+              {hasSound(d) && (
+                <button type="button" className="proof__play" onClick={() => onPlay(d)}>
+                  Play with sound
+                </button>
+              )}
             </>
           ) : (
             <picture>

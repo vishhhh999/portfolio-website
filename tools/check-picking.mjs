@@ -11,7 +11,7 @@ const pw = require(process.env.PLAYWRIGHT || 'playwright');
 const BASE = process.env.BASE || 'http://localhost:3100';
 const SLUGS = ['too-yumm', 'jsw-sports', 'mitooshi', 'sonde', 'house-of-hex', 'bengal-t20', 'sook', 'shunya', 'indo-thai'];
 const ROUTES = ['/', ...SLUGS.map((s) => `/work/${s}`)];
-const SIZES = (process.env.SIZES || '1568x980,390x844').split(',').map((s) => s.split('x').map(Number));
+const SIZES = (process.env.SIZES || '1568x980,390x844,430x932').split(',').map((s) => s.split('x').map(Number));
 const b = await pw.chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 let bad = 0;
 for (const [w, h] of SIZES) {

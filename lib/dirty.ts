@@ -40,3 +40,6 @@ export function takeDirty(s: DirtySystem): boolean {
   dirtyLast[s] = on;
   return on;
 }
+
+/** Peek without consuming: will this system re-render this frame? */
+export const isDirty = (s: DirtySystem) => left[s] > 0;

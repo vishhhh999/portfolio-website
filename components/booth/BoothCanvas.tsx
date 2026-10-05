@@ -7,16 +7,20 @@ import { SoftShadows } from '@react-three/drei';
 import { Suspense, useEffect, useRef, useState } from 'react';
 import { loadLTC } from '@/lib/ltc';
 import { markDirty } from '@/lib/dirty';
+import { capturedEnvironment } from './environment';
+import { isMobileTier } from '@/lib/perfTier';
+import { revealed } from '@/lib/reveal';
 import { Euler, Matrix4, Quaternion, Vector3, type Intersection, type Mesh, type Object3D } from 'three';
 import { lineup } from '@/content/work';
 import { attachRenderer, requestFrames, setContinuous } from '@/lib/clock';
 import { lampById } from '@/lib/lampPresets';
 import { useBooth } from '@/lib/store';
-import { onViewsChanged, stageRect } from '@/lib/views';
+import { frameRect, onViewsChanged, stageRect } from '@/lib/views';
 import { BoothRoom } from './BoothRoom';
 import { Certificate } from './Certificate';
 import { CameraRig } from './CameraRig';
 import { LampRig } from './LampRig';
+import { HoverLight } from './HoverLight';
 import { ObjectSlot } from './ObjectSlot';
 import { PerfProbe } from './PerfProbe';
 import { perfInfo } from '@/lib/perfTier';
@@ -25,7 +29,7 @@ import { contextLost, contextRestored } from '@/lib/resilience';
 import { Post } from './Post';
 import { ModelRef } from './ModelRef';
 import { lineupShot, trayShot } from './shots';
-import { BOOTH, CABINET_FACE, CERTIFICATE, FACE_Z, FOCAL_MM, FOV, PLINTH_CHAMFER, PROPS, SENSOR_HEIGHT_MM, STAGING, TRAY, lineupLayout } from './staging';
+import { BOOTH, CABINET_FACE, CERTIFICATE, FACE_Z, FOCAL_MM, FOV, PLINTH_CHAMFER, PROPS, SENSOR_HEIGHT_MM, STAGING, TRAY, lineupLayout, sizeFloor, PHONE_LAYOUT } from './staging';
 
 declare global {
   interface Window {
@@ -34,6 +38,7 @@ declare global {
   interface Window {
     /** Projected width of every sample (object only, no plinth) as % of the viewport width, from the live camera. */
     __boothSizes?: () => Record<string, number>;
+    __boothSizeFloors?: () => Record<string, number>;
     /** F1: every sample's projected box (viewport px) and the smallest 3D clearance between any two samples (m). */
     __boothBoxes?: () => { boxes: Record<string, { x0: number; y0: number; x1: number; y1: number }>; minGap: { m: number; a: string; b: string } };
     __boothMounts?: number;
@@ -143,11 +148,15 @@ function SizeProbe() {
   const camera = useThree((s) => s.camera);
   useEffect(() => {
     window.__boothSizes = () => {
-      // % of the cabinet's projected width (the cabinet face, at the opening)
+      // E (08): the long side (width, or height for a portrait piece) as % of the cabinet's projected
+      // width (the cabinet face, at the opening); NDC x and y scale by W/2 and H/2
+      const ar = window.innerHeight / window.innerWidth;
       const fz = FACE_Z;
       const ca = new Vector3(-CABINET_FACE.w / 2, BOOTH.height / 2, fz).project(camera);
       const cb = new Vector3(CABINET_FACE.w / 2, BOOTH.height / 2, fz).project(camera);
-      const cab = cb.x - ca.x;
+      // G (08): phones measure against the portrait box's width (frame) instead of the cabinet's
+      const f = PHONE_LAYOUT ? frameRect() : null;
+      const cab = f ? (2 * f.width) / window.innerWidth : cb.x - ca.x;
       const out: Record<string, number> = {};
       for (const w of lineup) {
         const st = STAGING[w.slug];
@@ -155,10 +164,13 @@ function SizeProbe() {
         const z = st.z + st.object.d / 2;
         const a = new Vector3(st.x - st.object.w / 2, y, z).project(camera);
         const b = new Vector3(st.x + st.object.w / 2, y, z).project(camera);
-        out[w.slug] = +(((b.x - a.x) / cab) * 100).toFixed(1);
+        const lo = new Vector3(st.x, st.base.h, z).project(camera);
+        const hi = new Vector3(st.x, st.base.h + st.object.h, z).project(camera);
+        out[w.slug] = +((Math.max(b.x - a.x, (hi.y - lo.y) * ar) / cab) * 100).toFixed(1);
       }
       return out;
     };
+    window.__boothSizeFloors = () => Object.fromEntries(lineup.map((w) => [w.slug, PHONE_LAYOUT ? 14 : sizeFloor(w.slug)]));
     window.__boothBoxes = () => {
       const W = window.innerWidth, H = window.innerHeight;
       const boxes: Record<string, { x0: number; y0: number; x1: number; y1: number }> = {};
@@ -264,35 +276,44 @@ function ClockBridge({ onReady }: { onReady: () => void }) {
   }, [get, set]);
   const lamp = useBooth((s) => s.lamp);
   useEffect(() => setContinuous(lampById(lamp).continuous), [lamp]);
-  // Ready (the poster crossfades to the live booth) once three lit frames are drawn and every GLB
-  // is in, so the booth never appears half-lit or half-built; at most 8s after mount regardless.
+  // C2 (08): ready (the poster crossfades to the live booth, 300ms) only once the visible lineup's
+  // models are in, the active lamp's interior environment has been captured, every shader program
+  // is compiled, and one full frame has been drawn after that. Models never pop into a visible
+  // booth. A safety reveal after 15s if a model fails to load.
   const t0 = useRef(performance.now());
   const done = useRef(false);
+  const compiled = useRef(false);
   const scene = useThree((s) => s.scene);
   const camera = useThree((s) => s.camera);
   const gl = useThree((s) => s.gl);
   useFrame(() => {
     frames.current++;
     if (done.current || frames.current < 3) return;
-    if (modelsSettled() || performance.now() - t0.current > 8000) {
-      done.current = true;
-      onReady();
-      // A3: compile every program the scene can need (hidden pieces included: the haze cone, the
-      // tray-shot neighbours) once, while idle, so no lamp or route change ever compiles a shader
-      const idle = window.requestIdleCallback ?? ((cb: () => void) => window.setTimeout(cb, 200));
-      idle(() => {
-        const hidden: { visible: boolean }[] = [];
-        scene.traverse((o) => {
-          if (!o.visible) {
-            hidden.push(o);
-            o.visible = true;
-          }
-        });
-        // synchronous, so no frame can ever be drawn while the hidden pieces are switched on
-        gl.compile(scene, camera);
-        hidden.forEach((o) => (o.visible = false));
+    const timedOut = performance.now() - t0.current > 15000;
+    const envReady = isMobileTier() || perfOff('envcapture') || !!capturedEnvironment(useBooth.getState().lamp);
+    if (!timedOut && !(modelsSettled() && envReady)) {
+      requestFrames(1);
+      return;
+    }
+    if (!compiled.current) {
+      // A3: every program the scene can need (hidden pieces included: the haze cone, the tray-shot
+      // neighbours, the screen light), compiled before the reveal so nothing compiles mid-view
+      compiled.current = true;
+      const hidden: { visible: boolean }[] = [];
+      scene.traverse((o) => {
+        if (!o.visible) {
+          hidden.push(o);
+          o.visible = true;
+        }
       });
-    } else requestFrames(1);
+      gl.compile(scene, camera);
+      hidden.forEach((o) => (o.visible = false));
+      requestFrames(1); // one full frame with everything in place, then reveal
+      return;
+    }
+    done.current = true;
+    revealed.value = true;
+    onReady();
   }, 2);
   return null;
 }
@@ -367,6 +388,7 @@ export default function BoothCanvas({ onReady, lightmap = null }: { onReady: () 
           <PickProbe />
           <CameraRig />
           <LampRig />
+          <HoverLight />
           {perfOff('vsm') && !perfOff('pcss') && <SoftShadows size={mobile ? 18 : 26} samples={mobile ? 8 : 14} focus={0.2} />}
           <BoothRoom lineup={SLUGS} lightmap={lightmap} />
           {lineup.map((w) => (

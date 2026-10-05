@@ -35,10 +35,6 @@ export function SpecPlate({ work, serial }: { work: Work; serial: number }) {
         </OutboundLink>
       ))}
       {work.inLineup && work.nativeLamp !== 'D50' && <NativeLampChip lamp={work.nativeLamp} />}
-      <footer className="calib__foot">
-        <span>Checked under D50 · TL84 · A · UV-A</span>
-        <span className="calib__stamp" aria-hidden="true">PASS</span>
-      </footer>
     </section>
   );
 }
