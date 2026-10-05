@@ -33,7 +33,7 @@
   "sook/mobile": {
     "file": "public/models/sook/sook.mobile.glb",
     "sourceMB": 1.87,
-    "MB": 0.23,
+    "MB": 0.09,
     "triangles": 3180,
     "sourceTriangles": 3180,
     "art": 512,
@@ -41,29 +41,29 @@
     "textures": [
       {
         "name": "orm",
-        "mime": "image/ktx2",
-        "kb": 5
+        "mime": "image/webp",
+        "kb": 4
       },
       {
         "name": "basecolor_berry-bloom",
-        "mime": "image/ktx2",
-        "kb": 62
+        "mime": "image/webp",
+        "kb": 15
       },
       {
         "name": "basecolor_garden-fresh",
-        "mime": "image/ktx2",
-        "kb": 76
+        "mime": "image/webp",
+        "kb": 18
       },
       {
         "name": "basecolor_summer-sun",
-        "mime": "image/ktx2",
-        "kb": 76
+        "mime": "image/webp",
+        "kb": 19
       }
     ]
   },
   "totals": {
     "desktopMB": 9.58,
-    "mobileMB": 3.58
+    "mobileMB": 2.22
   },
   "too-yumm/desktop": {
     "file": "public/models/too-yumm/too-yumm.glb",
@@ -94,7 +94,7 @@
   "too-yumm/mobile": {
     "file": "public/models/too-yumm/too-yumm.mobile.glb",
     "sourceMB": 4.3,
-    "MB": 0.34,
+    "MB": 0.19,
     "triangles": 7899,
     "sourceTriangles": 7899,
     "art": 512,
@@ -102,18 +102,18 @@
     "textures": [
       {
         "name": "normal",
-        "mime": "image/ktx2",
-        "kb": 9
+        "mime": "image/webp",
+        "kb": 7
       },
       {
         "name": "orm",
-        "mime": "image/ktx2",
-        "kb": 9
+        "mime": "image/webp",
+        "kb": 6
       },
       {
         "name": "basecolor",
-        "mime": "image/ktx2",
-        "kb": 186
+        "mime": "image/webp",
+        "kb": 30
       }
     ]
   },
@@ -141,7 +141,7 @@
   "jsw-sports/mobile": {
     "file": "public/models/jsw-sports/jsw-sports.mobile.glb",
     "sourceMB": 0.32,
-    "MB": 0.43,
+    "MB": 0.1,
     "triangles": 1036,
     "sourceTriangles": 1036,
     "art": 768,
@@ -149,13 +149,13 @@
     "textures": [
       {
         "name": "jsw-sports.mobile_orm",
-        "mime": "image/ktx2",
-        "kb": 6
+        "mime": "image/webp",
+        "kb": 4
       },
       {
         "name": "jsw-sports.mobile_basecolor",
-        "mime": "image/ktx2",
-        "kb": 411
+        "mime": "image/webp",
+        "kb": 65
       }
     ]
   },
@@ -233,7 +233,7 @@
   "shunya/mobile": {
     "file": "public/models/shunya/shunya.mobile.glb",
     "sourceMB": 29.12,
-    "MB": 0.75,
+    "MB": 0.54,
     "triangles": 11228,
     "sourceTriangles": 11228,
     "art": 512,
@@ -241,63 +241,63 @@
     "textures": [
       {
         "name": "normal_air-tin",
-        "mime": "image/ktx2",
-        "kb": 2
+        "mime": "image/webp",
+        "kb": 1
       },
       {
         "name": "orm_air-tin",
-        "mime": "image/ktx2",
-        "kb": 13
+        "mime": "image/webp",
+        "kb": 15
       },
       {
         "name": "basecolor_air-tin",
-        "mime": "image/ktx2",
-        "kb": 118
+        "mime": "image/webp",
+        "kb": 53
       },
       {
         "name": "normal_bhimseni-jar",
-        "mime": "image/ktx2",
-        "kb": 3
+        "mime": "image/webp",
+        "kb": 2
       },
       {
         "name": "orm_bhimseni-jar",
-        "mime": "image/ktx2",
-        "kb": 11
+        "mime": "image/webp",
+        "kb": 9
       },
       {
         "name": "basecolor_bhimseni-jar",
-        "mime": "image/ktx2",
-        "kb": 119
+        "mime": "image/webp",
+        "kb": 23
       },
       {
         "name": "normal_pooja-carton",
-        "mime": "image/ktx2",
-        "kb": 10
+        "mime": "image/webp",
+        "kb": 8
       },
       {
         "name": "orm_pooja-carton",
-        "mime": "image/ktx2",
-        "kb": 7
+        "mime": "image/webp",
+        "kb": 5
       },
       {
         "name": "basecolor_pooja-carton",
-        "mime": "image/ktx2",
-        "kb": 104
+        "mime": "image/webp",
+        "kb": 14
       },
       {
         "name": "normal_ritual-set",
-        "mime": "image/ktx2",
-        "kb": 3
+        "mime": "image/webp",
+        "kb": 2
       },
       {
         "name": "orm_ritual-set",
-        "mime": "image/ktx2",
+        "mime": "image/webp",
         "kb": 10
       },
       {
         "name": "basecolor_ritual-set",
-        "mime": "image/ktx2",
-        "kb": 107
+        "mime": "image/webp",
+        "kb": 13
       }
     ]
   },
@@ -330,7 +330,7 @@
   "mitooshi/mobile": {
     "file": "public/models/mitooshi/mitooshi.mobile.glb",
     "sourceMB": 1.96,
-    "MB": 0.37,
+    "MB": 0.33,
     "triangles": 9273,
     "sourceTriangles": 9273,
     "art": 512,
@@ -338,18 +338,18 @@
     "textures": [
       {
         "name": "mitooshi.mobile_normal",
-        "mime": "image/ktx2",
-        "kb": 37
+        "mime": "image/webp",
+        "kb": 35
       },
       {
         "name": "mitooshi.mobile_orm",
-        "mime": "image/ktx2",
-        "kb": 43
+        "mime": "image/webp",
+        "kb": 45
       },
       {
         "name": "mitooshi.mobile_basecolor",
-        "mime": "image/ktx2",
-        "kb": 43
+        "mime": "image/webp",
+        "kb": 8
       }
     ]
   },
@@ -387,7 +387,7 @@
   "house-of-hex/mobile": {
     "file": "public/models/house-of-hex/house-of-hex.mobile.glb",
     "sourceMB": 1.22,
-    "MB": 0.34,
+    "MB": 0.25,
     "triangles": 7196,
     "sourceTriangles": 7196,
     "art": 512,
@@ -395,23 +395,23 @@
     "textures": [
       {
         "name": "house-of-hex_phone.mobile_orm",
-        "mime": "image/ktx2",
-        "kb": 17
+        "mime": "image/webp",
+        "kb": 23
       },
       {
         "name": "house-of-hex_phone.mobile_basecolor",
-        "mime": "image/ktx2",
-        "kb": 113
+        "mime": "image/webp",
+        "kb": 26
       },
       {
         "name": "house-of-hex_stand.mobile_orm",
-        "mime": "image/ktx2",
-        "kb": 8
+        "mime": "image/webp",
+        "kb": 5
       },
       {
         "name": "house-of-hex_stand.mobile_basecolor",
-        "mime": "image/ktx2",
-        "kb": 13
+        "mime": "image/webp",
+        "kb": 2
       }
     ]
   },
@@ -449,7 +449,7 @@
   "sonde/mobile": {
     "file": "public/models/sonde/sonde.mobile.glb",
     "sourceMB": 1.29,
-    "MB": 0.31,
+    "MB": 0.23,
     "triangles": 7311,
     "sourceTriangles": 7311,
     "art": 512,
@@ -457,23 +457,23 @@
     "textures": [
       {
         "name": "sonde_easel.mobile_orm",
-        "mime": "image/ktx2",
+        "mime": "image/webp",
         "kb": 11
       },
       {
         "name": "sonde_easel.mobile_basecolor",
-        "mime": "image/ktx2",
-        "kb": 24
+        "mime": "image/webp",
+        "kb": 4
       },
       {
         "name": "sonde_tablet.mobile_orm",
-        "mime": "image/ktx2",
-        "kb": 16
+        "mime": "image/webp",
+        "kb": 23
       },
       {
         "name": "sonde_tablet.mobile_basecolor",
-        "mime": "image/ktx2",
-        "kb": 92
+        "mime": "image/webp",
+        "kb": 20
       }
     ]
   },
@@ -526,7 +526,7 @@
   "indo-thai/mobile": {
     "file": "public/models/indo-thai/indo-thai.mobile.glb",
     "sourceMB": 2.43,
-    "MB": 0.37,
+    "MB": 0.32,
     "triangles": 10010,
     "sourceTriangles": 10010,
     "art": 512,
@@ -534,38 +534,38 @@
     "textures": [
       {
         "name": "indo-thai_towbar.mobile_orm",
-        "mime": "image/ktx2",
-        "kb": 9
+        "mime": "image/webp",
+        "kb": 7
       },
       {
         "name": "indo-thai_towbar.mobile_basecolor",
-        "mime": "image/ktx2",
-        "kb": 24
+        "mime": "image/webp",
+        "kb": 7
       },
       {
         "name": "indo-thai_tug.mobile_orm",
-        "mime": "image/ktx2",
-        "kb": 15
-      },
-      {
-        "name": "indo-thai_tug.mobile_basecolor",
-        "mime": "image/ktx2",
-        "kb": 74
-      },
-      {
-        "name": "indo-thai_wheels.mobile_normal",
-        "mime": "image/ktx2",
-        "kb": 14
-      },
-      {
-        "name": "indo-thai_wheels.mobile_orm",
-        "mime": "image/ktx2",
+        "mime": "image/webp",
         "kb": 17
       },
       {
+        "name": "indo-thai_tug.mobile_basecolor",
+        "mime": "image/webp",
+        "kb": 19
+      },
+      {
+        "name": "indo-thai_wheels.mobile_normal",
+        "mime": "image/webp",
+        "kb": 13
+      },
+      {
+        "name": "indo-thai_wheels.mobile_orm",
+        "mime": "image/webp",
+        "kb": 23
+      },
+      {
         "name": "indo-thai_wheels.mobile_basecolor",
-        "mime": "image/ktx2",
-        "kb": 75
+        "mime": "image/webp",
+        "kb": 14
       }
     ]
   },
@@ -618,7 +618,7 @@
   "bengal-t20/mobile": {
     "file": "public/models/bengal-t20/bengal-t20.mobile.glb",
     "sourceMB": 5.22,
-    "MB": 0.44,
+    "MB": 0.17,
     "triangles": 4606,
     "sourceTriangles": 4606,
     "art": 512,
@@ -626,38 +626,38 @@
     "textures": [
       {
         "name": "bengal-t20_flag.mobile_orm",
-        "mime": "image/ktx2",
+        "mime": "image/webp",
         "kb": 4
       },
       {
         "name": "bengal-t20_flag.mobile_basecolor",
-        "mime": "image/ktx2",
-        "kb": 147
+        "mime": "image/webp",
+        "kb": 37
       },
       {
         "name": "bengal-t20_jersey.mobile_normal",
-        "mime": "image/ktx2",
-        "kb": 15
+        "mime": "image/webp",
+        "kb": 17
       },
       {
         "name": "bengal-t20_jersey.mobile_orm",
-        "mime": "image/ktx2",
-        "kb": 5
+        "mime": "image/webp",
+        "kb": 3
       },
       {
         "name": "bengal-t20_jersey.mobile_basecolor",
-        "mime": "image/ktx2",
-        "kb": 192
+        "mime": "image/webp",
+        "kb": 23
       },
       {
         "name": "bengal-t20_ticket.mobile_orm",
-        "mime": "image/ktx2",
-        "kb": 2
+        "mime": "image/webp",
+        "kb": 1
       },
       {
         "name": "bengal-t20_ticket.mobile_basecolor",
-        "mime": "image/ktx2",
-        "kb": 29
+        "mime": "image/webp",
+        "kb": 7
       }
     ]
   }

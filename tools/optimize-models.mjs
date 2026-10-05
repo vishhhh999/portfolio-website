@@ -74,7 +74,19 @@ async function build(slug, tier) {
   const size = SIZES[slug]?.[tier] ?? { art: tier === 'mobile' ? 512 : 1024, data: 512 };
   const doc = await io.read(src);
   const inTris = triangles(doc);
-  await doc.transform(
+  if (tier === 'mobile') {
+    // H3 (07): phones get WebP textures (EXT_texture_webp), not KTX2, so a phone never downloads the
+    // 0.25MB Basis transcoder. Normal and data maps at higher quality (they are not colour).
+    await doc.transform(
+      dedup(),
+      prune({ keepAttributes: true }),
+      weld(),
+      textureCompress({ encoder: sharp, targetFormat: 'webp', quality: 82, resize: [size.art, size.art], slots: ART }),
+      textureCompress({ encoder: sharp, targetFormat: 'webp', quality: 92, resize: [size.data, size.data], slots: new RegExp(`${NORMAL.source}|${DATA.source}`, 'i') }),
+      meshopt({ encoder: MeshoptEncoder, level: 'medium' }),
+    );
+  } else {
+    await doc.transform(
     dedup(),
     prune({ keepAttributes: true }), // A3: the screen mesh has no texture in the file, but its UV0 maps the logo
     weld(),
@@ -88,6 +100,7 @@ async function build(slug, tier) {
     ktx2({ slots: DATA, isUASTC: false, qualityLevel: 200, compressionLevel: 2, isSetKTX2SRGBTransferFunc: false, isPerceptual: false, generateMipmap: true, isKTX2File: true, imageDecoder }),
     meshopt({ encoder: MeshoptEncoder, level: 'medium' }),
   );
+  }
   const outDir = join(ROOT, 'public/models', slug);
   mkdirSync(outDir, { recursive: true });
   const out = join(outDir, srcName);
@@ -104,7 +117,7 @@ const slugs = Object.keys(SIZES).filter((s) => !only.length || only.includes(s))
 const reportPath = join(ROOT, 'tools/models-report.json');
 const report = existsSync(reportPath) ? JSON.parse(readFileSync(reportPath, 'utf8')) : {};
 for (const slug of slugs) {
-  for (const tier of ['desktop', 'mobile']) {
+  for (const tier of (process.env.TIERS || 'desktop,mobile').split(',')) {
     const t0 = Date.now();
     const r = await build(slug, tier);
     if (!r) {
