@@ -1,5 +1,5 @@
 import { MathUtils, PerspectiveCamera, Vector3 } from 'three';
-import { BOOTH, CABINET_FACE, EYE, FACE_Z, FOV, STAGING, TRAY } from './staging.ts';
+import { BOOTH, CABINET_FACE, EYE, FACE_Z, FOV, RECEDE_DZ, STAGING, TRAY } from './staging.ts';
 
 /**
  * A camera pose: where it stands, what it looks at (pitched EYE.pitchDeg down), and a lens shift
@@ -66,6 +66,9 @@ export function cabinetShot(
   const hit = cache.get(key);
   if (hit) return hit;
   const portrait = box.width / box.height < 1;
+  // the drawn silhouette (antialiased edge, chamfered frame) reaches ~1px past the face's projected
+  // corners: fit a landscape cabinet 1px inside the box on each side, so it never draws past its frame
+  if (!portrait) box = { left: box.left + 1, top: box.top + 1, width: box.width - 2, height: box.height - 1 };
   // bisection on distance: projected size falls monotonically as the camera backs off
   let lo = 0.3, hi = 30;
   for (let i = 0; i < 40; i++) {
@@ -82,14 +85,16 @@ export function cabinetShot(
   const fb = faceBox(shot, stage);
   let dx = box.left - fb.l + (box.width - fb.w) / 2;
   if (portrait && focus) {
-    // pan so the focused sample sits at the box centre, without showing past the cabinet's sides
+    // G (08): the phone arrangement is composed to sit whole in the portrait box, so a swipe only
+    // leans the frame a little toward the focused sample (≤ 2.5% of the box width): a short move
+    // that keeps every object in frame
     cam.position.set(...shot.position);
     cam.lookAt(...shot.target);
     cam.updateMatrixWorld();
     v.set(focus.x, EYE.y * 0.5, focus.z).project(cam);
     const fx = ((v.x + 1) / 2) * stage.width;
-    dx = box.left + box.width / 2 - fx;
-    dx = Math.min(box.left - fb.l, Math.max(box.left + box.width - fb.r, dx));
+    const lean = box.width * 0.025;
+    dx += Math.max(-lean, Math.min(lean, (box.left + box.width / 2 - fx) * 0.15));
   }
   const dy = portrait ? box.top + box.height / 2 - (fb.t + fb.b) / 2 : box.top + box.height - fb.b;
   // setViewOffset moves the picture by -offset: a positive dx (move right) is a negative offset
@@ -118,4 +123,49 @@ export function trayShot(slug: string, aspect: number): Shot {
   // stand back along the pitched axis from the sample's centre
   const position: [number, number, number] = [trayX, cy - Math.sin(PITCH) * dist, TRAY.z + Math.cos(PITCH) * dist];
   return { target: [trayX, cy, TRAY.z], position, dist };
+}
+
+/**
+ * F1 (08): what the tray shot shows besides the tray object. Each other sample (receded by
+ * RECEDE_DZ, as it stands while something is on the tray) is projected through the tray camera; it
+ * stays (dimmed) only if it is wholly inside the frame, with a 2% margin, and clear of the tray
+ * object's box. Anything that would overlap the tray object's silhouette or be cut by the frame edge
+ * drops out with its base. Returns the slugs to hide.
+ */
+const hideCache = new Map<string, Set<string>>();
+export function trayHidden(slug: string, aspect: number): Set<string> {
+  const key = `${slug}:${aspect.toFixed(2)}`;
+  const hit = hideCache.get(key);
+  if (hit) return hit;
+  const shot = trayShot(slug, aspect);
+  cam.aspect = aspect;
+  cam.clearViewOffset();
+  cam.position.set(...shot.position);
+  cam.lookAt(...shot.target);
+  cam.updateProjectionMatrix();
+  cam.updateMatrixWorld();
+  const project = (x0: number, x1: number, y0: number, y1: number, z0: number, z1: number) => {
+    let a = Infinity, b = Infinity, c = -Infinity, d = -Infinity;
+    for (const x of [x0, x1]) for (const y of [y0, y1]) for (const z of [z0, z1]) {
+      v.set(x, y, z).project(cam);
+      a = Math.min(a, v.x); c = Math.max(c, v.x); b = Math.min(b, v.y); d = Math.max(d, v.y);
+    }
+    return { x0: a, y0: b, x1: c, y1: d };
+  };
+  const st = STAGING[slug];
+  const tw = st.trayW ?? st.object.w, tx = st.trayX ?? 0;
+  const tray = project(tx - tw / 2, tx + tw / 2, TRAY.top, TRAY.top + st.object.h, TRAY.z - st.object.d / 2, TRAY.z + st.object.d / 2);
+  const pad = 0.04; // NDC: 2% of the frame
+  const out = new Set<string>();
+  for (const [k, o] of Object.entries(STAGING)) {
+    if (k === slug) continue;
+    const z = o.z + RECEDE_DZ;
+    const r = project(o.x - o.object.w / 2, o.x + o.object.w / 2, o.base.h, o.base.h + o.object.h, z - o.object.d / 2, z + o.object.d / 2);
+    const inside = r.x0 > -1 + pad && r.x1 < 1 - pad && r.y0 > -1 + pad && r.y1 < 1 - pad;
+    const overlaps = r.x0 < tray.x1 + pad && r.x1 > tray.x0 - pad && r.y0 < tray.y1 + pad && r.y1 > tray.y0 - pad;
+    if (!inside || overlaps) out.add(k);
+  }
+  if (hideCache.size > 64) hideCache.clear();
+  hideCache.set(key, out);
+  return out;
 }

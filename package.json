@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "node tools/check-routes.mjs && next build",
+    "build": "node tools/check-routes.mjs && node tools/probe-audio.mjs && node tools/poster-hash.mjs --check && next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "check": "node tools/check-routes.mjs && tsc --noEmit",

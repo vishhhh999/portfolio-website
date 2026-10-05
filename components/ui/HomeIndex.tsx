@@ -15,6 +15,12 @@ function still(w: Work) {
   return src ? sizedFile(src, 640) : null;
 }
 
+/** H4 (08): the still's own aspect (width / height), so the preview box never letterboxes it. */
+function aspect(w: Work) {
+  const d = w.deliverables[0];
+  return d?.width && d?.height ? d.width / d.height : 4 / 3;
+}
+
 /**
  * C5: the home page's Index view: number, project, discipline, year. Hovering (or focusing) a row
  * shows that project's first image beside the list. Plain DOM, no WebGL.
@@ -22,6 +28,10 @@ function still(w: Work) {
 export function HomeIndex() {
   const [hover, setHover] = useState<string | null>(null);
   const shown = works.find((w) => w.slug === hover) ?? null;
+  // the box keeps the last shown still's aspect while it fades out
+  const [last, setLast] = useState<Work | null>(null);
+  if (shown && shown !== last) setLast(shown);
+  const a = aspect(shown ?? last ?? works[0]);
   return (
     <section className="homeindex" aria-label="Index">
       <ol className="homeindex__list">
@@ -43,7 +53,7 @@ export function HomeIndex() {
           </li>
         ))}
       </ol>
-      <div className="homeindex__preview" aria-hidden="true">
+      <div className="homeindex__preview" aria-hidden="true" style={{ aspectRatio: `${a}`, width: `min(100%, calc(70svh * ${a.toFixed(4)}))` }}>
         {works.map((w) => {
           const src = still(w);
           return src ? <img key={w.slug} src={src} alt="" loading="lazy" decoding="async" data-on={shown?.slug === w.slug} /> : null;

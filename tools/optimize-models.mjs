@@ -32,8 +32,10 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SIZES = {
   'too-yumm': { desktop: { art: 1024, data: 512 }, mobile: { art: 512, data: 512 } },
   sook: { desktop: { art: 1024, data: 512 }, mobile: { art: 512, data: 256 } },
-  // rebuilt in batch 07 (A1): its source embeds JPEG art, so UASTC at 2048 would double it; 1536 keeps it ≤ 1.5MB
-  'jsw-sports': { desktop: { art: 1536, data: 512 }, mobile: { art: 768, data: 256 } },
+  // F3 (08): the tray hero. UASTC + RDO at 1536 showed a block grid and softness on the cover type, so
+  // the desktop file carries WebP at the full 2048, encoded from the lossless PNG art in textures/
+  // (not the JPEG embedded in the GLB): sharp, no block artefacts, and smaller than UASTC without RDO
+  'jsw-sports': { desktop: { art: 2048, data: 1024, webp: 92 }, mobile: { art: 768, data: 256 } },
   shunya: { desktop: { art: 1024, data: 512 }, mobile: { art: 512, data: 256 } },
   // batch 07 (A1): the devices, the tug and the Bengal set. Every desktop file ≤ 1.5MB, mobile ≤ 600KB.
   mitooshi: { desktop: { art: 1024, data: 1024 }, mobile: { art: 512, data: 512 } },
@@ -74,7 +76,21 @@ async function build(slug, tier) {
   const size = SIZES[slug]?.[tier] ?? { art: tier === 'mobile' ? 512 : 1024, data: 512 };
   const doc = await io.read(src);
   const inTris = triangles(doc);
-  if (tier === 'mobile') {
+  // lossless PNG art beside the GLB (textures/<texture name>.png) replaces the embedded copy
+  for (const t of doc.getRoot().listTextures()) {
+    const png = join(ROOT, 'assets-src/models', slug, 'textures', `${t.getName()}.png`);
+    if (size.webp && existsSync(png)) t.setImage(new Uint8Array(readFileSync(png))).setMimeType('image/png');
+  }
+  if (size.webp) {
+    await doc.transform(
+      dedup(),
+      prune({ keepAttributes: true }),
+      weld(),
+      textureCompress({ encoder: sharp, targetFormat: 'webp', quality: size.webp, resize: [size.art, size.art], slots: ART }),
+      textureCompress({ encoder: sharp, targetFormat: 'webp', quality: 92, resize: [size.data, size.data], slots: new RegExp(`${NORMAL.source}|${DATA.source}`, 'i') }),
+      meshopt({ encoder: MeshoptEncoder, level: 'medium' }),
+    );
+  } else if (tier === 'mobile') {
     // H3 (07): phones get WebP textures (EXT_texture_webp), not KTX2, so a phone never downloads the
     // 0.25MB Basis transcoder. Normal and data maps at higher quality (they are not colour).
     await doc.transform(

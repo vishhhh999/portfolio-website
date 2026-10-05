@@ -179,22 +179,25 @@ The data shape is in `lib/types.ts`. Key fields:
 
 | File | Role |
 |---|---|
-| `staging.ts` | Booth dimensions (1.5 × 0.8m), cove, cabinet header, hood, diffuser; the 9 samples in 3 tiers (front row packed with 8.3cm gaps, raised middle tier, JSW high at the back) with per-sample scale and position, SHUNYA's backing, JSW's open width on the tray (`trayW`); the certificate; lens FOV 35; eye height and pitch |
-| `shots.ts` | Camera shots: `cabinetShot` contain-fits the cabinet to the stage, with lens shift (phones: their own portrait shot, panned to the focused sample); `trayShot` for project pages |
+| `staging.ts` | Booth dimensions (1.5 × 0.8m), cove, cabinet header (4.5cm since 08), hood, diffuser; the 9 samples at one display scale (K = 1, real size; the Indo Thai tug is a 1:24 model with an engraved plate) in 3 tiers; SHUNYA's N5.5 sweep card on a high riser; the size rule (`sizeFloor`: long side ≥ 11% of the cabinet, 9% on a raised plinth with nothing taller in front); JSW's open width on the tray (`trayW`); the certificate (1.6×, own soft spot); lens FOV 35; eye height and pitch. `PHONE_LAYOUT` (viewport < 600px at load) swaps in `phoneStaging.ts` |
+| `phoneStaging.ts` | G (08): the phone arrangement, all ten objects in three tiers inside the 4:5 portrait box at 0.68 × real size, each ≥ 14% of the box width |
+| `shots.ts` | Camera shots: `cabinetShot` contain-fits the cabinet to the stage, with lens shift (phones: the portrait shot, leaning ≤ 2.5% toward the focused sample on a swipe); `trayShot` for project pages; `trayHidden` (F1, 08): which neighbours drop out of a tray shot (anything overlapping the tray object or cut by the frame) |
 | `CameraRig.tsx` | Smooth camera moves; pointer parallax max 1.5° (0.6° vertical) |
 | `shell.ts` | Booth shell geometry (rounded boxes, second UV set for the baked AO/lightmap atlas) |
 | `BoothRoom.tsx` | Shell materials (N8 walls), floor (reflective on desktop), diffuser, lightmap hook; the cabinet's solid parts are picking occluders |
-| `ObjectSlot.tsx` | One sample: base, GLB, Bengal's wedge, SHUNYA's backing, contact shadow, hover lift, turntable (drag / keys, inertia), JSW's open clip, pickability (≥ 60% in view), click to open |
-| `Certificate.tsx` | The About certificate on the shelf |
+| `ObjectSlot.tsx` | One sample: base, GLB, Bengal's wedge, SHUNYA's sweep card, the tug's scale plate, contact shadow (re-bakes crossfade over 200ms), late-model fade-in (250ms), hover lift, turntable (drag / keys, inertia), JSW's open clip, tray-shot hiding, pickability (≥ 60% in view), click to open |
+| `Certificate.tsx` | The About certificate on the shelf, under its own soft spot (room lamps) |
+| `HoverLight.tsx` | D (08): a soft extra key (+12%) on the hovered sample, ramping with the focus; always in the scene at intensity 0 so nothing recompiles |
 | `models.ts` | GLB loading (KTX2 + meshopt) in view-priority order: the tray object first, then the lineup left to right, the rest when idle (phones: after the first scroll or touch) |
 | `deviceScreen.ts`, `screens.ts` | A device GLB's `screen` mesh: the brand logo on its `bg.txt` colour by UV0, a glass coat with fingerprints, an area light the size of the display (desktop) |
 | `imperfections.ts` | Fingerprints and scratches (acrylic, glass, screens), paper fibre normal, wiped wall roughness |
 | `uvMaterial.ts` | UV fluorescence and invisible-ink shader chunk, hover rim |
 | `environment.ts` | Reflection environment per lamp (PMREM): the real booth interior, captured on the GPU the first time each lamp is on screen with the rig at that lamp's full output (desktop, cached per lamp); a built stand-in on phones |
 | `LampRig.tsx` | All seven lamp rigs, strike animation, shadow invalidation |
-| `Post.tsx` | Post chain: scissored views (full MSAA resolve only when the view rects change), tone mapping only inside the booth (PBR Neutral for D50 / TL84 / A, AgX for the dark lamps), a gentle stage vignette, desktop depth of field (tray or hovered object), bloom, colour matrix, grain only in the stage box, MSAA with SMAA fallback, SSAO on desktop, loupe pixel reads; `?perf` per-pass profiler |
+| `Post.tsx` | Post chain: scissored views (full MSAA resolve only when the view rects change), tone mapping only inside the booth (PBR Neutral for D50 / TL84 / A, AgX for the dark lamps), a gentle stage vignette, masked hover focus (D 08: a half-resolution mask of the hovered sample, ≤ 2.5px blur outside it at 1440p, 250ms in / 300ms out; replaces depth of field), bloom, colour matrix, grain only in the stage box, MSAA 4x (SMAA crawls on the frame chamfers), SSAO normals re-rendered only on change, loupe pixel reads; `?perf` per-pass profiler |
 | `PerfProbe.tsx` | Frame timing, resolution step-down, slow GPU → automatic house lights |
-| `BoothHost.tsx` | Mounts the canvas lazily after first paint; WebGL capability check |
+| `BoothHost.tsx` | Mounts the canvas lazily after first paint; WebGL capability check. C (08): the poster (in `BoothFrame`) stays until the visible models are in, the lamp's environment is captured and one full frame has rendered (`lib/reveal.ts`), then crossfades over 300ms |
+| `lib/dirty.ts` | B (08): dirty flags per system (reflector, shadow, normals). The floor reflection, shadow map and SSAO normals re-render only when the camera, lamp, an object, the view, the DPR or a model load changes them; shown in `?perf` |
 | `BoothFocus.tsx`, `focus.ts` | Keyboard focus and the hover spec plate for samples |
 | `ModelRef.tsx` | `?modelref=<slug>` debug view for comparing GLBs against Blender reference renders |
 
@@ -202,7 +205,9 @@ The data shape is in `lib/types.ts`. Key fields:
 
 - **Lamp presets** (`lib/lampPresets.ts`): position, colour (Kelvin via `lib/kelvin.ts`), intensity, exposure, strike channels and durations, and screen gains for each lamp. B5 (07): D50 exposure 0.635 under PBR Neutral puts the back wall at L* ~80 and white paper at L* ~90 (`tools/measure-brightness.mjs`); TL84 and A scaled by the same factor.
 - **Opening moment:** first visit per session the booth comes up dark and the D50 tubes strike (two flickers, ~1.2s; `prepareOpening` / `runOpening` in `lib/lampController.ts`). Skipped on repeat visits, reduced motion and house lights.
-- **Shadows:** PCF + drei SoftShadows (PCSS); cached contact shadows per object; SSAO at half resolution on desktop; baked AO texture (`public/booth/ao.png`) everywhere.
+- **Shadows:** VSM (08; softness baked into the map, re-rendered only on change; `no=vsm` restores PCF + PCSS); cached contact shadows per object; SSAO at half resolution on desktop; baked AO texture (`public/booth/ao.png`, phones `ao-phone.png`) everywhere.
+- **SCREEN lamp:** one combined screen light on desktop (08; `no=screencombine` restores one per screen). Pouch / book / SOOK read 18–23 L*.
+- **Screens:** glass coat at roughness ~0.12, env 0.35, no direct specular from the lamps (no hot spot).
 - **Area-light tables:** the LTC tables for RectAreaLight live in `public/booth/ltc.bin` (`lib/ltc.ts`). They were moved out of the JS bundle to fit the budget.
 - **Lightmap path:** if `public/booth/lightmap.ktx2` (or `.png`) exists, the booth uses it automatically (resolved at build time in the site layout). It doesn't exist yet: bake from `tools/booth-room.glb` (the room only; plinths, riser and shelf keep their own AO in code) plus `tools/camera.json`.
 
@@ -278,7 +283,8 @@ An inline script runs before paint. It applies the stored lamp and sets `<html d
 
 | Flag | What |
 |---|---|
-| `?perf` | Frame-time and fps readout, `window.__boothPerf()`, `window.__boothPasses(n)` per-pass timings; the only mode with GPU readbacks (besides the loupe). `?perf&no=ssao,pcss,contact,screenlights,bloom,reflector,msaa,dof,envcapture` switches features off |
+| `?perf` | Frame-time and fps readout with the dirty flags, `window.__boothPerf()`, `window.__boothPasses(n, moving)` per-pass timings (still or every system forced); the only mode with GPU readbacks (besides the loupe). `?perf&no=ssao,vsm,pcss,screencombine,screenlights,reflector,msaa4,msaa,focus,contact,envcapture,bloom` switches features off |
+| `?perf&events` | On-screen event log (reveal, lamp, dirty re-renders, contact re-bakes, focus, clock state) |
 | `?tone=agx` / `?tone=neutral` | Force one tone map |
 | `?gpu=high` / `?gpu=low`, `?tier=` | Force a GPU or perf tier |
 | `?viewdebug`, `?viewdebug=cabinet` | View alignment debug overlays |
@@ -300,12 +306,13 @@ An inline script runs before paint. It applies the stored lamp and sets `<html d
 | Proof palettes | Each case-study image (the master AVIF where one exists; a video's poster) | `tools/extract-palettes.mjs` (k-means in OKLab, area-weighted, by lightness) | `content/palettes.ts` |
 | GLB models | `assets-src/models/<slug>/` (Blender exports + `.ref.png` renders) | `tools/optimize-models.mjs` | `public/models/<slug>/*.glb` (desktop + mobile variants) |
 | Model check | | `tools/model-ref.mjs` | Side-by-side against the Blender reference renders |
-| Booth AO and room | Code (`shell.ts`) | `node --experimental-strip-types tools/bake-booth.mjs` | `public/booth/ao.png`, `tools/booth-room.glb` (room only, UV1), `tools/camera.json` |
+| Booth AO and room | Code (`shell.ts`) | `node --experimental-strip-types tools/bake-booth.mjs` (`LAYOUT=phone` for `ao-phone.png`) | `public/booth/ao.png`, `tools/booth-room.glb` (room only, UV1; FROZEN by `tools/booth-room.lock`, override with `ROOM_UNFREEZE=1`), `tools/camera.json` |
 | Responsive proofs | `public/work/<slug>/NN.webp` (+ master AVIF) | `tools/proof-sizes.mjs` | `public/work/<slug>/sized/NN-{640,1200,1800,2400}.{avif,webp}`, `content/sizes.ts` |
 | Mitooshi loops, AMG clips | `assets-src/mitooshi/*.gif`, `assets-src/archive/amg-gtr/*.mp4` | ffmpeg (H.264 + VP9, posters) | `public/work/mitooshi/04-05.*`, `public/archive/clips/` |
 | Blender camera | `tools/camera.json` | `tools/blender_camera.py` (run in Blender) | Matching cameras and plinths in Blender |
 | Brand screens | Manual | | `public/brand/<slug>/logo.svg` + `bg.txt` |
-| LCP posters | Rendered from the booth | `tools/make-posters.mjs` + `encode-posters.py` | `public/booth/poster-*.webp`. Re-run after any visual change to the booth. |
+| LCP posters | Rendered from the live booth (cabinet frame crop; phone 4:5) | `tools/make-posters.mjs` | `public/booth/poster-cabinet-*.{webp,jpg}`, `poster-phone.webp`, `posters.json`. The build refuses stale posters (`tools/poster-hash.mjs --check`): re-run after any booth change. |
+| Proof audio | ffprobe | `tools/probe-audio.mjs` (runs in the build) | `content/audio.json`: "Play with sound" only for videos with an audio stream |
 | Blue noise | | `tools/gen-bluenoise.py` | `public/textures/bluenoise64.png` |
 | Fonts | Geist | `tools/subset-fonts.sh` | `app/fonts/*-subset.woff2` |
 | LTC tables | three.js | `tools/dump-ltc.mjs` | `public/booth/ltc.bin` |
@@ -316,7 +323,7 @@ An inline script runs before paint. It applies the stored lamp and sets `<html d
 - Mitooshi 04 and 06 need no master: they are two-colour dot-pattern squares that the indexed palette does not harm.
 - 44 archive masters are indexed.
 
-**Models status:** all nine samples are real GLBs (desktop 9.6MB with KTX2 textures / mobile 2.2MB with WebP textures, so phones never load the Basis transcoder, loaded in view priority; see DELIVERY-07.md). No procedural objects remain.
+**Models status:** all nine samples are real GLBs (desktop 8.8MB / mobile 2.2MB, loaded in view priority). Desktop uses KTX2, except JSW, which is WebP at 2048 from the lossless PNG (08). Mobile uses WebP, so phones never load the Basis transcoder. All model artwork gets 8× anisotropic filtering. The JSW inner pages carry an authored layout grid in the texture. No procedural objects remain.
 
 ---
 
@@ -354,7 +361,9 @@ PLAYWRIGHT=<path to playwright> node tools/<check>.mjs
 | `check-routes.mjs` | No reserved route names (runs in `npm run build`) |
 | `check-lamp.mjs` | The lamp never auto-switches; persistence; native chip |
 | `check-views.mjs` | Booth/canvas alignment at 1280–2560 wide, resizes, scrollbars |
-| `check-sizes.mjs` | Each sample ≥ 11% of the cabinet width; projected boxes (certificate included) overlap ≤ 3%; 3D gaps ≥ 8cm |
+| `check-sizes.mjs` | Each sample's long side ≥ 11% of the cabinet width (9% raised, nothing taller in front); boxes overlap ≤ 3%; 3D gaps ≥ 8cm. Phones (390x844, 430x932): ≥ 14% of the box width, all in frame, gaps ≥ 5cm |
+| `stage-plan.mjs` | Offline staging planner, no browser (`PHONE=1` for the phone arrangement) |
+| `check-poster.mjs` | C1: the poster matches the live booth (≤ 2.5% mean difference) |
 | `check-picking.mjs` | B4: on every booth route, a grid of points: what a click opens is what is seen there |
 | `check-07.mjs` | Nav labels and the home view switch, IST clock, no Mitooshi 04–07 leftovers, archive titles and numbering, chips |
 | `measure-brightness.mjs` | B5 loupe readings (wall and paper L*) per lamp |
@@ -364,7 +373,7 @@ PLAYWRIGHT=<path to playwright> node tools/<check>.mjs
 | `check-redirects.mjs` | `/projects/*` → `/work/*` 301s |
 | `check-sound.mjs` | Sound beds and events |
 | `check-smear.mjs` | A1: no stale booth pixels outside the current views (scrolling, opening projects), and each route registers only its own views |
-| `check-flicker.mjs` | A2: no presented frame of the booth drops > 5% below its neighbours while the pointer moves (D50, A) |
+| `check-flicker.mjs` | A2/C7: no presented frame drops > 5% below its neighbours: reveal (poster vs live ≤ 4%), hover on/off every sample (D50, A), lamp change, turntable spin + release, JSW open (`ONLY=` to pick) |
 | `check-houselights.mjs` | B: house lights toggles in place, URL unchanged; stored choice loads flat; no panel on /about, /archive |
 | `check-layout.mjs` | C2/D5: centred stage = min(content, 1.6 × height left), booth and panel in one screen; nav and footer end on the right gutter |
 | `check-switch.mjs` | A3: project-to-project timing and long tasks |
@@ -393,6 +402,9 @@ Gotchas when testing in the cloud container:
 | `baef030` | Vishesh added the GLBs and logos |
 | `ff5fc69` … `b8341b8` | The A–I batch (below) |
 | `e3d6ada` | Merge of PR #1 into `main` (4 Oct 2026) |
+| `c8c4b85` | Batch 07 (PR #3): all ten objects, centred layout, project story, interaction, realism, speed |
+| `aa0e153` | Batch 08 A: the room FROZEN (`tools/booth-room.lock`) |
+| PR #4 | Batch 08: frame budget (re-render on change), no flicker (live posters, gated reveal, flicker-free lamp changes), masked hover focus, true relative scale, tray framing, phone arrangement, polish. See `DELIVERY-08.md` |
 
 **The A–I batch:**
 
@@ -427,7 +439,7 @@ The detailed delivery report for the batch is `DELIVERY.md` in the repo.
 
 ## 12. How to work on this project (for any future Claude session)
 
-1. **Read** `BRIEF.md`, then this file, then `DELIVERY.md`.
+1. **Read** `BRIEF.md`, then this file, then the latest `DELIVERY-0N.md`.
 2. **Ask before building.** Explain the plan in plain language: Vishesh doesn't code. Once approved, execute fully without stopping halfway.
 3. **Branch, preview, merge.** Work on a branch and let Vercel build a preview. Merge to `main` only after a green preview, because `main` is the live site.
 4. **Commit and push after each meaningful step.** Cloud containers are ephemeral.

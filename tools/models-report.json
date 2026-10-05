@@ -62,7 +62,7 @@
     ]
   },
   "totals": {
-    "desktopMB": 9.58,
+    "desktopMB": 8.77,
     "mobileMB": 2.22
   },
   "too-yumm/desktop": {
@@ -120,21 +120,21 @@
   "jsw-sports/desktop": {
     "file": "public/models/jsw-sports/jsw-sports.glb",
     "sourceMB": 1.04,
-    "MB": 1.45,
+    "MB": 0.64,
     "triangles": 1948,
     "sourceTriangles": 1948,
-    "art": 1536,
-    "data": 512,
+    "art": 2048,
+    "data": 1024,
     "textures": [
       {
         "name": "jsw-sports_orm",
-        "mime": "image/ktx2",
-        "kb": 15
+        "mime": "image/webp",
+        "kb": 19
       },
       {
         "name": "jsw-sports_basecolor",
-        "mime": "image/ktx2",
-        "kb": 1444
+        "mime": "image/webp",
+        "kb": 587
       }
     ]
   },

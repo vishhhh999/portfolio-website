@@ -120,6 +120,42 @@ export function SwitchPanel() {
     return () => window.removeEventListener('scroll', onScroll);
   }, [home, open]);
 
+  // H3 (08): the folded pill keeps out of the way: it slides away while the page scrolls down and
+  // comes back on a scroll up or after 1.2s still, but never over a proof (it waits for a gap)
+  const [away, setAway] = useState(false);
+  const floating = !home && !open;
+  useEffect(() => {
+    if (!floating) return setAway(false);
+    let last = window.scrollY;
+    let idle = 0;
+    const coversProof = () => {
+      const nav = document.querySelector('.panel[data-place="float"]');
+      if (!nav) return false;
+      const r = nav.getBoundingClientRect();
+      // measured where the pill sits when shown (its hidden state is translated down)
+      const top = window.innerHeight - r.height - 24, bottom = window.innerHeight;
+      return [...document.querySelectorAll('.proof__image')].some((el) => {
+        const p = el.getBoundingClientRect();
+        return p.top < bottom && p.bottom > top && p.left < r.right && p.right > r.left;
+      });
+    };
+    const settle = () => setAway(coversProof());
+    const onScroll = () => {
+      const y = window.scrollY;
+      if (y > last + 2) setAway(true);
+      else if (y < last - 2 && !coversProof()) setAway(false);
+      last = y;
+      window.clearTimeout(idle);
+      idle = window.setTimeout(settle, 1200);
+    };
+    settle();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      window.clearTimeout(idle);
+      window.removeEventListener('scroll', onScroll);
+    };
+  }, [floating, pathname]);
+
   if (!hasBooth) return null;
   if (home && !slot) return null;
   const active = lampById(lamp);
@@ -130,6 +166,7 @@ export function SwitchPanel() {
       aria-label="Booth lamps"
       data-place={home ? 'inline' : 'float'}
       data-folded={folded}
+      data-away={folded && away}
       data-house={onIndex}
       onPointerEnter={(e) => {
         if (!home && e.pointerType === 'mouse') setOpen(true);
@@ -151,7 +188,6 @@ export function SwitchPanel() {
         >
           <span className="panel__status-led" style={{ ['--lamp' as string]: onIndex ? '#f2f0ea' : active.indicator }} aria-hidden="true" />
           <span>{onIndex ? 'House lights' : active.label}</span>
-          <span className="panel__pill-open" aria-hidden="true">＋</span>
         </button>
       ) : (
         <>

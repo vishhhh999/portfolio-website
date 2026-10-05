@@ -1,5 +1,7 @@
 'use client';
 
+import { logEvent } from './eventLog';
+
 import type Lenis from 'lenis';
 import { useBooth } from './store';
 import { anyVideoVisible, anyViewVisible, getScroll, setScroll, viewCount } from './views';
@@ -49,11 +51,22 @@ export function setContinuous(on: boolean) {
   if (on) pending = Math.max(pending, 1);
 }
 
+/** C6 (08): render-on-demand state, logged on change (`?perf&events`). */
+let runState = '';
+function setRunState(s: 'active' | 'idle' | 'paused') {
+  if (s === runState) return;
+  runState = s;
+  logEvent(`render ${s}`);
+}
+
 function tick(time: number) {
   getLenis()?.raf(time * 1000);
   const y = window.scrollY;
   setScroll(y);
-  if (!render || document.hidden) return; // hidden tab: nothing renders
+  if (!render || document.hidden) {
+    setRunState('paused');
+    return; // hidden tab: nothing renders
+  }
   const now = performance.now();
   const visible = viewCount() > 0 && anyViewVisible();
   const scrolled = y !== lastScroll;
@@ -67,6 +80,7 @@ function tick(time: number) {
   const needs = visible ? pending > 0 || (continuous && !idle) || scrolled || video : wasVisible || pending > 0;
   if (needs && video) lastVideoFrame = now;
   wasVisible = visible;
+  setRunState(needs ? 'active' : 'idle');
   if (!needs) return;
   pending = Math.max(0, pending - 1);
   render(time);

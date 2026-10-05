@@ -10,6 +10,7 @@ import { useBooth } from '@/lib/store';
 import { resetSpins } from '@/lib/spin';
 import { prepareOpening, runOpening } from '@/lib/lampController';
 import { playEvent } from '@/lib/sound';
+import { logEvent } from '@/lib/eventLog';
 import { onViewsChanged, registerStage, viewCount } from '@/lib/views';
 
 const BoothCanvas = dynamic(() => import('./BoothCanvas'), { ssr: false });
@@ -100,6 +101,9 @@ export function BoothHost({ lightmap = null }: { lightmap?: string | null }) {
           <BoothCanvas
             onReady={() => {
               setReady(true);
+              // C2 (08): the poster crossfades to the live booth (CSS, 300ms) once it is ready
+              document.documentElement.setAttribute('data-booth-ready', '');
+              logEvent('poster → canvas crossfade');
               runOpening((name) => playEvent(name as Parameters<typeof playEvent>[0]));
             }}
             lightmap={lightmap}
@@ -108,14 +112,6 @@ export function BoothHost({ lightmap = null }: { lightmap?: string | null }) {
       </div>
       {live && (
         <div ref={stageRef} className="booth-stage" data-mode={mode} data-ready={ready} aria-hidden="true">
-          {mode === 'full' && (
-            <picture className="booth-poster">
-              <source media="(max-aspect-ratio: 1/1)" srcSet="/booth/poster-portrait.webp" type="image/webp" />
-              <source media="(min-aspect-ratio: 17/10)" srcSet="/booth/poster-16x9.webp" type="image/webp" />
-              <source srcSet="/booth/poster-16x10.webp" type="image/webp" />
-              <img src="/booth/poster-16x10.jpg" alt="" width={1440} height={900} fetchPriority="high" decoding="async" />
-            </picture>
-          )}
         </div>
       )}
     </>

@@ -23,12 +23,19 @@ import { Euler, Quaternion, Vector3 } from 'three';
 import { fileURLToPath } from 'url';
 import { ATLAS, shellParts } from '../components/booth/shell.ts';
 import { cabinetShot, trayShot } from '../components/booth/shots.ts';
-import { BOOTH, CABINET_FACE, COVE, EYE, FACE_Z, FOCAL_MM, FOV, HOOD, LIP, PROPS, SENSOR_HEIGHT_MM, STAGING, TRAY } from '../components/booth/staging.ts';
+import { BOOTH, CABINET_FACE, COVE, EYE, FACE_Z, FOCAL_MM, FOV, HOOD, LIP, SENSOR_HEIGHT_MM, TRAY, DESKTOP_STAGING, DESKTOP_PROPS } from '../components/booth/staging.ts';
+import { PHONE_PROPS, PHONE_STAGING } from '../components/booth/phoneStaging.ts';
+
+// G (08): LAYOUT=phone bakes public/booth/ao-phone.png for the phone arrangement (its bases and
+// shelf) and stops there; the room glb and camera.json come from the desktop run
+const PHONE = process.env.LAYOUT === 'phone';
+const STAGING = PHONE ? PHONE_STAGING : DESKTOP_STAGING;
+const PROPS = { ledge: (PHONE ? PHONE_PROPS : DESKTOP_PROPS).ledge };
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 // the booth lineup, in content order (content/work/index.ts; the bases follow STAGING)
 const LINEUP = ['too-yumm', 'jsw-sports', 'mitooshi', 'sonde', 'house-of-hex', 'bengal-t20', 'sook', 'shunya', 'indo-thai'];
-const parts = shellParts(LINEUP);
+const parts = shellParts(LINEUP, STAGING, PROPS);
 
 // ── signed distance field of the static booth (positive in free space) ──────────────────────
 const sdRoundBox = (p, b, r) => {
@@ -160,8 +167,10 @@ for (let i = 0; i < img.length; i++) {
   }
 }
 mkdirSync(join(ROOT, 'public/booth'), { recursive: true });
-await sharp(bytes, { raw: { width: N, height: N, channels: 1 } }).png({ compressionLevel: 9 }).toFile(join(ROOT, 'public/booth/ao.png'));
-console.log(`ao.png: ${N}², ${cnt} texels baked, min ${lo.toFixed(2)}, mean ${(sum / cnt).toFixed(3)}`);
+const aoName = PHONE ? 'ao-phone.png' : 'ao.png';
+await sharp(bytes, { raw: { width: N, height: N, channels: 1 } }).png({ compressionLevel: 9 }).toFile(join(ROOT, 'public/booth', aoName));
+console.log(`${aoName}: ${N}², ${cnt} texels baked, min ${lo.toFixed(2)}, mean ${(sum / cnt).toFixed(3)}`);
+if (PHONE) process.exit(0);
 
 // ── booth-room.glb for the Blender lightmap bake (J1) ───────────────────────────────────────
 // The room only: interior, frame, housing, hood, diffuser and lip. The plinths, the riser and the
@@ -188,6 +197,21 @@ for (const part of parts.filter((p) => ROOM.has(p.role))) {
   scene.addChild(doc.createNode(part.name).setMesh(mesh).setTranslation(part.position).setRotation([q.x, q.y, q.z, q.w]).setExtras({ role: part.role, slug: part.slug ?? null }));
 }
 const io = new NodeIO();
+// A (08): the room is FROZEN for the lightmap bake. tools/booth-room.lock holds its hash; a change is
+// refused unless ROOM_UNFREEZE=1 (and then the lightmap must be re-baked).
+{
+  const { createHash } = await import('crypto');
+  const bytes = await io.writeBinary(doc);
+  const hash = createHash('sha256').update(bytes).digest('hex');
+  const lock = join(ROOT, 'tools/booth-room.lock');
+  const { existsSync, readFileSync } = await import('fs');
+  const locked = existsSync(lock) ? readFileSync(lock, 'utf8').trim() : null;
+  if (locked && locked !== hash && process.env.ROOM_UNFREEZE !== '1') {
+    console.error(`booth-room.glb would change (${hash.slice(0, 12)} ≠ frozen ${locked.slice(0, 12)}): the room is frozen. Set ROOM_UNFREEZE=1 only if the lightmap will be re-baked.`);
+    process.exit(1);
+  }
+  if (!locked || process.env.ROOM_UNFREEZE === '1') writeFileSync(lock, hash + '\n');
+}
 await io.write(join(ROOT, 'tools/booth-room.glb'), doc);
 console.log(`booth-room.glb: ${parts.filter((p) => ROOM.has(p.role)).length} parts`);
 

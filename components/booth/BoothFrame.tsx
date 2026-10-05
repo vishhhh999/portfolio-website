@@ -1,11 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useBooth } from '@/lib/store';
 import { registerFrame } from '@/lib/views';
 import { playEvent } from '@/lib/sound';
-import { CABINET_FACE } from './staging';
+import { CABINET_FACE, PHONE_LAYOUT, STAGING } from './staging';
 import { BoothFocus } from './BoothFocus';
 
 export type FrameSample = { slug: string; title: string; meta: string };
@@ -15,15 +15,23 @@ export type FrameSample = { slug: string; title: string; meta: string };
  * fills the column's width. On phones the box is portrait: the cabinet is cropped and panned
  * sample to sample with a horizontal swipe (or the prev / next buttons).
  */
-export function BoothFrame({ samples }: { samples: FrameSample[] }) {
+export function BoothFrame({ samples: given }: { samples: FrameSample[] }) {
   const ref = useRef<HTMLDivElement>(null);
+  // G (08): on phones the swipe follows the phone arrangement, front row first, left to right
+  const [samples, setSamples] = useState(given);
+  const [ordered, setOrdered] = useState(false);
+  useEffect(() => {
+    const tier = (slug: string) => Math.round(STAGING[slug].z * 4);
+    setSamples(PHONE_LAYOUT ? [...given].sort((a, b) => tier(b.slug) - tier(a.slug) || STAGING[a.slug].x - STAGING[b.slug].x) : given);
+    setOrdered(true);
+  }, [given]);
   const focusSlug = useBooth((s) => s.focusSlug);
   const setFocus = useBooth((s) => s.setFocusSlug);
   const index = Math.max(0, samples.findIndex((s) => s.slug === focusSlug));
   const current = samples[index];
 
   useEffect(() => (ref.current ? registerFrame(ref.current) : undefined), []);
-  // C2: one centred column. The stage is min(content width, 1.6 × the height left on the first screen
+  // C2: one centred column. The stage is min(content width, cabinet aspect × the height left on the first screen
   // under the headline and above the lamp panel), at the cabinet's own aspect, so the booth and the
   // panel fit in one screen at every size. Phones (< 600px) have their own portrait composition.
   useEffect(() => {
@@ -39,9 +47,11 @@ export function BoothFrame({ samples }: { samples: FrameSample[] }) {
       const panelH = slot ? Math.max(56, slot.getBoundingClientRect().height) + 14 : 0;
       const top = el.getBoundingClientRect().top + window.scrollY;
       const avail = window.innerHeight - top - panelH - 18;
-      const w = Math.max(280, Math.min(wrap.clientWidth, 1.6 * avail));
+      // A4 (08): the box takes the cabinet's own aspect, so the slimmer header band goes to the interior
+      const aspect = CABINET_FACE.w / CABINET_FACE.h;
+      const w = Math.max(280, Math.min(wrap.clientWidth, aspect * avail));
       el.style.width = `${Math.round(w)}px`;
-      el.style.height = `${Math.round(w / 1.6)}px`;
+      el.style.height = `${Math.round(w / aspect)}px`;
       el.style.maxHeight = 'none';
     };
     fit();
@@ -56,8 +66,8 @@ export function BoothFrame({ samples }: { samples: FrameSample[] }) {
   }, []);
   // start on the centre sample
   useEffect(() => {
-    if (!useBooth.getState().focusSlug && samples.length) setFocus(samples[Math.floor(samples.length / 2)].slug);
-  }, [samples, setFocus]);
+    if (ordered && !useBooth.getState().focusSlug && samples.length) setFocus(samples[Math.floor(samples.length / 2)].slug);
+  }, [ordered, samples, setFocus]);
 
   const go = (d: number) => {
     const i = Math.min(samples.length - 1, Math.max(0, index + d));
@@ -90,7 +100,15 @@ export function BoothFrame({ samples }: { samples: FrameSample[] }) {
         onPointerUp={onUp}
         onPointerCancel={() => (start.current = null)}
         aria-hidden="true"
-      />
+      >
+        {/* C1 (08): the LCP poster is this exact cabinet shot, rendered from the current staging
+            (tools/make-posters.mjs; the build refuses a stale one), so the crossfade never jumps */}
+        <picture className="booth-poster">
+          <source media="(max-width: 599px)" srcSet="/booth/poster-phone.webp" type="image/webp" />
+          <source srcSet="/booth/poster-cabinet-1200.webp 1200w, /booth/poster-cabinet-2400.webp 2400w" sizes="min(100vw, 1800px)" type="image/webp" />
+          <img src="/booth/poster-cabinet-1200.jpg" alt="" fetchPriority="high" decoding="async" />
+        </picture>
+      </div>
       {current && (
         <div className="booth-swipe" aria-label="Samples in the booth">
           <button type="button" className="booth-swipe__btn" onClick={() => go(-1)} disabled={index === 0} aria-label="Previous sample">

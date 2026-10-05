@@ -1,43 +1,31 @@
 /**
- * A2: no frame of the booth may present black or partly cleared. The pointer moves along a path
- * across the page for 3s (inside and outside the stage) while every presented frame's mean stage
- * luminance is recorded (window.__boothCapture, read straight after the frame is drawn). No frame
- * may drop more than 5% below the median of its neighbours (±3 frames). Under D50 and A.
+ * A2, C7 (08): no frame of the booth may present black, partly cleared, or jump. Every presented
+ * frame's mean stage luminance is recorded (window.__boothCapture, read straight after the frame is
+ * drawn); no frame may drop more than 5% below the median of its neighbours (±3 frames). Scenarios:
  *
- *   node tools/check-flicker.mjs (with ?perf) [width=1568]
+ *   reveal      the page from the first paint: the poster, the crossfade, the live booth. Composited
+ *               captures of the cabinet frame (poster and canvas together); no dip, and the poster
+ *               must match the live booth (mean difference ≤ 4%: a stale poster fails here)
+ *   hover       the pointer across the page and every sample (on and off), under D50 and A
+ *   lamp        D50 → A → D50 (a lamp change: the env capture, shadows and the strike)
+ *   spin        a turntable drag on a sample and its release (the coast, the contact-shadow re-bake)
+ *   jsw         the JSW book opened from the lineup (the dolly, the tray, the open animation)
+ *
+ *   node tools/check-flicker.mjs [width=1280]   (against a running build)
  */
 import { createRequire } from 'module';
+import sharp from 'sharp';
 const require = createRequire(import.meta.url);
 const pw = require(process.env.PLAYWRIGHT || 'playwright');
 const BASE = process.env.BASE || 'http://localhost:3100';
 const W = +(process.argv[2] || 1280), H = Math.round(W * 0.62);
+const ONLY = process.env.ONLY ? process.env.ONLY.split(',') : null;
 const b = await pw.chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
-const p = await b.newPage({ viewport: { width: W, height: H } });
-await p.addInitScript(() => sessionStorage.setItem('vm:opened:v1', '1')); // J5: no opening strike in steady-state checks
-p.setDefaultTimeout(600000);
 let fails = 0;
-await p.goto(BASE + '/?perf', { waitUntil: 'networkidle' });
-await p.waitForSelector('.booth-stage[data-ready="true"]', { timeout: 600000 });
-await p.waitForTimeout(2000);
-for (const [lamp, key] of [['D50', '1'], ['A', '3']]) {
-  await p.evaluate((k) => window.dispatchEvent(new KeyboardEvent('keydown', { key: k })), key);
-  await p.waitForTimeout(3500); // past the strike
-  await p.evaluate(() => (window.__boothCapture = { on: true, lums: [] }));
-  // a path through the headline, across the booth, out to the right edge and back
-  const pts = [];
-  for (let i = 0; i <= 30; i++) {
-    const t = i / 30;
-    pts.push([W * (0.05 + 0.9 * t), H * (0.15 + 0.7 * Math.abs(Math.sin(t * Math.PI * 2)))]);
-  }
-  const t0 = Date.now();
-  for (const [x, y] of pts) {
-    await p.mouse.move(x, y, { steps: 2 });
-    await p.waitForTimeout(Math.max(0, 3000 / pts.length - 10));
-  }
-  const lums = await p.evaluate(() => {
-    window.__boothCapture.on = false;
-    return window.__boothCapture.lums;
-  });
+const run = (name) => !ONLY || ONLY.includes(name);
+
+/** Worst single-frame drop against the median of its ±3 neighbours. */
+function worstDrop(lums) {
   let worst = 0, at = -1;
   for (let i = 0; i < lums.length; i++) {
     const nb = lums.slice(Math.max(0, i - 3), i).concat(lums.slice(i + 1, i + 4)).sort((a, b) => a - b);
@@ -46,10 +34,148 @@ for (const [lamp, key] of [['D50', '1'], ['A', '3']]) {
     const drop = med > 0 ? (med - lums[i]) / med : 0;
     if (drop > worst) (worst = drop), (at = i);
   }
+  return { worst, at };
+}
+/**
+ * Worst valley: a frame darker than the brightest of the 3 frames before it AND of the 3 after it.
+ * A transition from one level to another (a lamp change, a dolly to the tray) is a step, not a
+ * flicker; a frame that dips below both sides is one.
+ */
+function worstValley(lums) {
+  let worst = 0, at = -1;
+  for (let i = 1; i < lums.length - 1; i++) {
+    const before = Math.max(...lums.slice(Math.max(0, i - 3), i)), after = Math.max(...lums.slice(i + 1, i + 4));
+    const ref = Math.min(before, after);
+    const drop = ref > 0 ? (ref - lums[i]) / ref : 0;
+    if (drop > worst) (worst = drop), (at = i);
+  }
+  return { worst, at };
+}
+function report(name, lums, extra = '', valley = false) {
+  const { worst, at } = valley ? worstValley(lums) : worstDrop(lums);
   const ok = lums.length > 5 && worst <= 0.05;
   if (!ok) fails++;
-  console.log(`${ok ? 'PASS' : 'FAIL'} ${lamp}: ${lums.length} frames in ${((Date.now() - t0) / 1000).toFixed(1)}s, luminance ${Math.min(...lums).toFixed(1)}-${Math.max(...lums).toFixed(1)}, worst drop ${(worst * 100).toFixed(1)}%${at >= 0 ? ` at frame ${at}` : ''}`);
+  console.log(`${ok ? 'PASS' : 'FAIL'} ${name}: ${lums.length} frames, luminance ${Math.min(...lums).toFixed(1)}-${Math.max(...lums).toFixed(1)}, worst ${valley ? 'dip below both sides' : 'drop'} ${(worst * 100).toFixed(1)}%${at >= 0 ? ` at frame ${at}` : ''}${extra}`);
 }
+async function capture(p, action) {
+  await p.evaluate(() => (window.__boothCapture = { on: true, lums: [] }));
+  await action();
+  return p.evaluate(() => {
+    window.__boothCapture.on = false;
+    return window.__boothCapture.lums;
+  });
+}
+const key = (p, k) => p.evaluate((k) => window.dispatchEvent(new KeyboardEvent('keydown', { key: k })), k);
+
+// ── reveal: composited captures of the cabinet frame from first paint ───────────────────────
+if (run('reveal')) {
+  const p = await b.newPage({ viewport: { width: 1568, height: 980 } });
+  p.setDefaultTimeout(900000);
+  await p.addInitScript(() => sessionStorage.setItem('vm:opened:v1', '1'));
+  await p.goto(BASE + '/?perf', { waitUntil: 'domcontentloaded' });
+  await p.waitForSelector('.booth-frame');
+  await p.waitForFunction(() => document.querySelector('.booth-poster img')?.complete);
+  await p.addStyleTag({ content: '.specchip,.booth-focus{visibility:hidden!important}' });
+  const r = await p.locator('.booth-frame').boundingBox();
+  const clip = { x: r.x, y: r.y, width: r.width, height: r.height };
+  const frames = [];
+  let readyAt = -1;
+  for (let i = 0; i < 400; i++) {
+    const png = await p.screenshot({ clip, timeout: 900000 });
+    const { data } = await sharp(png).resize(392, Math.round((392 * r.height) / r.width), { fit: 'fill' }).greyscale().raw().toBuffer({ resolveWithObject: true });
+    frames.push(data);
+    const ready = await p.evaluate(() => document.documentElement.hasAttribute('data-booth-ready'));
+    if (ready && readyAt < 0) readyAt = i;
+    if (readyAt >= 0 && i - readyAt >= 6) break;
+  }
+  const mean = (d) => d.reduce((a, v) => a + v, 0) / d.length;
+  const lums = frames.map(mean);
+  const first = frames[0], last = frames[frames.length - 1];
+  let diff = 0;
+  for (let i = 0; i < first.length; i++) diff += Math.abs(first[i] - last[i]);
+  diff = (diff / first.length / 255) * 100;
+  const posterOk = diff <= 4;
+  if (!posterOk) fails++;
+  report('reveal (poster → crossfade → live)', lums, ` · ready at capture ${readyAt}`);
+  console.log(`${posterOk ? 'PASS' : 'FAIL'} reveal: first paint (poster) vs live booth: mean difference ${diff.toFixed(2)}% (limit 4%)`);
+  await p.close();
+}
+
+const p = await b.newPage({ viewport: { width: W, height: H } });
+await p.addInitScript(() => sessionStorage.setItem('vm:opened:v1', '1')); // J5: no opening strike in steady-state checks
+p.setDefaultTimeout(900000);
+await p.goto(BASE + '/?perf&events', { waitUntil: 'networkidle' });
+await p.waitForSelector('.booth-stage[data-ready="true"]', { timeout: 900000 });
+await p.waitForTimeout(2000);
+
+// ── hover: across the page and on/off every sample, under D50 and A ─────────────────────────
+if (run('hover'))
+  for (const [lamp, k] of [['D50', '1'], ['A', '3']]) {
+    await key(p, k);
+    await p.waitForTimeout(3500); // past the strike
+    const { boxes } = await p.evaluate(() => window.__boothBoxes());
+    const centres = Object.entries(boxes).filter(([s]) => s !== 'about').map(([, r]) => [(r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2]).sort((a, b) => a[0] - b[0]);
+    const pts = [];
+    for (const [x, y] of centres) pts.push([x, y], [x, y - 120]); // on, then off (above it)
+    for (let i = 0; i <= 12; i++) pts.push([W * (0.05 + 0.9 * (i / 12)), H * (0.15 + 0.7 * Math.abs(Math.sin((i / 12) * Math.PI * 2)))]);
+    const lums = await capture(p, async () => {
+      for (const [x, y] of pts) {
+        await p.mouse.move(x, y, { steps: 3 });
+        await p.waitForTimeout(160);
+      }
+      await p.waitForTimeout(600);
+    });
+    report(`hover ${lamp}`, lums);
+  }
+
+// ── lamp change: D50 → A → D50 ──────────────────────────────────────────────────────────────
+if (run('lamp')) {
+  await p.mouse.move(4, 4);
+  await key(p, '1');
+  await p.waitForTimeout(3500);
+  // the lamps' interiors are captured while idle after the reveal (in software rendering that takes
+  // minutes); wait for A's, so the switch measures the switch, then force a few steady frames on each side
+  await p.waitForFunction(() => document.body.innerText.includes('env capture A'), null, { timeout: 900000 }).catch(() => {});
+  const steady = () => p.evaluate(() => window.__boothBench?.(1)); // one presented frame, nothing changed
+  const lums = await capture(p, async () => {
+    for (const k of ['3', '1']) {
+      for (let i = 0; i < 3; i++) (await steady(), await p.waitForTimeout(300));
+      await key(p, k);
+      await p.waitForTimeout(3500);
+    }
+    for (let i = 0; i < 3; i++) (await steady(), await p.waitForTimeout(300));
+  });
+  report('lamp change D50 → A → D50', lums, '', true);
+}
+
+// ── turntable: drag a sample, release, let it coast and re-bake its contact shadow ──────────
+if (run('spin')) {
+  const { boxes } = await p.evaluate(() => window.__boothBoxes());
+  const s = boxes.sook ?? Object.values(boxes)[0];
+  const cx = (s.x0 + s.x1) / 2, cy = (s.y0 + s.y1) / 2;
+  const lums = await capture(p, async () => {
+    await p.mouse.move(cx, cy);
+    await p.mouse.down();
+    for (let i = 1; i <= 8; i++) await p.mouse.move(cx + i * 22, cy, { steps: 2 });
+    await p.mouse.up();
+    await p.mouse.move(4, 4);
+    await p.waitForTimeout(2500);
+  });
+  report('turntable spin + release', lums);
+}
+
+// ── JSW open: from the lineup onto the tray ─────────────────────────────────────────────────
+if (run('jsw')) {
+  const { boxes } = await p.evaluate(() => window.__boothBoxes());
+  const j = boxes['jsw-sports'];
+  const lums = await capture(p, async () => {
+    await p.mouse.click((j.x0 + j.x1) / 2, (j.y0 + j.y1) / 2);
+    await p.waitForURL('**/work/jsw-sports');
+    await p.waitForTimeout(5000);
+  });
+  report('JSW open (dolly, tray, open)', lums, '', true);
+}
+
 await b.close();
-console.log(fails ? `✗ ${fails} failure(s)` : '✓ no dark frames');
+console.log(fails ? `✗ ${fails} failure(s)` : '✓ no dark, dipping or jumping frames');
 process.exit(fails ? 1 : 0);

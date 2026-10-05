@@ -20,20 +20,23 @@ async function run(vp, q, mobile) {
   await p.goto(`${BASE}/?perf&gpu=high${q}`, { waitUntil: 'networkidle' });
   await p.waitForSelector('.booth-stage[data-ready="true"]', { timeout: 900000 });
   await p.waitForTimeout(3000);
-  const r = await p.evaluate((n) => window.__boothPasses(n), N);
+  // B5 (08): a still frame (nothing changed: side renders reused) and a moving one (all forced)
+  const still = await p.evaluate((n) => window.__boothPasses(n, false), N);
+  const moving = await p.evaluate((n) => window.__boothPasses(n, true), N);
   await ctx.close();
-  return r;
+  return { ...still, still, moving, frameP50: still.frameP50, movingP50: moving.frameP50 };
 }
 const rows = [];
 const desk = { width: 2560, height: 1440 };
 const base = await run(desk, '', false);
-rows.push(['desktop 2560x1440, all on', base.frameP50, JSON.stringify(base)]);
-for (const f of ['ssao', 'pcss', 'contact', 'screenlights', 'bloom', 'reflector', 'msaa']) {
+const pct = (a, b) => `${(((a - b) / a) * 100).toFixed(0)}%`;
+rows.push(['desktop 2560x1440, all on', base.frameP50, base.movingP50, `still ${JSON.stringify(base.still)} · moving ${JSON.stringify(base.moving)}`]);
+for (const f of (process.env.FEATURES || 'ssao,vsm,screencombine,reflector,msaa4').split(',')) {
   const r = await run(desk, `&no=${f}`, false);
-  rows.push([`desktop, ${f} off`, r.frameP50, `saves ${(base.frameP50 - r.frameP50).toFixed(1)}ms (${(((base.frameP50 - r.frameP50) / base.frameP50) * 100).toFixed(0)}%)`]);
+  rows.push([`desktop, no=${f}`, r.frameP50, r.movingP50, `vs all on: still ${pct(base.frameP50, r.frameP50)}, moving ${pct(base.movingP50, r.movingP50)}`]);
 }
 const mob = await run({ width: 390, height: 844 }, '&tier=mobile', true);
-rows.push(['mobile tier 390x844 @2x, all on', mob.frameP50, JSON.stringify(mob)]);
-console.log('| config | frame p50 (ms, SwiftShader) | detail |\n|---|---|---|');
-for (const [a, c, d] of rows) console.log(`| ${a} | ${c} | ${d} |`);
+rows.push(['mobile tier 390x844 @2x, all on', mob.frameP50, mob.movingP50, `still ${JSON.stringify(mob.still)}`]);
+console.log('| config | still frame p50 (ms, SwiftShader) | moving frame p50 | detail |\n|---|---|---|---|');
+for (const [a, c, m, d] of rows) console.log(`| ${a} | ${c} | ${m} | ${d} |`);
 await b.close();

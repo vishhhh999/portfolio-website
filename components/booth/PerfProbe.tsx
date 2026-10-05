@@ -3,6 +3,8 @@
 import { advance, useFrame, useThree } from '@react-three/fiber';
 import { postApi } from './Post';
 import { invalidateShadows } from './LampRig';
+import { dirtyCount, dirtyLast, markDirty } from '@/lib/dirty';
+import { logEvent } from '@/lib/eventLog';
 import { autoHouseLights } from '@/lib/resilience';
 import { useEffect, useRef } from 'react';
 import { useBooth } from '@/lib/store';
@@ -88,7 +90,9 @@ export function PerfProbe({ readout }: { readout: boolean }) {
       div.textContent =
         (idle ? 'idle (on-demand: no frames in the last 4s)\n' : `${r.fps} fps   p50 ${r.p50Ms}ms   p95 ${r.p95Ms}ms\n`) +
         `DPR ${r.dpr}${perfState.steps ? ` (−${perfState.steps})` : ''}   tier ${r.tier}   lamp ${r.lamp}\n` +
-        `${r.cores} cores · ${r.renderer.slice(0, 38)}` +
+        `${r.cores} cores · ${r.renderer.slice(0, 38)}\n` +
+        // B1 (08): which side renders ran on the last frame, and how often since load
+        `dirty  reflector ${dirtyLast.reflector ? '●' : '○'} ${dirtyCount.reflector}   shadow ${dirtyLast.shadow ? '●' : '○'} ${dirtyCount.shadow}   normals ${dirtyLast.normals ? '●' : '○'} ${dirtyCount.normals}` +
         (r.lowPower ? '\nlow power mode? (frames pinned ~33ms)' : '');
     };
     draw();
@@ -129,6 +133,8 @@ export function PerfProbe({ readout }: { readout: boolean }) {
               setDpr(perfState.dpr);
               postApi.resize();
               invalidateShadows();
+              markDirty('DPR step');
+              logEvent(`DPR step → ${perfState.dpr}`);
               renderNow();
               stepPending.current = false;
             });

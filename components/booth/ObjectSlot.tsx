@@ -6,7 +6,7 @@ import { ContactShadows, Html } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { AnimationMixer, LoopOnce, Box3, BufferGeometry, ExtrudeGeometry, Shape, Color, FrontSide, Matrix4, Mesh, MeshStandardMaterial, Vector3, type AnimationAction, type Camera, type Group, type Material, type Object3D } from 'three';
+import { AnimationMixer, LoopOnce, Box3, BufferGeometry, CanvasTexture, DoubleSide, ExtrudeGeometry, Float32BufferAttribute, SRGBColorSpace, Shape, Color, FrontSide, Matrix4, Mesh, MeshStandardMaterial, Vector3, type AnimationAction, type Camera, type Group, type Material, type Object3D } from 'three';
 import type { Work } from '@/lib/types';
 import { isMobileTier } from '@/lib/perfTier';
 import { useBooth } from '@/lib/store';
@@ -15,11 +15,16 @@ import { baseFor, baseMaterial, ContactBlob } from './BoothRoom';
 import { loadModel } from './models';
 import { attachScreen } from './deviceScreen';
 import { PLINTH_GREY, RECEDE_DZ, STAGING, TRAY } from './staging';
+import { trayHidden } from './shots';
+import { stageRect } from '@/lib/views';
 import { applyUV, blankInk, createProofInk } from './uvMaterial';
 import { hoverFocus, setFocusRect } from './focus';
 import { playEvent } from '@/lib/sound';
 import { track } from '@/lib/analytics';
 import { openProject, warmProject } from '@/lib/navigate';
+import { markDirty } from '@/lib/dirty';
+import { revealed } from '@/lib/reveal';
+import { logEvent } from '@/lib/eventLog';
 import { DRAG_PX, RAD_PER_PX, onSpin, setSpinDragging, spinDragging, spinOf } from '@/lib/spin';
 
 declare global {
@@ -46,9 +51,99 @@ const htmlLayer = {
 let wedgeMat: MeshStandardMaterial | null = null;
 /** The Bengal set's wedge: the same matte N8 as the plinths. */
 const wedgeMaterial = () => (wedgeMat ??= new MeshStandardMaterial({ color: PLINTH_GREY, roughness: 0.9, envMapIntensity: 0.4 }));
-/** SHUNYA's backing board: matte N3.5, so the white pieces on the clear riser read against it. */
-let backingMat: MeshStandardMaterial | null = null;
-const backingMaterial = () => (backingMat ??= new MeshStandardMaterial({ color: '#4A4A48', roughness: 0.92, envMapIntensity: 0.3 }));
+/**
+ * E (08): SHUNYA's sweep card: a matte Munsell N5.5 card lying on the riser and curving up behind
+ * the pieces (a product-shot cove), so the white pieces read on a mid grey, not on black.
+ */
+let sweepMat: MeshStandardMaterial | null = null;
+const sweepMaterial = () => (sweepMat ??= new MeshStandardMaterial({ color: '#848484', roughness: 0.9, envMapIntensity: 0.35, side: DoubleSide }));
+function sweepGeometry(w: number, d: number, h: number, r: number) {
+  // profile in (z, y): flat from the front edge, a quarter round, then straight up
+  const prof: [number, number][] = [[d / 2, 0]];
+  const back = -d / 2 + r;
+  for (let i = 0; i <= 12; i++) {
+    const a = (i / 12) * (Math.PI / 2);
+    prof.push([back - Math.sin(a) * r, r - Math.cos(a) * r]);
+  }
+  prof.push([-d / 2, h]);
+  const pos: number[] = [];
+  const uv: number[] = [];
+  const idx: number[] = [];
+  prof.forEach(([z, y], i) => {
+    pos.push(-w / 2, y, z, w / 2, y, z);
+    uv.push(0, i / (prof.length - 1), 1, i / (prof.length - 1));
+    if (i) idx.push(2 * i - 2, 2 * i - 1, 2 * i, 2 * i - 1, 2 * i + 1, 2 * i);
+  });
+  const g = new BufferGeometry();
+  g.setAttribute('position', new Float32BufferAttribute(pos, 3));
+  g.setAttribute('uv', new Float32BufferAttribute(uv, 2));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return g;
+}
+
+/**
+ * E (08): the scale plate on the tug's plinth: brushed metal, the ratio engraved (dark, Geist Mono).
+ */
+const PLATE = { w: 0.064, h: 0.024 };
+function plateTexture(text: string) {
+  const W = 512, H = Math.round((512 * PLATE.h) / PLATE.w);
+  const c = document.createElement('canvas');
+  c.width = W;
+  c.height = H;
+  const g = c.getContext('2d')!;
+  g.fillStyle = '#b9b8b4';
+  g.fillRect(0, 0, W, H);
+  // brushing: fine horizontal streaks, seeded so every build draws the same plate
+  let seed = 7;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  for (let i = 0; i < 900; i++) {
+    const y = rnd() * H, l = 40 + rnd() * 260, x = rnd() * W - 40;
+    g.fillStyle = rnd() > 0.5 ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)';
+    g.fillRect(x, y, l, 1);
+  }
+  const mono = getComputedStyle(document.documentElement).getPropertyValue('--font-geist-mono').trim() || 'monospace';
+  g.font = `500 ${Math.round(H * 0.52)}px ${mono}`;
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  // engraved: a light lower lip under the dark cut
+  g.fillStyle = 'rgba(255,255,255,0.35)';
+  g.fillText(text, W / 2, H / 2 + 2);
+  g.fillStyle = '#26262a';
+  g.fillText(text, W / 2, H / 2);
+  const t = new CanvasTexture(c);
+  t.colorSpace = SRGBColorSpace;
+  t.anisotropy = 8;
+  return t;
+}
+function Sweep({ w, d, h, r, y }: { w: number; d: number; h: number; r: number; y: number }) {
+  const geo = useMemo(() => sweepGeometry(w, d, h, r), [w, d, h, r]);
+  useEffect(() => () => geo.dispose(), [geo]);
+  return <mesh geometry={geo} position={[0, y + 0.0003, 0]} material={sweepMaterial()} userData={{ part: true }} castShadow receiveShadow />;
+}
+function ScalePlate({ text, z, y }: { text: string; z: number; y: number }) {
+  const invalidate = useThree((s) => s.invalidate);
+  const mat = useMemo(() => new MeshStandardMaterial({ color: '#ffffff', metalness: 0.85, roughness: 0.38, envMapIntensity: 0.9 }), []);
+  useEffect(() => {
+    let live = true;
+    void document.fonts.ready.then(() => {
+      if (!live) return;
+      mat.map = plateTexture(text);
+      mat.needsUpdate = true;
+      markDirty('plate', undefined, 2);
+      invalidate();
+    });
+    return () => {
+      live = false;
+      mat.map?.dispose();
+    };
+  }, [text, mat, invalidate]);
+  return (
+    <mesh position={[0, y, z]} material={mat} userData={{ part: true }}>
+      <boxGeometry args={[PLATE.w, PLATE.h, 0.0012]} />
+    </mesh>
+  );
+}
 
 /** How dark the lineup gets while another sample is on the tray. */
 const RECEDE_DIM = 0.9;
@@ -75,6 +170,24 @@ function ModelObject({ work, onReady }: { work: Work; onReady: () => void }) {
   const [wedge, setWedge] = useState<BufferGeometry | null>(null);
   const m = work.model!;
   const anim = useRef<{ mixer: AnimationMixer; action: AnimationAction; duration: number; p: number } | null>(null);
+  const fade = useRef<{ t: number; mats: { m: Material; transparent: boolean; opacity: number }[] } | null>(null);
+  useFrame((_, rawDt) => {
+    const f = fade.current;
+    if (!f) return;
+    f.t = Math.min(1, f.t + Math.min(0.1, Math.max(0, rawDt || 0)) / 0.25);
+    const k = f.t * f.t * (3 - 2 * f.t);
+    for (const e of f.mats) e.m.opacity = e.opacity * k;
+    if (f.t >= 1) {
+      for (const e of f.mats) {
+        e.m.transparent = e.transparent;
+        e.m.opacity = e.opacity;
+      }
+      fade.current = null;
+      logEvent(`model ${work.slug} faded in`);
+    }
+    markDirty('model fade', undefined, 1);
+    invalidate();
+  });
   const reduced = useReducedMotion();
   useEffect(() => {
     let live = true;
@@ -112,6 +225,10 @@ function ModelObject({ work, onReady }: { work: Work; onReady: () => void }) {
           // a material per mesh (the ink matrix is per mesh), shared textures untouched
           const mat = (mesh.material as Material).clone() as MeshStandardMaterial;
           if (m.frontSide) mat.side = FrontSide;
+          // F3 (08): artwork is often seen at an angle (the open book, a pouch's side): anisotropic
+          // filtering keeps the type sharp where trilinear alone smears it
+          const aniso = Math.min(8, gl.capabilities.getMaxAnisotropy());
+          for (const t of [mat.map, mat.emissiveMap]) if (t && t.anisotropy < aniso) (t.anisotropy = aniso), (t.needsUpdate = true);
           mat.envMapIntensity = 0.8;
           toRoot.copy(mesh.matrixWorld);
           applyUV(mat, { fluorFromBase: true, inkProj: { ...ink, space: toRoot.clone() } });
@@ -154,7 +271,24 @@ function ModelObject({ work, onReady }: { work: Work; onReady: () => void }) {
           g.computeVertexNormals();
           setWedge(g);
         }
+        // C2 (08): a model arriving after the reveal fades in over 250ms instead of popping in
+        if (revealed.value) {
+          const mats: { m: Material; transparent: boolean; opacity: number }[] = [];
+          scene.traverse((o) => {
+            const mesh = o as Mesh;
+            if (!mesh.isMesh) return;
+            for (const m of (Array.isArray(mesh.material) ? mesh.material : [mesh.material]) as Material[]) {
+              mats.push({ m, transparent: m.transparent, opacity: m.opacity });
+              m.transparent = true;
+              m.opacity = 0;
+            }
+          });
+          fade.current = { t: 0, mats };
+          logEvent(`model ${work.slug} fading in`);
+        }
         setRoot(scene);
+        markDirty(`model ${work.slug} loaded`, undefined, 3);
+        logEvent(`model ${work.slug} loaded`);
         invalidate();
         onReady();
       })
@@ -189,6 +323,7 @@ function ModelObject({ work, onReady }: { work: Work; onReady: () => void }) {
     const e = a.p < 0.5 ? 4 * a.p ** 3 : 1 - (-2 * a.p + 2) ** 3 / 2;
     a.action.time = e * a.duration;
     a.mixer.update(0);
+    markDirty('JSW clip', undefined, 1);
     invalidate();
   });
   if (!root) return null;
@@ -212,11 +347,14 @@ export function ObjectSlot({ work, lineup }: { work: Work; lineup: string[] }) {
   const liftRef = useRef<Group>(null);
   const spinRef = useRef<Group>(null);
   const wasSpinning = useRef(false);
-  const [shadowKey, setShadowKey] = useState(0);
+  // C5 (08): the contact shadow re-bakes when a turn comes to rest; the old and new bakes crossfade
+  // over 200ms (two instances for that moment), never a swap
+  const [shadowKeys, setShadowKeys] = useState<number[]>([0]);
+  const shadowRefs = useRef(new Map<number, Group>());
+  const shadowFade = useRef(0);
   const router = useRouter();
   const invalidate = useThree((s) => s.invalidate);
   const activeSlug = useBooth((s) => s.activeSlug);
-  const lamp = useBooth((s) => s.lamp);
   const reduced = useReducedMotion();
   const mobile = isMobileTier();
   const [hovered, setHovered] = useState(false);
@@ -304,12 +442,16 @@ export function ObjectSlot({ work, lineup }: { work: Work; lineup: string[] }) {
     baseMat.color.copy(baseColor).multiplyScalar(1 - d.base);
     for (const mt of screenMats.current) mt.userData.dim = d.obj;
 
-    // Tray shot: front-tier neighbours sit between the camera and the tray. Once dimmed (mid-move),
-    // they and every front-tier base drop out; the dimmed back tiers stay as context.
-    if (z > 0.2) {
-      const hideBase = activeSlug !== null && d.base > 0.35;
+    // F1 (08): tray shot. Once dimmed (mid-move), a neighbour that would overlap the tray object or be
+    // cut by the frame drops out with its base (shots.trayHidden); the rest stay, dimmed and whole.
+    {
+      const r = stageRect();
+      const aspect = r && r.height > 0 ? r.width / r.height : size.width / size.height;
+      // the active sample's own base is empty while it is on the tray: it always drops out
+      const out = activeSlug !== null && (active || trayHidden(activeSlug, aspect).has(work.slug));
+      const hideBase = out && d.base > 0.35;
       for (const c of slot.children) if (c !== obj) c.visible = !hideBase;
-      obj.visible = !(receded && d.obj > 0.45);
+      obj.visible = !(out && receded && d.obj > 0.45);
     }
 
     // I: the turntable. Drag sets the yaw directly; on release it coasts and damps (none under
@@ -334,7 +476,23 @@ export function ObjectSlot({ work, lineup }: { work: Work; lineup: string[] }) {
     }
 
     // the contact shadow is baked once: re-bake it when a turn comes to rest
-    if (wasSpinning.current && !spinning && spinDragging() !== work.slug) setShadowKey((k) => k + 1);
+    if (wasSpinning.current && !spinning && spinDragging() !== work.slug) {
+      shadowFade.current = 0;
+      setShadowKeys((k) => [k[k.length - 1], k[k.length - 1] + 1]);
+      logEvent(`contact shadow ${work.slug} re-bake (crossfade)`);
+    }
+    if (shadowKeys.length === 2) {
+      shadowFade.current = Math.min(1, shadowFade.current + dt / 0.2);
+      const t = shadowFade.current;
+      const setOp = (key: number, o: number) => {
+        const m = (shadowRefs.current.get(key)?.children[0] as Mesh | undefined)?.material as Material | undefined;
+        if (m) m.opacity = o;
+      };
+      setOp(shadowKeys[0], 0.55 * (1 - t));
+      setOp(shadowKeys[1], 0.55 * t);
+      invalidate();
+      if (t >= 1) setShadowKeys((k) => (k.length === 2 ? [k[1]] : k));
+    }
     wasSpinning.current = spinning || spinDragging() === work.slug;
 
     const moving =
@@ -344,7 +502,11 @@ export function ObjectSlot({ work, lineup }: { work: Work; lineup: string[] }) {
       Math.abs(td - d.obj) > 1e-3 ||
       Math.abs(tp - d.base) > 1e-3 ||
       Math.abs(liftGoal - d.lift) > 1e-3;
-    if (moving) invalidate();
+    if (moving) {
+      invalidate();
+      // B1 (08): a sample moving changes the shadow, the reflection and the normals
+      markDirty('object moving', undefined, 1);
+    }
 
     // where this object is on screen: the keyboard layer's focusable button (home lineup only), and
     // B4: a sample is pickable only with ≥ 60% of its projected box inside the view
@@ -442,27 +604,30 @@ export function ObjectSlot({ work, lineup }: { work: Work; lineup: string[] }) {
     >
       {basePart && <mesh geometry={basePart.geometry} material={baseMat} position={[0, base.h / 2, 0]} userData={{ part: true }} castShadow receiveShadow />}
       <ContactBlob w={base.w} d={base.d} spread={1.18} />
-      {st.backing && (
-        // B3: a dark board standing just behind the riser, leaning back a little
-        <mesh position={[0, st.backing.h / 2, -base.d / 2 - 0.012]} rotation={[-0.08, 0, 0]} material={backingMaterial()} userData={{ part: true }} castShadow receiveShadow>
-          <boxGeometry args={[st.backing.w, st.backing.h, 0.008]} />
-        </mesh>
-      )}
+      {st.sweep && <Sweep w={st.sweep.w} d={base.d} h={st.sweep.h} r={st.sweep.r} y={base.h} />}
+      {st.plate && <ScalePlate text={st.plate} z={base.d / 2 + 0.0008} y={base.h * 0.55} />}
       <group ref={objRef} position={[0, base.h, 0]}>
         {/* the object's own contact shadow, rendered once (it moves with the object) */}
-        {!perfOff('contact') && <ContactShadows
-          key={`${modelReady ? 'ready' : 'wait'}-${lamp}-${shadowKey}`}
+        {!perfOff('contact') &&
+          shadowKeys.map((sk) => (
+            <ContactShadows
+          key={`${modelReady ? 'ready' : 'wait'}-${sk}`}
+          ref={(g: Group | null) => {
+            if (g) shadowRefs.current.set(sk, g);
+            else shadowRefs.current.delete(sk);
+          }}
           frames={3}
           position={[0, 0.001, 0]}
           scale={[object.w * 1.5, object.d * 1.6]}
           resolution={mobile ? 256 : 512}
           far={Math.max(0.05, object.h * 0.6)}
           blur={2.2}
-          opacity={0.55}
+          opacity={shadowKeys.length === 2 && sk === shadowKeys[1] ? 0 : 0.55}
           color="#1a1a19"
-        />}
+        />
+          ))}
         {/* B4: only the object itself and its base pick (never its shadows on the floor) */}
-        <group ref={liftRef} userData={{ part: true }}>
+        <group ref={liftRef} userData={{ part: true, focusRoot: true }}>
           <group ref={spinRef}>
             <group scale={st.scale ?? 1}>
               {work.model && <ModelObject work={work} onReady={onModelReady} />}

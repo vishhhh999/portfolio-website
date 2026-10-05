@@ -1,10 +1,13 @@
 'use client';
 
 import { Html, RoundedBox } from '@react-three/drei';
-import { useThree } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
-import { CanvasTexture, MeshPhysicalMaterial, MeshStandardMaterial, SRGBColorSpace, Vector2 } from 'three';
+import { CanvasTexture, MeshPhysicalMaterial, MeshStandardMaterial, Object3D, SpotLight, SRGBColorSpace, Vector2 } from 'three';
+import { lampById } from '@/lib/lampPresets';
+import { markDirty } from '@/lib/dirty';
+import { isMobileTier } from '@/lib/perfTier';
 import { useBooth } from '@/lib/store';
 import { playEvent } from '@/lib/sound';
 import { track } from '@/lib/analytics';
@@ -57,6 +60,43 @@ function certificateFace() {
 }
 
 /**
+ * E (08): a soft spot from above on the certificate, in the lamp's key colour, about +20% on the
+ * paper. Room lamps only; always in the scene (intensity 0 otherwise) so no lamp change recompiles.
+ */
+function CertificateSpot({ x, y, z }: { x: number; y: number; z: number }) {
+  const light = useMemo(() => {
+    const l = new SpotLight(0xffffff, 0, 0, 0.55, 1, 2);
+    l.castShadow = false;
+    l.position.set(x, y + 0.26, z + 0.16);
+    return l;
+  }, [x, y, z]);
+  const target = useMemo(() => {
+    const t = new Object3D();
+    t.position.set(x, y, z);
+    t.updateMatrixWorld();
+    return t;
+  }, [x, y, z]);
+  light.target = target;
+  const last = useMemo(() => ({ lamp: '' }), []);
+  useFrame(() => {
+    const { lamp } = useBooth.getState();
+    if (lamp === last.lamp) return;
+    last.lamp = lamp;
+    const P = lampById(lamp);
+    light.intensity = P.dark || isMobileTier() ? 0 : P.keyLight.intensity * 0.022;
+    light.color.setRGB(...P.keyLight.colour);
+    markDirty('certificate spot', ['reflector'], 1);
+  });
+  if (isMobileTier()) return null;
+  return (
+    <>
+      <primitive object={light} />
+      <primitive object={target} />
+    </>
+  );
+}
+
+/**
  * The About object (B2): a small framed certificate standing on the shelf: black satin frame,
  * glass with a faint reflection, matte paper. Clicking it opens /about; hovering shows "About".
  */
@@ -100,6 +140,8 @@ export function Certificate() {
   const z = BOOTH.backZ + 0.035;
   const border = 0.012;
   return (
+    <>
+    <CertificateSpot x={x} y={top + h / 2} z={z} />
     <group
       userData={{ slug: 'about', part: true }}
       position={[x, top, z]}
@@ -140,5 +182,6 @@ export function Certificate() {
         </div>
       </Html>
     </group>
+    </>
   );
 }

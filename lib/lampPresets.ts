@@ -200,7 +200,7 @@ export const LAMPS: LampPreset[] = [
     fill: { intensity: 0, sky: BLACK, ground: BLACK },
     front: 0.0,
     contact: 0.15, haze: 0,
-    screens: { gain: 1.5, spill: 40, bounce: 0.25 }, uv: 0,
+    screens: { gain: 1.5, spill: 40, bounce: 0.38 }, uv: 0,
     bloom: { intensity: 0.6, threshold: 0.75 }, grain: 0.035, exposure: 0.45, matrix: I3,
     print: { level: 0.07, colour: [0.6, 0.7, 1], ambient: 0.025, grad: [0, -1, 0.3] },
     room: [0.005, 0.005, 0.007],

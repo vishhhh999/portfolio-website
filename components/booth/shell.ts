@@ -31,7 +31,8 @@ const cz = (BOOTH.backZ + BOOTH.frontZ + 0.04) / 2;
 /** A box with every edge rounded (radius r, `seg` segments: 1 = a chamfer). Groups: +x −x +y −y +z −z. */
 const rbox = (w: number, h: number, d: number, seg: number, r: number) => new RoundedBoxGeometry(w, h, d, seg, r);
 
-export function shellParts(lineupSlugs: string[]): ShellPart[] {
+/** G (08): the phone arrangement passes its own staging and shelf (the room itself is the same). */
+export function shellParts(lineupSlugs: string[], staging: Record<string, Staging> = STAGING, props: { ledge: typeof PROPS.ledge } = PROPS): ShellPart[] {
   const { width: W, height: H, backZ, frontZ } = BOOTH;
   const parts: ShellPart[] = [];
 
@@ -83,12 +84,12 @@ export function shellParts(lineupSlugs: string[]): ShellPart[] {
   parts.push({ name: 'lip', role: 'lip', geometry: rbox(W - 2 * COVE, LIP.h, LIP.d, 2, 0.004), position: [0, LIP.h / 2, frontZ - LIP.d / 2 - 0.002] });
 
   // the calibration shelf on the back wall (1.5mm off the wall)
-  const L = PROPS.ledge;
+  const L = props.ledge;
   parts.push({ name: 'shelf', role: 'shelf', geometry: rbox(L.w, L.h, L.d, 2, 0.002), position: [L.x, L.y + L.h / 2, backZ + L.d / 2 + 0.0015] });
 
   // the bases: plinths, the acrylic riser, the shallow tray (positions are the slot origins)
   for (const slug of lineupSlugs) {
-    const st = STAGING[slug];
+    const st = staging[slug];
     parts.push({ name: `base-${slug}`, role: 'base', slug, geometry: baseGeometry(st), position: [st.x, st.base.h / 2, st.z] });
   }
 
@@ -118,7 +119,7 @@ export function baseGeometry(st: Staging) {
 
 /** Atlas rectangles for every group of every part (simple shelf packing, tallest first). */
 function addAtlasUv(parts: ShellPart[]) {
-  type Rect = { part: ShellPart; group: number; w: number; h: number; x: number; y: number };
+  type Rect = { part: ShellPart; group: number; w: number; h: number; x: number; y: number; ext: [number, number]; density: number };
   const rects: Rect[] = [];
   for (const part of parts) {
     const g = part.geometry;
@@ -144,24 +145,43 @@ function addAtlasUv(parts: ShellPart[]) {
       const hidden = (part.role === 'interior' && gi === 4) || part.role === 'housing';
       const density = hidden ? 12 : part.role === 'frame' || part.role === 'hood' ? ATLAS.pxPerMetre * 0.6 : ATLAS.pxPerMetre;
       const px = (m: number) => Math.max(6, Math.ceil(m * density));
-      rects.push({ part, group: gi, w: px(ext[0]), h: px(ext[1]), x: 0, y: 0 });
+      rects.push({ part, group: gi, w: px(ext[0]), h: px(ext[1]), x: 0, y: 0, ext: [ext[0], ext[1]], density });
     });
   }
-  // shelf packing
-  const order = [...rects].sort((a, b) => b.h - a.h);
-  let x = ATLAS.pad, y = ATLAS.pad, rowH = 0;
-  for (const r of order) {
-    if (x + r.w + ATLAS.pad > ATLAS.size) {
-      x = ATLAS.pad;
-      y += rowH + ATLAS.pad;
-      rowH = 0;
+  // shelf packing. A (08): the room (frozen for the lightmap bake) packs first, on its own, so its
+  // UV1 never moves when the bases, risers or shelf change; everything else packs after it. E (08):
+  // when the movable parts do not fit at full density, they step down (the room never does)
+  const ROOM = new Set(['interior', 'frame', 'housing', 'hood', 'diffuser', 'lip']);
+  const byHeight = (a: Rect, b: Rect) => b.h - a.h;
+  const room = rects.filter((r) => ROOM.has(r.part.role)).sort(byHeight);
+  const movable = rects.filter((r) => !ROOM.has(r.part.role));
+  const pack = (list: Rect[], x0: number, y0: number, rowH0: number) => {
+    let x = x0, y = y0, rowH = rowH0;
+    for (const r of list) {
+      if (x + r.w + ATLAS.pad > ATLAS.size) {
+        x = ATLAS.pad;
+        y += rowH + ATLAS.pad;
+        rowH = 0;
+      }
+      r.x = x;
+      r.y = y;
+      x += r.w + ATLAS.pad;
+      rowH = Math.max(rowH, r.h);
     }
-    r.x = x;
-    r.y = y;
-    x += r.w + ATLAS.pad;
-    rowH = Math.max(rowH, r.h);
+    return { x, y, rowH };
+  };
+  const end = pack(room, ATLAS.pad, ATLAS.pad, 0);
+  const startY = end.y + end.rowH + ATLAS.pad; // a fresh row for the movable parts
+  let used = Infinity;
+  for (let scale = 1; scale > 0.3 && used > ATLAS.size; scale -= 0.05) {
+    for (const r of movable) {
+      const px = (m: number) => Math.max(6, Math.ceil(m * r.density * scale));
+      r.w = px(r.ext[0]);
+      r.h = px(r.ext[1]);
+    }
+    const m = pack(movable.sort(byHeight), ATLAS.pad, startY, 0);
+    used = m.y + m.rowH + ATLAS.pad;
   }
-  const used = y + rowH + ATLAS.pad;
   if (used > ATLAS.size) throw new Error(`shell atlas overflow: ${used}px > ${ATLAS.size}px; lower ATLAS.pxPerMetre`);
   // write uv1 from each vertex's own face uv into its rectangle
   for (const part of parts) {
