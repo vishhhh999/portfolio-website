@@ -11,8 +11,8 @@ const work: Work = {
   inLineup: true,
   nativeLamp: 'D50',
   glb: '',
-  model: { src: '/models/jsw-sports/jsw-sports.glb', mobile: '/models/jsw-sports/jsw-sports.mobile.glb' },
-  object: 'Coffee table book, standing open',
+  model: { src: '/models/jsw-sports/jsw-sports.glb', mobile: '/models/jsw-sports/jsw-sports.mobile.glb', animation: 'open' },
+  object: 'Haryana Steelers coffee table book, standing closed (it opens on the tray)',
   fallbacks: placeholderFallbacks('jsw-sports'),
   // UV notes: the approved set is applied in corrections.ts
   uvNotes: [],

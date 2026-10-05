@@ -60,12 +60,14 @@ export function screenTexture(slug: string, aspect: number, fallbackStill: strin
   const canvas = document.createElement('canvas');
   canvas.width = W;
   canvas.height = H;
-  const g = canvas.getContext('2d')!;
+  const g = canvas.getContext('2d', { willReadFrequently: true })!;
   g.fillStyle = '#050506';
   g.fillRect(0, 0, W, H);
   const texture = new CanvasTexture(canvas);
   texture.colorSpace = SRGBColorSpace;
   texture.anisotropy = 8;
+  // glTF UVs (the devices' screen meshes) have v = 0 at the top of the image
+  texture.flipY = false;
   const colour = new Color(0.05, 0.05, 0.06);
   const entry = { texture, colour };
   cache.set(key, entry);

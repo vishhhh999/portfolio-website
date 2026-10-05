@@ -1,5 +1,7 @@
 'use client';
 
+import { perfOff } from '@/lib/perfFlags';
+
 import { advance, Canvas, events as createPointerEvents, useFrame, useThree, type RootState } from '@react-three/fiber';
 import { SoftShadows } from '@react-three/drei';
 import { Suspense, useEffect, useRef, useState } from 'react';
@@ -10,7 +12,8 @@ import { attachRenderer, requestFrames, setContinuous } from '@/lib/clock';
 import { lampById } from '@/lib/lampPresets';
 import { useBooth } from '@/lib/store';
 import { onViewsChanged, stageRect } from '@/lib/views';
-import { BoothRoom, CalibrationProps } from './BoothRoom';
+import { BoothRoom } from './BoothRoom';
+import { Certificate } from './Certificate';
 import { CameraRig } from './CameraRig';
 import { LampRig } from './LampRig';
 import { ObjectSlot } from './ObjectSlot';
@@ -21,7 +24,7 @@ import { contextLost, contextRestored } from '@/lib/resilience';
 import { Post } from './Post';
 import { ModelRef } from './ModelRef';
 import { lineupShot, trayShot } from './shots';
-import { BOOTH, CABINET_FACE, FACE_Z, FOCAL_MM, FOV, PLINTH_CHAMFER, PROPS, SENSOR_HEIGHT_MM, STAGING, TRAY, lineupLayout } from './staging';
+import { BOOTH, CABINET_FACE, CERTIFICATE, FACE_Z, FOCAL_MM, FOV, PLINTH_CHAMFER, PROPS, SENSOR_HEIGHT_MM, STAGING, TRAY, lineupLayout } from './staging';
 
 declare global {
   interface Window {
@@ -35,7 +38,7 @@ declare global {
     __boothMounts?: number;
     /** Staging + camera data for tools/export-camera.mjs (Blender scene). */
     __boothExport?: (aspect: number) => unknown;
-    __boothGreyCard?: () => { x: number; y: number };
+    __boothProbePoints?: () => { wall: { x: number; y: number }; paper: { x: number; y: number } };
   }
 }
 
@@ -105,6 +108,20 @@ function SizeProbe() {
             }
         boxes[w.slug] = { x0, y0: yy0, x1, y1 };
       }
+      {
+        // the About certificate on the shelf (B2): part of the no-overlap rule, not of the 11% rule
+        const c = CERTIFICATE, y0 = PROPS.ledge.y + PROPS.ledge.h, zc = BOOTH.backZ + 0.035;
+        aabb.about = [c.x - c.w / 2 - 0.012, y0, zc - 0.03, c.x + c.w / 2 + 0.012, y0 + c.h + 0.024, zc + 0.01];
+        let x0 = Infinity, yy0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+        for (const cx of [aabb.about[0], aabb.about[3]])
+          for (const cy of [aabb.about[1], aabb.about[4]])
+            for (const cz of [aabb.about[2], aabb.about[5]]) {
+              const v = new Vector3(cx, cy, cz).project(camera);
+              const px = ((v.x + 1) / 2) * W, py = ((1 - v.y) / 2) * H;
+              x0 = Math.min(x0, px); x1 = Math.max(x1, px); yy0 = Math.min(yy0, py); y1 = Math.max(y1, py);
+            }
+        boxes.about = { x0, y0: yy0, x1, y1 };
+      }
       let minGap = { m: Infinity, a: '', b: '' };
       const slugs = Object.keys(aabb);
       for (let i = 0; i < slugs.length; i++)
@@ -118,16 +135,19 @@ function SizeProbe() {
         }
       return { boxes, minGap };
     };
-    // the grey card (the 24-patch chart's N5 patch, 18% reflectance) in viewport CSS px, for exposure calibration
-    window.__boothGreyCard = () => {
-      const { checker: ch, ledge } = PROPS;
-      // N5 is row 4, column 4 of the chart; the texture's patch grid (tools/gen-assets.py)
-      const u = 648 / 1116, vTop = 726 / 864;
-      const local = new Vector3((u - 0.5) * ch.w, (1 - vTop) * ch.h, 0.0016);
-      const m = new Matrix4().compose(new Vector3(ch.x, ledge.y + ledge.h, BOOTH.backZ + 0.032), new Quaternion().setFromEuler(new Euler(-ch.lean, ch.yaw, 0)), new Vector3(1, 1, 1));
-      const p = local.applyMatrix4(m).project(camera);
+    // B5 calibration points in viewport CSS px: a bare patch of the back wall (top left, clear of
+    // every object) and the certificate's white paper (its lower right, away from the type)
+    window.__boothProbePoints = () => {
       const W = window.innerWidth, H = window.innerHeight;
-      return { x: ((p.x + 1) / 2) * W, y: ((1 - p.y) / 2) * H };
+      const at = (v: Vector3) => {
+        const p = v.project(camera);
+        return { x: ((p.x + 1) / 2) * W, y: ((1 - p.y) / 2) * H };
+      };
+      const top = PROPS.ledge.y + PROPS.ledge.h + CERTIFICATE.h * 0.18;
+      return {
+        wall: at(new Vector3(-0.2, 0.68, BOOTH.backZ + 0.002)),
+        paper: at(new Vector3(CERTIFICATE.x + CERTIFICATE.w * 0.3, top, BOOTH.backZ + 0.035 + CERTIFICATE.d / 2 + 0.002)),
+      };
     };
   }, [camera]);
   return null;
@@ -270,14 +290,12 @@ export default function BoothCanvas({ onReady, lightmap = null }: { onReady: () 
           <SizeProbe />
           <CameraRig />
           <LampRig />
-          <SoftShadows size={mobile ? 18 : 26} samples={mobile ? 8 : 14} focus={0.2} />
+          {!perfOff('pcss') && <SoftShadows size={mobile ? 18 : 26} samples={mobile ? 8 : 14} focus={0.2} />}
           <BoothRoom lineup={SLUGS} lightmap={lightmap} />
           {lineup.map((w) => (
             <ObjectSlot key={w.slug} work={w} lineup={SLUGS} />
           ))}
-          <Suspense fallback={null}>
-            <CalibrationProps />
-          </Suspense>
+          <Certificate />
         </>
       )}
       <Post />

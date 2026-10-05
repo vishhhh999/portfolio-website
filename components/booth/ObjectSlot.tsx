@@ -1,17 +1,19 @@
 'use client';
 
+import { perfOff } from '@/lib/perfFlags';
+
 import { ContactShadows, Html } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
 import { useRouter } from 'next/navigation';
-import { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Box3, Color, FrontSide, Matrix4, Mesh, MeshStandardMaterial, Vector3, type Camera, type Group, type Material, type Object3D } from 'three';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { AnimationMixer, LoopOnce, Box3, Color, FrontSide, Matrix4, Mesh, MeshStandardMaterial, Vector3, type AnimationAction, type Camera, type Group, type Material, type Object3D } from 'three';
 import type { Work } from '@/lib/types';
 import { isMobileTier } from '@/lib/perfTier';
 import { useBooth } from '@/lib/store';
 import { useReducedMotion } from '@/lib/useReducedMotion';
 import { baseFor, baseMaterial, ContactBlob } from './BoothRoom';
 import { loadModel } from './models';
-import { PLACEHOLDERS } from './placeholders';
+import { attachScreen } from './deviceScreen';
 import { RECEDE_DZ, STAGING, TRAY } from './staging';
 import { applyUV, blankInk, createProofInk } from './uvMaterial';
 import { setFocusRect } from './focus';
@@ -56,9 +58,16 @@ function ModelObject({ work, onReady }: { work: Work; onReady: () => void }) {
   const invalidate = useThree((s) => s.invalidate);
   const [root, setRoot] = useState<Object3D | null>(null);
   const m = work.model!;
+  const anim = useRef<{ mixer: AnimationMixer; action: AnimationAction; duration: number; p: number } | null>(null);
+  const reduced = useReducedMotion();
   useEffect(() => {
     let live = true;
-    loadModel(isMobileTier() ? m.mobile : m.src, gl)
+    let detachScreen = () => {};
+    // H4: the tray object first on a project page (the rest when idle); on home, left to right
+    const active = useBooth.getState().activeSlug;
+    const rank = Object.keys(STAGING).sort((a, b) => STAGING[a].x - STAGING[b].x).indexOf(work.slug);
+    const priority = active === work.slug ? 0 : active ? 10 + rank : 1 + rank;
+    loadModel(isMobileTier() ? m.mobile : m.src, gl, priority)
       .then((gltf) => {
         if (!live) return;
         const scene = gltf.scene.clone(true);
@@ -92,6 +101,23 @@ function ModelObject({ work, onReady }: { work: Work; onReady: () => void }) {
           applyUV(mat, { fluorFromBase: true, inkProj: { ...ink, space: toRoot.clone() } });
           mesh.material = mat;
         });
+        // A3: a device's display (the brand logo on its colour, an area light the size of the display)
+        if (m.screen) detachScreen = attachScreen(scene, work.slug, m.screen.aspect, isMobileTier());
+        // A5: the one animated object. The clip is held at its first frame (closed) in the booth
+        if (m.animation) {
+          const clip = gltf.animations.find((c) => c.name === m.animation) ?? gltf.animations[0];
+          if (clip) {
+            const mixer = new AnimationMixer(scene);
+            const action = mixer.clipAction(clip);
+            action.setLoop(LoopOnce, 1);
+            action.clampWhenFinished = true;
+            action.play();
+            action.paused = true;
+            action.time = 0;
+            mixer.update(0);
+            anim.current = { mixer, action, duration: clip.duration, p: 0 };
+          }
+        }
         setRoot(scene);
         invalidate();
         onReady();
@@ -99,16 +125,26 @@ function ModelObject({ work, onReady }: { work: Work; onReady: () => void }) {
       .catch(() => {});
     return () => {
       live = false;
+      detachScreen();
+      anim.current = null;
     };
   }, [gl, m, work, invalidate, onReady]);
+
+  // A5: on the tray the clip plays to its end over 900ms (eased in and out); off the tray, back.
+  useFrame((_, rawDt) => {
+    const a = anim.current;
+    if (!a) return;
+    const dt = Math.min(0.1, Math.max(0, rawDt || 0));
+    const goal = useBooth.getState().activeSlug === work.slug ? 1 : 0;
+    if (a.p === goal) return;
+    a.p = reduced ? goal : goal > a.p ? Math.min(goal, a.p + dt / 0.9) : Math.max(goal, a.p - dt / 0.9);
+    const e = a.p < 0.5 ? 4 * a.p ** 3 : 1 - (-2 * a.p + 2) ** 3 / 2;
+    a.action.time = e * a.duration;
+    a.mixer.update(0);
+    invalidate();
+  });
   if (!root) return null;
   return <primitive object={root} rotation={m.rotation ?? [0, 0, 0]} position={[0, m.plinthOffset ?? 0, 0]} />;
-}
-
-/** Rendered after its Suspense siblings resolve: the object is drawn, its contact shadow can be taken. */
-function Ready({ onReady }: { onReady: () => void }) {
-  useEffect(() => onReady(), [onReady]);
-  return null;
 }
 
 /**
@@ -138,11 +174,6 @@ export function ObjectSlot({ work, lineup }: { work: Work; lineup: string[] }) {
   const basePart = useMemo(() => baseFor(lineup, work.slug), [lineup, work.slug]);
   const baseMat = useMemo(() => baseMaterial(base.kind, mobile) as MeshStandardMaterial, [base.kind, mobile]);
   const baseColor = useMemo(() => baseMat.color.clone(), [baseMat]);
-
-  const inkTex = useMemo(() => {
-    const real = { w: object.w / (st.scale ?? 1), h: object.h / (st.scale ?? 1) };
-    return objectInk(work, real.w, real.h).map;
-  }, [work, object, st.scale]);
 
   type Dimmable = { mat: MeshStandardMaterial; base: Color };
   const objMats = useRef<Dimmable[]>([]);
@@ -247,7 +278,6 @@ export function ObjectSlot({ work, lineup }: { work: Work; lineup: string[] }) {
 
   const keySlug = useBooth((st) => st.keySlug);
   const showPlate = (hovered || keySlug === work.slug) && activeSlug === null;
-  const Procedural = PLACEHOLDERS[work.slug];
 
   return (
     <group
@@ -277,7 +307,7 @@ export function ObjectSlot({ work, lineup }: { work: Work; lineup: string[] }) {
       <ContactBlob w={base.w} d={base.d} spread={1.18} />
       <group ref={objRef} position={[0, base.h, 0]}>
         {/* the object's own contact shadow, rendered once (it moves with the object) */}
-        <ContactShadows
+        {!perfOff('contact') && <ContactShadows
           key={`${modelReady ? 'ready' : 'wait'}-${lamp}`}
           frames={3}
           position={[0, 0.001, 0]}
@@ -287,17 +317,10 @@ export function ObjectSlot({ work, lineup }: { work: Work; lineup: string[] }) {
           blur={2.2}
           opacity={0.55}
           color="#1a1a19"
-        />
+        />}
         <group ref={liftRef}>
           <group scale={st.scale ?? 1}>
-            {work.model ? (
-              <ModelObject work={work} onReady={onModelReady} />
-            ) : (
-              <Suspense fallback={null}>
-                {Procedural?.(inkTex)}
-                <Ready onReady={onModelReady} />
-              </Suspense>
-            )}
+            {work.model && <ModelObject work={work} onReady={onModelReady} />}
           </group>
         </group>
         {/* portalled into the fixed, clipped canvas layer: drei defaults to the event source (body), where chips widen the page */}

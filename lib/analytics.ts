@@ -10,6 +10,7 @@ import { track as vercelTrack } from '@vercel/analytics';
 export type AnalyticsEvent =
   | 'Lamp picked'
   | 'Project opened'
+  | 'About opened'
   | 'House lights toggled'
   | 'Sound toggled'
   | 'CV downloaded'

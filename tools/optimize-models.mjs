@@ -32,8 +32,15 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SIZES = {
   'too-yumm': { desktop: { art: 1024, data: 512 }, mobile: { art: 512, data: 512 } },
   sook: { desktop: { art: 1024, data: 512 }, mobile: { art: 512, data: 256 } },
-  'jsw-sports': { desktop: { art: 2048, data: 1024 }, mobile: { art: 1024, data: 512 } },
+  // rebuilt in batch 07 (A1): its source embeds JPEG art, so UASTC at 2048 would double it; 1536 keeps it ≤ 1.5MB
+  'jsw-sports': { desktop: { art: 1536, data: 512 }, mobile: { art: 768, data: 256 } },
   shunya: { desktop: { art: 1024, data: 512 }, mobile: { art: 512, data: 256 } },
+  // batch 07 (A1): the devices, the tug and the Bengal set. Every desktop file ≤ 1.5MB, mobile ≤ 600KB.
+  mitooshi: { desktop: { art: 1024, data: 1024 }, mobile: { art: 512, data: 512 } },
+  'house-of-hex': { desktop: { art: 1024, data: 512 }, mobile: { art: 512, data: 256 } },
+  sonde: { desktop: { art: 1024, data: 512 }, mobile: { art: 512, data: 256 } },
+  'indo-thai': { desktop: { art: 1024, data: 512 }, mobile: { art: 512, data: 256 } },
+  'bengal-t20': { desktop: { art: 1024, data: 512 }, mobile: { art: 512, data: 256 } },
 };
 
 /** RGBA raster for the Basis encoder (it takes raw pixels in Node). */
@@ -92,8 +99,8 @@ async function build(slug, tier) {
   return { file: `public/models/${slug}/${srcName}`, sourceMB: +(statSync(src).size / 1048576).toFixed(2), MB: +(statSync(out).size / 1048576).toFixed(2), triangles: triangles(doc), sourceTriangles: inTris, art: size.art, data: size.data, textures };
 }
 
-const only = process.argv[2];
-const slugs = Object.keys(SIZES).filter((s) => !only || s === only);
+const only = process.argv.slice(2);
+const slugs = Object.keys(SIZES).filter((s) => !only.length || only.includes(s));
 const reportPath = join(ROOT, 'tools/models-report.json');
 const report = existsSync(reportPath) ? JSON.parse(readFileSync(reportPath, 'utf8')) : {};
 for (const slug of slugs) {

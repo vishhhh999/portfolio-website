@@ -62,8 +62,8 @@
     ]
   },
   "totals": {
-    "desktopMB": 5.83,
-    "mobileMB": 2
+    "desktopMB": 9.25,
+    "mobileMB": 3.42
   },
   "too-yumm/desktop": {
     "file": "public/models/too-yumm/too-yumm.glb",
@@ -119,53 +119,43 @@
   },
   "jsw-sports/desktop": {
     "file": "public/models/jsw-sports/jsw-sports.glb",
-    "sourceMB": 8.55,
-    "MB": 2.18,
-    "triangles": 3772,
-    "sourceTriangles": 3772,
-    "art": 2048,
-    "data": 1024,
+    "sourceMB": 1.04,
+    "MB": 1.45,
+    "triangles": 1948,
+    "sourceTriangles": 1948,
+    "art": 1536,
+    "data": 512,
     "textures": [
       {
-        "name": "normal",
+        "name": "jsw-sports_orm",
         "mime": "image/ktx2",
-        "kb": 30
+        "kb": 15
       },
       {
-        "name": "orm",
+        "name": "jsw-sports_basecolor",
         "mime": "image/ktx2",
-        "kb": 47
-      },
-      {
-        "name": "basecolor",
-        "mime": "image/ktx2",
-        "kb": 2108
+        "kb": 1444
       }
     ]
   },
   "jsw-sports/mobile": {
     "file": "public/models/jsw-sports/jsw-sports.mobile.glb",
-    "sourceMB": 8.55,
-    "MB": 0.68,
-    "triangles": 3772,
-    "sourceTriangles": 3772,
-    "art": 1024,
-    "data": 512,
+    "sourceMB": 0.32,
+    "MB": 0.43,
+    "triangles": 1036,
+    "sourceTriangles": 1036,
+    "art": 768,
+    "data": 256,
     "textures": [
       {
-        "name": "normal",
+        "name": "jsw-sports.mobile_orm",
         "mime": "image/ktx2",
-        "kb": 3
+        "kb": 6
       },
       {
-        "name": "orm",
+        "name": "jsw-sports.mobile_basecolor",
         "mime": "image/ktx2",
-        "kb": 16
-      },
-      {
-        "name": "basecolor",
-        "mime": "image/ktx2",
-        "kb": 635
+        "kb": 411
       }
     ]
   },
@@ -308,6 +298,366 @@
         "name": "basecolor_ritual-set",
         "mime": "image/ktx2",
         "kb": 107
+      }
+    ]
+  },
+  "mitooshi/desktop": {
+    "file": "public/models/mitooshi/mitooshi.glb",
+    "sourceMB": 5.48,
+    "MB": 0.88,
+    "triangles": 32884,
+    "sourceTriangles": 32884,
+    "art": 1024,
+    "data": 1024,
+    "textures": [
+      {
+        "name": "mitooshi_normal",
+        "mime": "image/ktx2",
+        "kb": 102
+      },
+      {
+        "name": "mitooshi_orm",
+        "mime": "image/ktx2",
+        "kb": 109
+      },
+      {
+        "name": "mitooshi_basecolor",
+        "mime": "image/ktx2",
+        "kb": 101
+      }
+    ]
+  },
+  "mitooshi/mobile": {
+    "file": "public/models/mitooshi/mitooshi.mobile.glb",
+    "sourceMB": 1.96,
+    "MB": 0.35,
+    "triangles": 9273,
+    "sourceTriangles": 9273,
+    "art": 512,
+    "data": 512,
+    "textures": [
+      {
+        "name": "mitooshi.mobile_normal",
+        "mime": "image/ktx2",
+        "kb": 37
+      },
+      {
+        "name": "mitooshi.mobile_orm",
+        "mime": "image/ktx2",
+        "kb": 43
+      },
+      {
+        "name": "mitooshi.mobile_basecolor",
+        "mime": "image/ktx2",
+        "kb": 43
+      }
+    ]
+  },
+  "house-of-hex/desktop": {
+    "file": "public/models/house-of-hex/house-of-hex.glb",
+    "sourceMB": 3.22,
+    "MB": 0.57,
+    "triangles": 22975,
+    "sourceTriangles": 22975,
+    "art": 1024,
+    "data": 512,
+    "textures": [
+      {
+        "name": "house-of-hex_phone_orm",
+        "mime": "image/ktx2",
+        "kb": 46
+      },
+      {
+        "name": "house-of-hex_phone_basecolor",
+        "mime": "image/ktx2",
+        "kb": 253
+      },
+      {
+        "name": "house-of-hex_stand_orm",
+        "mime": "image/ktx2",
+        "kb": 20
+      },
+      {
+        "name": "house-of-hex_stand_basecolor",
+        "mime": "image/ktx2",
+        "kb": 22
+      }
+    ]
+  },
+  "house-of-hex/mobile": {
+    "file": "public/models/house-of-hex/house-of-hex.mobile.glb",
+    "sourceMB": 1.22,
+    "MB": 0.25,
+    "triangles": 7196,
+    "sourceTriangles": 7196,
+    "art": 512,
+    "data": 256,
+    "textures": [
+      {
+        "name": "house-of-hex_phone.mobile_orm",
+        "mime": "image/ktx2",
+        "kb": 17
+      },
+      {
+        "name": "house-of-hex_phone.mobile_basecolor",
+        "mime": "image/ktx2",
+        "kb": 113
+      },
+      {
+        "name": "house-of-hex_stand.mobile_orm",
+        "mime": "image/ktx2",
+        "kb": 8
+      },
+      {
+        "name": "house-of-hex_stand.mobile_basecolor",
+        "mime": "image/ktx2",
+        "kb": 13
+      }
+    ]
+  },
+  "sonde/desktop": {
+    "file": "public/models/sonde/sonde.glb",
+    "sourceMB": 3.27,
+    "MB": 0.52,
+    "triangles": 18643,
+    "sourceTriangles": 18643,
+    "art": 1024,
+    "data": 512,
+    "textures": [
+      {
+        "name": "sonde_easel_orm",
+        "mime": "image/ktx2",
+        "kb": 29
+      },
+      {
+        "name": "sonde_easel_basecolor",
+        "mime": "image/ktx2",
+        "kb": 41
+      },
+      {
+        "name": "sonde_tablet_orm",
+        "mime": "image/ktx2",
+        "kb": 44
+      },
+      {
+        "name": "sonde_tablet_basecolor",
+        "mime": "image/ktx2",
+        "kb": 191
+      }
+    ]
+  },
+  "sonde/mobile": {
+    "file": "public/models/sonde/sonde.mobile.glb",
+    "sourceMB": 1.29,
+    "MB": 0.26,
+    "triangles": 7311,
+    "sourceTriangles": 7311,
+    "art": 512,
+    "data": 256,
+    "textures": [
+      {
+        "name": "sonde_easel.mobile_orm",
+        "mime": "image/ktx2",
+        "kb": 11
+      },
+      {
+        "name": "sonde_easel.mobile_basecolor",
+        "mime": "image/ktx2",
+        "kb": 24
+      },
+      {
+        "name": "sonde_tablet.mobile_orm",
+        "mime": "image/ktx2",
+        "kb": 16
+      },
+      {
+        "name": "sonde_tablet.mobile_basecolor",
+        "mime": "image/ktx2",
+        "kb": 92
+      }
+    ]
+  },
+  "indo-thai/desktop": {
+    "file": "public/models/indo-thai/indo-thai.glb",
+    "sourceMB": 5.41,
+    "MB": 0.71,
+    "triangles": 20276,
+    "sourceTriangles": 20276,
+    "art": 1024,
+    "data": 512,
+    "textures": [
+      {
+        "name": "indo-thai_towbar_orm",
+        "mime": "image/ktx2",
+        "kb": 21
+      },
+      {
+        "name": "indo-thai_towbar_basecolor",
+        "mime": "image/ktx2",
+        "kb": 36
+      },
+      {
+        "name": "indo-thai_tug_orm",
+        "mime": "image/ktx2",
+        "kb": 38
+      },
+      {
+        "name": "indo-thai_tug_basecolor",
+        "mime": "image/ktx2",
+        "kb": 146
+      },
+      {
+        "name": "indo-thai_wheels_normal",
+        "mime": "image/ktx2",
+        "kb": 37
+      },
+      {
+        "name": "indo-thai_wheels_orm",
+        "mime": "image/ktx2",
+        "kb": 44
+      },
+      {
+        "name": "indo-thai_wheels_basecolor",
+        "mime": "image/ktx2",
+        "kb": 146
+      }
+    ]
+  },
+  "indo-thai/mobile": {
+    "file": "public/models/indo-thai/indo-thai.mobile.glb",
+    "sourceMB": 2.43,
+    "MB": 0.37,
+    "triangles": 10010,
+    "sourceTriangles": 10010,
+    "art": 512,
+    "data": 256,
+    "textures": [
+      {
+        "name": "indo-thai_towbar.mobile_orm",
+        "mime": "image/ktx2",
+        "kb": 9
+      },
+      {
+        "name": "indo-thai_towbar.mobile_basecolor",
+        "mime": "image/ktx2",
+        "kb": 24
+      },
+      {
+        "name": "indo-thai_tug.mobile_orm",
+        "mime": "image/ktx2",
+        "kb": 15
+      },
+      {
+        "name": "indo-thai_tug.mobile_basecolor",
+        "mime": "image/ktx2",
+        "kb": 74
+      },
+      {
+        "name": "indo-thai_wheels.mobile_normal",
+        "mime": "image/ktx2",
+        "kb": 14
+      },
+      {
+        "name": "indo-thai_wheels.mobile_orm",
+        "mime": "image/ktx2",
+        "kb": 17
+      },
+      {
+        "name": "indo-thai_wheels.mobile_basecolor",
+        "mime": "image/ktx2",
+        "kb": 75
+      }
+    ]
+  },
+  "bengal-t20/desktop": {
+    "file": "public/models/bengal-t20/bengal-t20.glb",
+    "sourceMB": 17.76,
+    "MB": 1.47,
+    "triangles": 13468,
+    "sourceTriangles": 13468,
+    "art": 1024,
+    "data": 512,
+    "textures": [
+      {
+        "name": "flag_orm",
+        "mime": "image/ktx2",
+        "kb": 8
+      },
+      {
+        "name": "flag_basecolor",
+        "mime": "image/ktx2",
+        "kb": 524
+      },
+      {
+        "name": "jersey_normal",
+        "mime": "image/ktx2",
+        "kb": 57
+      },
+      {
+        "name": "jersey_orm",
+        "mime": "image/ktx2",
+        "kb": 11
+      },
+      {
+        "name": "jersey_basecolor",
+        "mime": "image/ktx2",
+        "kb": 696
+      },
+      {
+        "name": "ticket_orm",
+        "mime": "image/ktx2",
+        "kb": 4
+      },
+      {
+        "name": "ticket_basecolor",
+        "mime": "image/ktx2",
+        "kb": 95
+      }
+    ]
+  },
+  "bengal-t20/mobile": {
+    "file": "public/models/bengal-t20/bengal-t20.mobile.glb",
+    "sourceMB": 5.22,
+    "MB": 0.44,
+    "triangles": 4606,
+    "sourceTriangles": 4606,
+    "art": 512,
+    "data": 256,
+    "textures": [
+      {
+        "name": "bengal-t20_flag.mobile_orm",
+        "mime": "image/ktx2",
+        "kb": 4
+      },
+      {
+        "name": "bengal-t20_flag.mobile_basecolor",
+        "mime": "image/ktx2",
+        "kb": 147
+      },
+      {
+        "name": "bengal-t20_jersey.mobile_normal",
+        "mime": "image/ktx2",
+        "kb": 15
+      },
+      {
+        "name": "bengal-t20_jersey.mobile_orm",
+        "mime": "image/ktx2",
+        "kb": 5
+      },
+      {
+        "name": "bengal-t20_jersey.mobile_basecolor",
+        "mime": "image/ktx2",
+        "kb": 192
+      },
+      {
+        "name": "bengal-t20_ticket.mobile_orm",
+        "mime": "image/ktx2",
+        "kb": 2
+      },
+      {
+        "name": "bengal-t20_ticket.mobile_basecolor",
+        "mime": "image/ktx2",
+        "kb": 29
       }
     ]
   }

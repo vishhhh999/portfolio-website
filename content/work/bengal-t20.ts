@@ -11,6 +11,7 @@ const work: Work = {
   inLineup: true,
   nativeLamp: 'FLOOD',
   glb: '',
+  model: { src: '/models/bengal-t20/bengal-t20.glb', mobile: '/models/bengal-t20/bengal-t20.mobile.glb', rotation: [0.8, 0, 0], plinthOffset: 0.0727, stand: 'wedge' },
   object: 'Folded flag, match ticket and jersey swatch stack',
   fallbacks: placeholderFallbacks('bengal-t20'),
   // UV notes: the approved set is applied in corrections.ts
