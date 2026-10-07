@@ -74,9 +74,15 @@ html[data-house-lights] .houselights--inline { display: block; padding-top: 0; m
 .booth-stage[data-mode='header'] { height: 46svh; }
 .booth-stage[data-ready='true'] { background-color: transparent; }
 .booth-frame { position: relative; }
-.booth-poster img { pointer-events: none; position: absolute; inset: 0; width: 100%; height: 100%; object-fit: fill; transition: opacity 300ms linear; }
+.booth-poster { pointer-events: none; position: absolute; inset: 0; display: block; transition: opacity 300ms linear; }
+.booth-poster img { pointer-events: none; position: absolute; inset: 0; width: 100%; height: 100%; object-fit: fill; }
 /* C2 (08): the poster stays until the booth is fully ready, then crossfades to the canvas over 300ms */
-html[data-booth-ready] .booth-poster img { opacity: 0; }
+html[data-booth-ready] .booth-poster { opacity: 0; }
+/* C (08): a session's first visit starts with the tubes off (the opening strike), so its poster is the
+   same booth dark (set by the boot script before first paint); a background image, fetched only then */
+html[data-opening] .booth-poster img { visibility: hidden; }
+html[data-opening] .booth-poster { background: center / 100% 100% no-repeat; background-image: image-set(url('/booth/poster-cabinet-dark-1200.webp') 1x, url('/booth/poster-cabinet-dark-2400.webp') 2x); }
+@media (max-width: 599px) { html[data-opening] .booth-poster { background-image: url('/booth/poster-phone-dark.webp'); } }
 /* Paper grain over the booth interior (project pages): print, not pixels. */
 .booth-stage[data-mode='header']::after {
   content: ''; position: absolute; inset: 0; pointer-events: none; opacity: 0.09; mix-blend-mode: multiply;
@@ -172,9 +178,10 @@ html:has(.panel[data-place='float']) { --panel-clear: 76px; }
   display: flex; flex-direction: row; align-items: stretch; gap: 6px;
 }
 .panel[data-place='float'] { transition: transform 220ms cubic-bezier(0.2, 0, 0, 1), opacity 220ms linear; }
-/* H3 (08): folded, the pill docks bottom left (the text column on project pages), off the proofs */
-.panel[data-place='float'][data-folded='true'] { left: var(--gutter); transform: none; }
-.panel[data-place='float'][data-away='true'] { transform: translateY(calc(100% + var(--gutter) + 8px)); opacity: 0; pointer-events: none; }
+/* H3 (08): folded, the pill stays centred; it rides the booth header's bottom edge while that is on
+   screen (--pill-lift, set by SwitchPanel) and slides away rather than cover a proof */
+.panel[data-place='float'][data-folded='true'] { bottom: var(--pill-lift, var(--gutter)); }
+.panel[data-place='float'][data-away='true'] { transform: translate(-50%, calc(100% + var(--pill-lift, var(--gutter)) + 8px)); opacity: 0; pointer-events: none; }
 .panel[data-place='float'][data-folded='true'] { padding: 2px; }
 .panel[data-place='inline'] { position: relative; left: auto; bottom: auto; transform: none; z-index: 2; box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 4px 14px rgba(0,0,0,0.14); }
 .rocker {

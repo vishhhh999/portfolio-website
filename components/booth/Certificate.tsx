@@ -5,7 +5,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { CanvasTexture, MeshPhysicalMaterial, MeshStandardMaterial, Object3D, SpotLight, SRGBColorSpace, Vector2 } from 'three';
-import { lampById } from '@/lib/lampPresets';
+import { lampById, strikeChannels } from '@/lib/lampPresets';
 import { markDirty } from '@/lib/dirty';
 import { isMobileTier } from '@/lib/perfTier';
 import { useBooth } from '@/lib/store';
@@ -79,11 +79,14 @@ function CertificateSpot({ x, y, z }: { x: number; y: number; z: number }) {
   light.target = target;
   const last = useMemo(() => ({ lamp: '' }), []);
   useFrame(() => {
-    const { lamp } = useBooth.getState();
-    if (lamp === last.lamp) return;
-    last.lamp = lamp;
+    const { lamp, opening, strikeProgress } = useBooth.getState();
+    // the spot is part of the lamp: it comes up with the first-visit strike, never ahead of the tubes
+    const on = opening ? strikeChannels('opening', strikeProgress).light : 1;
+    const key = `${lamp}:${on.toFixed(3)}`;
+    if (key === last.lamp) return;
+    last.lamp = key;
     const P = lampById(lamp);
-    light.intensity = P.dark || isMobileTier() ? 0 : P.keyLight.intensity * 0.022;
+    light.intensity = P.dark || isMobileTier() ? 0 : P.keyLight.intensity * 0.022 * on;
     light.color.setRGB(...P.keyLight.colour);
     markDirty('certificate spot', ['reflector'], 1);
   });

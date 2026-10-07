@@ -3,7 +3,7 @@
 import { useFrame, useThree } from '@react-three/fiber';
 import { useMemo } from 'react';
 import { Box3, Object3D, SpotLight, Vector3 } from 'three';
-import { lampById } from '@/lib/lampPresets';
+import { lampById, strikeChannels } from '@/lib/lampPresets';
 import { useBooth } from '@/lib/store';
 import { isMobileTier } from '@/lib/perfTier';
 import { markDirty } from '@/lib/dirty';
@@ -59,7 +59,9 @@ export function HoverLight() {
     light.position.set(centre.x, centre.y + 0.25 + size.y * 0.5, centre.z + 0.45);
     // about +12% of the key's light on the front, eased like the focus strength
     const e = w * w * (3 - 2 * w);
-    light.intensity = P.keyLight.intensity * 0.075 * e;
+    // part of the lamp: never ahead of the tubes during the first-visit strike
+    const { opening, strikeProgress } = useBooth.getState();
+    light.intensity = P.keyLight.intensity * 0.075 * e * (opening ? strikeChannels('opening', strikeProgress).light : 1);
     light.color.setRGB(...P.keyLight.colour);
     target.updateMatrixWorld();
     markDirty('hover light', ['reflector'], 1);

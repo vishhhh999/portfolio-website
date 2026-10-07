@@ -81,13 +81,20 @@ for (const [w, h] of [[2560, 1440], [1568, 980], [390, 844]]) {
   }
 }
 if (!only || only.includes('reveal')) {
-  // the reveal: 4 captures of the poster while the booth loads, then the real 300ms crossfade held at
-  // 0, 50 … 300ms (the CSS transition is paused and stepped with the Web Animations API, because
-  // software rendering cannot present a 300ms fade in real time), then the live booth
+  // the first-visit reveal (I7): poster (the first-visit, tubes-off poster) → crossfade → tube strike. Two captures of the poster while
+  // the booth loads; the real 300ms CSS crossfade held at 0, 100, 200 and 300ms (the booth dark, the
+  // strike held at its start); then the D50 strike held at six points to full. Software rendering can
+  // present neither in real time, so both are paused and stepped (Web Animations API,
+  // window.__boothStrikeHold)
   const p = await b.newPage({ viewport: { width: 1568, height: 980 } });
   p.setDefaultTimeout(900000);
   await p.addInitScript(() => {
-    sessionStorage.setItem('vm:opened:v1', '1');
+    window.__boothStrikeHold = 0;
+    // the 300ms crossfade stretched 1000× so it can be held (software rendering would finish it
+    // between two frames); it is stepped at the matching points below
+    const st = document.createElement('style');
+    st.textContent = '.booth-poster{transition-duration:300s!important}';
+    document.addEventListener('DOMContentLoaded', () => document.head.appendChild(st));
     // polled every frame (an observer set up here would run before <html> exists)
     const watch = () => {
       if (document.documentElement?.hasAttribute('data-booth-ready')) {
@@ -104,22 +111,29 @@ if (!only || only.includes('reveal')) {
   const r = await p.locator('.booth-frame').boundingBox();
   const clip = { x: r.x, y: r.y, width: r.width, height: r.height };
   const pick = [];
-  for (let i = 0; i < 4; i++) {
-    if (pick.length >= 2 || (await p.evaluate(() => window.__fadeHeld === true))) break;
+  for (let i = 0; i < 2; i++) {
+    if (await p.evaluate(() => window.__fadeHeld === true)) break;
     pick.push({ png: await p.screenshot({ clip }), t: Date.now() - t0, label: 'poster, loading' });
     await p.waitForTimeout(2500);
   }
   await p.waitForFunction(() => window.__fadeHeld === true, null, { timeout: 900000 });
   const readyAt = Date.now() - t0;
-  await p.waitForTimeout(300);
-  for (const ms of [0, 40, 80, 120, 160, 200, 240, 270, 300]) {
-    await p.evaluate((ms) => document.getAnimations().forEach((a) => (a.currentTime = ms)), ms);
-    await p.waitForTimeout(150);
+  await p.waitForTimeout(1500);
+  const redraw = () => p.evaluate(() => window.dispatchEvent(new Event('resize')));
+  for (const ms of [0, 100, 200, 300]) {
+    await p.evaluate((ms) => document.getAnimations().forEach((a) => (a.currentTime = ms * 1000)), ms);
+    await redraw();
+    await p.waitForTimeout(1500);
     pick.push({ png: await p.screenshot({ clip }), t: ms, label: `crossfade ${ms}ms` });
   }
   await p.evaluate(() => document.getAnimations().forEach((a) => a.finish()));
-  await p.waitForTimeout(1000);
-  pick.push({ png: await p.screenshot({ clip }), t: 1000, label: 'live booth' });
+  for (const s of [0.12, 0.25, 0.4, 0.55, 0.75, 1]) {
+    await p.evaluate((s) => (window.__boothStrikeHold = s), s);
+    await redraw();
+    await p.waitForTimeout(2500);
+    pick.push({ png: await p.screenshot({ clip }), t: s, label: `strike ${Math.round(s * 100)}%` });
+  }
+  await p.evaluate(() => (window.__boothStrikeHold = undefined));
   await p.close();
   const caps = pick;
   const dir = `${OUT}_reveal/`;
@@ -127,7 +141,7 @@ if (!only || only.includes('reveal')) {
   mkdirSync(dir, { recursive: true });
   const files = [];
   for (const [i, c] of pick.entries()) {
-    const f = `${dir}${String(i).padStart(2, '0')}_${c.label.replaceAll(' ', '_').replace(',', '')}${c.label.startsWith('poster') ? `_${c.t}ms` : ''}.png`;
+    const f = `${dir}${String(i).padStart(2, '0')}_${c.label.replaceAll(' ', '_').replace(',', '').replace('%', 'pc')}${c.label.startsWith('poster') ? `_${c.t}ms` : ''}.png`;
     await sharp(c.png).toFile(f);
     files.push(f);
   }

@@ -331,9 +331,10 @@ An inline script runs before paint. It applies the stored lamp and sets `<html d
 
 | Budget | Target | Actual |
 |---|---|---|
-| JS before 3D (gz) | ≤ 200 KB | 176 KB |
-| 3D JS, lazy (gz) | ≤ 460 KB | 419 KB |
-| Models desktop / mobile | ≤ 6 / 2.5 MB | 5.83 / 2.0 MB |
+| JS before 3D (gz) | ≤ 200 KB | 181.6 KB (08) |
+| 3D JS, lazy (gz) | ≤ 460 KB | 427.3 KB (08) |
+| Models desktop / mobile | ≤ 6 / 2.5 MB | **8.77 (over)** / 2.22 MB (08). SHUNYA 2.09 and Bengal 1.47MB are the heaviest |
+| Frame at 1440p, desktop GPU | p50 ≤ 8ms, p95 ≤ 11ms | 07 measured 13.1ms on the RTX 4070 SUPER; 08 not yet measured (`?perf`, `__boothPasses(30)` and `(30, true)`) |
 | iPhone 15 | ≥ 50 fps | Not yet measured (needs the device; use `?perf`) |
 
 **Lighthouse** (local production build):
@@ -373,7 +374,8 @@ PLAYWRIGHT=<path to playwright> node tools/<check>.mjs
 | `check-redirects.mjs` | `/projects/*` → `/work/*` 301s |
 | `check-sound.mjs` | Sound beds and events |
 | `check-smear.mjs` | A1: no stale booth pixels outside the current views (scrolling, opening projects), and each route registers only its own views |
-| `check-flicker.mjs` | A2/C7: no presented frame drops > 5% below its neighbours: reveal (poster vs live ≤ 4%), hover on/off every sample (D50, A), lamp change, turntable spin + release, JSW open (`ONLY=` to pick) |
+| `check-flicker.mjs` | A2/C7: no presented frame drops > 5% below its neighbours: reveal (poster vs live ≤ 4%; fails 07's stale poster at 44%), hover on/off every sample (D50, A), lamp change, turntable spin + release, JSW open (`ONLY=` to pick) |
+| `shots-08.mjs`, `tray-zoom.mjs`, `jsw-compare.mjs` | Batch screenshots, the first-visit reveal sheet (poster → crossfade → strike, held with `__boothStrikeHold`), every model at tray zoom, JSW vs the Blender reference |
 | `check-houselights.mjs` | B: house lights toggles in place, URL unchanged; stored choice loads flat; no panel on /about, /archive |
 | `check-layout.mjs` | C2/D5: centred stage = min(content, 1.6 × height left), booth and panel in one screen; nav and footer end on the right gutter |
 | `check-switch.mjs` | A3: project-to-project timing and long tasks |

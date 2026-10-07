@@ -120,39 +120,75 @@ export function SwitchPanel() {
     return () => window.removeEventListener('scroll', onScroll);
   }, [home, open]);
 
-  // H3 (08): the folded pill keeps out of the way: it slides away while the page scrolls down and
-  // comes back on a scroll up or after 1.2s still, but never over a proof (it waits for a gap)
+  // H3 (08): the folded pill stays centred and small, and never covers a proof. While the booth header
+  // is on screen it rides the header's bottom edge (over the 3D view, not the proofs below it); past
+  // the header it sits at the bottom of the viewport, slides away while the page scrolls down, and
+  // comes back on a scroll up or after 1.2s still, only where no proof is under it
   const [away, setAway] = useState(false);
   const floating = !home && !open;
   useEffect(() => {
-    if (!floating) return setAway(false);
+    const nav = () => document.querySelector<HTMLElement>('.panel[data-place="float"]');
+    if (!floating) {
+      setAway(false);
+      nav()?.style.removeProperty('--pill-lift');
+      return;
+    }
     let last = window.scrollY;
     let idle = 0;
-    const coversProof = () => {
-      const nav = document.querySelector('.panel[data-place="float"]');
-      if (!nav) return false;
-      const r = nav.getBoundingClientRect();
-      // measured where the pill sits when shown (its hidden state is translated down)
-      const top = window.innerHeight - r.height - 24, bottom = window.innerHeight;
-      return [...document.querySelectorAll('.proof__image')].some((el) => {
-        const p = el.getBoundingClientRect();
-        return p.top < bottom && p.bottom > top && p.left < r.right && p.right > r.left;
-      });
+    let raf = 0;
+    const GAP = 12;
+    /** Where the pill should sit: on the header's bottom edge while that edge is on screen. */
+    const place = () => {
+      const el = nav();
+      if (!el) return { onHeader: false, top: 0, bottom: 0, left: 0, right: 0 };
+      const h = el.offsetHeight;
+      const stage = document.querySelector('.booth-stage')?.getBoundingClientRect();
+      const base = window.innerHeight - GAP;
+      const headerBottom = stage ? stage.bottom - GAP : Infinity;
+      // the edge counts while it is in the lower two thirds of the screen; above that the pill drops to
+      // the bottom slot (it would otherwise ride up into the nav)
+      const onHeader = !!stage && headerBottom < base && headerBottom >= window.innerHeight * 0.35 && headerBottom - h > stage.top + GAP;
+      const bottom = onHeader ? headerBottom : base;
+      el.style.setProperty('--pill-lift', `${Math.round(window.innerHeight - bottom)}px`);
+      const r = el.getBoundingClientRect();
+      return { onHeader, top: bottom - h, bottom, left: r.left, right: r.right };
     };
-    const settle = () => setAway(coversProof());
-    const onScroll = () => {
+    const coversProof = (at: ReturnType<typeof place>) =>
+      [...document.querySelectorAll('.proof__image')].some((el) => {
+        const p = el.getBoundingClientRect();
+        return p.top < at.bottom && p.bottom > at.top && p.left < at.right && p.right > at.left;
+      });
+    const settle = () => {
+      const at = place();
+      setAway(!at.onHeader && coversProof(at));
+    };
+    // the page scrolls smoothly (Lenis eases it for a while after each input), so the pill decides
+    // every frame while the page moves, against the positions actually on screen
+    let movingUntil = 0;
+    const frame = (now: number) => {
       const y = window.scrollY;
-      if (y > last + 2) setAway(true);
-      else if (y < last - 2 && !coversProof()) setAway(false);
+      const dir = y - last;
       last = y;
+      const at = place();
+      if (at.onHeader) setAway(false);
+      else if (coversProof(at) || dir > 1) setAway(true);
+      else if (dir < -1) setAway(false);
+      raf = now < movingUntil ? requestAnimationFrame(frame) : 0;
+    };
+    const onScroll = () => {
+      movingUntil = performance.now() + 800;
+      if (!raf) raf = requestAnimationFrame(frame);
       window.clearTimeout(idle);
       idle = window.setTimeout(settle, 1200);
     };
     settle();
     window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', settle);
     return () => {
+      cancelAnimationFrame(raf);
       window.clearTimeout(idle);
       window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', settle);
     };
   }, [floating, pathname]);
 
