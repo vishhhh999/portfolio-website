@@ -10,17 +10,17 @@ PR: https://github.com/vishhhh999/portfolio-website/pull/7 · branch `claude/qui
 | Check | Result |
 |---|---|
 | `poster-hash --check` (build gate; now hashes the served lightmap and the 18 tray posters) | PASS |
-| `check-poster` (home, first visit, and every tray poster, desktop + phone) | SUITE:check-poster |
+| `check-poster` (home, first visit, and every tray poster, desktop + phone) | PASS 22/22 (worst 1.95%, limit 2.5%). Too Yumm desktop tray was 3.39% on the first run (captured before its neighbours settled); re-rendered on the settled shelf, now 0.37% |
 | `check-flicker` (reveal, hover D50/A, lamp change, **new: D50 → SCREEN → D50**, spin, JSW open) | SUITE:check-flicker |
 | `check-coplanar` (new, B1) | PASS: 0 separate parts within 0.5mm where a camera sees them. The 08 House of Hex fails it (screen 0.005mm off its glass, 11,337mm²) |
 | `check-sizes` (+ new SHUNYA mesh clearance, H3) | PASS at all 8 sizes. Phone 10.6% (was 9.4%), worst overlap 1.1% at 1568, min gap 8.9cm. SHUNYA pieces ≥ 11.3mm apart (the Pooja carton was intersecting the Ritual Set) |
 | `check-picking` | PASS 30/30 |
 | `check-targets` (new, P1) | PASS on 7 routes × desktop / phone / tablet |
 | `check-axe` (new, P8) | PASS: 0 serious or critical on 14 routes × 1568 / 390 |
-| `check-pill` (new, F3 + P4) | SUITE:check-pill |
+| `check-pill` (new, F3 + P4) | PASS: pill clear of every proof, label, link and end card on 9 pages × 1568 / 390; masthead clean at 6 widths. The first run failed because software rendering delivers scroll events seconds late; the check now measures once the event has arrived |
 | `check-about` (new, J) | PASS at 390, 768, 1024, 1440, 1920, 2560 |
 | `check-07` (+ M5: every mailto equals the helper) | PASS 27/27 |
-| `check-houselights`, `check-lamp`, `check-layout`, `check-views`, `check-smear`, `check-overflow`, `check-redirects`, `check-sound`, `check-switch` | SUITE:rest |
+| `check-houselights`, `check-lamp`, `check-layout`, `check-views`, `check-smear`, `check-overflow`, `check-redirects`, `check-sound`, `check-switch` | PASS, all 9 (`check-lamp` and `check-layout` updated for the new end cards) |
 | Typecheck, production build | PASS |
 
 ## 2. Models (A) and lightmap sizes
@@ -112,7 +112,7 @@ The stretch items are DOM and CSS only: they add no GPU work, so they cannot mov
 |---|---|---|
 | Models desktop / phone | ≤ 7 / 2.5MB | 5.27 / 1.86MB |
 | Lightmap | | 818KB desktop / 11KB phone (was a 4MB PNG for everyone) |
-| JS before 3D / lazy 3D | ≤ 200 / 460–480KB gz | SUITE:metrics |
+| JS before 3D / lazy 3D | ≤ 200 / 460–480KB gz | 183.7 / 433.9KB. First readable paint 60ms (512ms on 4x CPU + fast 4G) |
 | Frame p50 / p95 at 1440p | ≤ 8 / 11ms | Not measurable here |
 
 On the RTX 4070 SUPER (Chrome, 2560×1440), on the preview:
