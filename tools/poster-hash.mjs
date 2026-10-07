@@ -15,6 +15,10 @@ const FILES = [
   'components/booth/ObjectSlot.tsx', 'components/booth/Certificate.tsx', 'components/booth/LampRig.tsx', 'components/booth/Post.tsx',
   'components/booth/environment.ts', 'components/booth/imperfections.ts', 'components/booth/deviceScreen.ts', 'components/booth/screens.ts',
   'components/booth/uvMaterial.ts', 'components/booth/phoneStaging.ts', 'lib/lampPresets.ts', 'content/work/index.ts', 'public/booth/ao.png',
+  // C0 (09): the room lightmap, every variant a device can be served (the EXR and the 16-bit PNG are
+  // sources under assets-src/, never served): a new bake fails the build until the posters are redone
+  'public/booth/lightmap.ktx2', 'public/booth/lightmap.png', 'public/booth/lightmap-phone.webp', 'public/booth/ao-phone.png',
+  'app/(site)/layout.tsx',
 ];
 const DIRS = ['public/models', 'public/brand'];
 const walk = (d) => readdirSync(join(ROOT, d)).sort().flatMap((f) => (statSync(join(ROOT, d, f)).isDirectory() ? walk(`${d}/${f}`) : [`${d}/${f}`]));

@@ -24,6 +24,7 @@ import {
   NoColorSpace,
   RepeatWrapping,
   SRGBColorSpace,
+  ShaderChunk,
   TextureLoader,
   type Group,
   type Material,
@@ -165,9 +166,14 @@ function applyLightmap(m: MeshStandardMaterial, map: Texture) {
   m.onBeforeCompile = (shader, r) => {
     prev?.call(m, shader, r);
     shader.uniforms.uLightmapTint = lightmapTint;
+    // C0 (09): the chunk is still an #include here (three resolves includes after onBeforeCompile), so
+    // the tint goes into an expanded copy of it. Patching the expanded line directly silently did
+    // nothing: the lightmap shone at full white under every lamp, the dark first frame included
+    const maps = ShaderChunk.lights_fragment_maps.replace('lightMapTexel.rgb * lightMapIntensity;', 'lightMapTexel.rgb * lightMapIntensity * uLightmapTint;');
+    if (maps === ShaderChunk.lights_fragment_maps) throw new Error('lightmap tint: lights_fragment_maps changed shape');
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', '#include <common>\nuniform vec3 uLightmapTint;')
-      .replace('vec3 lightMapIrradiance = lightMapTexel.rgb * lightMapIntensity;', 'vec3 lightMapIrradiance = lightMapTexel.rgb * lightMapIntensity * uLightmapTint;');
+      .replace('#include <lights_fragment_maps>', maps);
   };
   m.needsUpdate = true;
 }
