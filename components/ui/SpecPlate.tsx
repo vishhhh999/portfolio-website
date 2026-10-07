@@ -1,7 +1,7 @@
 import { lampById } from '@/lib/lampPresets';
 import type { Work } from '@/lib/types';
 import { NativeLampChip } from './NativeLampChip';
-import { OutboundLink } from './OutboundLink';
+import { LiveLink } from './LiveLink';
 
 /** The spec plate, styled as a booth calibration label. */
 export function SpecPlate({ work, serial }: { work: Work; serial: number }) {
@@ -27,13 +27,12 @@ export function SpecPlate({ work, serial }: { work: Work; serial: number }) {
           </div>
         ))}
       </dl>
-      {/* D4: the live link, inside the label (Mitooshi, Sonde, House of Hex and Indo Thai only) */}
-      {work.links?.map((l) => (
-        <OutboundLink key={l.href} href={l.href} name={`${work.slug}: ${l.label}`} className="calib__link">
-          <span>{l.label} ↗</span>
-          <span className="calib__linkhost" aria-hidden="true">{new URL(l.href).hostname.replace(/^www\./, '')}</span>
-        </OutboundLink>
-      ))}
+      {/* G (09): the live link as a button, inside the label (Mitooshi, Sonde, House of Hex and Indo Thai only) */}
+      {work.links?.length ? (
+        <div className="calib__live">
+          <LiveLink work={work} where="label" />
+        </div>
+      ) : null}
       {work.inLineup && work.nativeLamp !== 'D50' && <NativeLampChip lamp={work.nativeLamp} />}
     </section>
   );

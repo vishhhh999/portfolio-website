@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { contactMailto } from '@/lib/site';
 
 export const metadata: Metadata = { title: 'Sample not found', robots: { index: false } };
 
@@ -31,6 +32,7 @@ export default function NotFound() {
         <p className="nf__links">
           <Link href="/">Back to the booth →</Link>
           <Link href="/house-lights">The index →</Link>
+          <a href={contactMailto()}>Book a viewing ↗</a>
         </p>
       </div>
     </main>

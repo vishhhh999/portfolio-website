@@ -176,7 +176,7 @@ export function ProofStrip({ deliverables, serialBase, items, layout, label }: {
 
   return (
     <>
-      <div className="proofstrip" data-layout={layout} role="list" aria-label={label}>
+      <div className="proofstrip" data-layout={layout} role="list" aria-label={label} data-reveal="">
         {rows(items.filter((i) => deliverables[i]), layout).map((row) => (
           <div key={row.join('-')} className="proofrow" data-count={row.length}>
             {row.map((i) => {

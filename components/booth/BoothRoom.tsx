@@ -11,13 +11,11 @@ const reflectorGate = () => takeDirty('reflector');
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import {
-  BackSide,
   CanvasTexture,
   DoubleSide,
   LinearFilter,
   LinearMipmapLinearFilter,
   Color,
-  LinearSRGBColorSpace,
   MeshBasicMaterial,
   MeshPhysicalMaterial,
   MeshStandardMaterial,
@@ -37,6 +35,7 @@ import { useBooth } from '@/lib/store';
 import { shellParts, type ShellPart } from './shell';
 import { BOOTH, CABINET, CABINET_FACE, COVE, DIFFUSER, PHONE_LAYOUT, PLINTH_GREY, PROPS, STAGING, TRAY } from './staging';
 import { applyUV } from './uvMaterial';
+import { holdModels } from './models';
 import { smudgeMap, wallRoughness } from './imperfections';
 
 /** B5: Munsell N8 booth grey for the walls; the floor a satin step darker; plinths a warmer N8.5. */
@@ -48,7 +47,7 @@ const CEILING_GREY = '#CDCDCB';
  * Ceiling: lit only by bounce (no lamp faces it), so the rig sets its level and tint directly per
  * lamp. Avoids the area light's negative term behind its plane. Seen from inside.
  */
-export const ceilingMaterial = new MeshBasicMaterial({ color: CEILING_GREY, toneMapped: true, side: BackSide });
+export const ceilingMaterial = new MeshBasicMaterial({ color: CEILING_GREY, toneMapped: true });
 
 /**
  * The opal diffuser (H). An opal acrylic sheet: it glows (emissive, colour and level from the lamp
@@ -158,7 +157,13 @@ export const lightmapTint = { value: new Color(1, 1, 1) };
 /** B3 (08): a baked room lightmap is in use (then SSAO darkens the objects only, not the room). */
 export const roomLightmap = { on: false };
 
-/** Uses a baked lightmap (uv1) on a shell material, tinted per lamp through lightmapTint. */
+/**
+ * Uses a baked lightmap (uv1) on a room material, tinted and scaled per lamp through lightmapTint.
+ * C3 (09): the bake is the diffuser's light on the room, direct and bounce, so on these surfaces it
+ * replaces the realtime ceiling panel (the one area light up at the ceiling, y > 0.75m) and the
+ * hemisphere bounce. The key light (and its shadows), the front light and the screens' own area
+ * lights still reach the room; the objects keep every realtime light.
+ */
 function applyLightmap(m: MeshStandardMaterial, map: Texture) {
   m.lightMap = map;
   m.lightMapIntensity = 1;
@@ -171,28 +176,48 @@ function applyLightmap(m: MeshStandardMaterial, map: Texture) {
     // nothing: the lightmap shone at full white under every lamp, the dark first frame included
     const maps = ShaderChunk.lights_fragment_maps.replace('lightMapTexel.rgb * lightMapIntensity;', 'lightMapTexel.rgb * lightMapIntensity * uLightmapTint;');
     if (maps === ShaderChunk.lights_fragment_maps) throw new Error('lightmap tint: lights_fragment_maps changed shape');
+    const begin = ShaderChunk.lights_fragment_begin
+      .replace(
+        'RE_Direct_RectArea( rectAreaLight, geometryPosition, geometryNormal, geometryViewDir, geometryClearcoatNormal, material, reflectedLight );',
+        'if ( ( ( vec4( rectAreaLight.position, 1.0 ) - viewMatrix[ 3 ] ) * viewMatrix ).y < 0.75 ) RE_Direct_RectArea( rectAreaLight, geometryPosition, geometryNormal, geometryViewDir, geometryClearcoatNormal, material, reflectedLight );',
+      )
+      .replace('irradiance += getHemisphereLightIrradiance( hemisphereLights[ i ], geometryNormal );', '// C3 (09): the bake carries the room\'s bounce');
+    if ((begin.match(/C3 \(09\)|< 0\.75/g) ?? []).length !== 2) throw new Error('lightmap: lights_fragment_begin changed shape');
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', '#include <common>\nuniform vec3 uLightmapTint;')
+      .replace('#include <lights_fragment_begin>', begin)
       .replace('#include <lights_fragment_maps>', maps);
   };
   m.needsUpdate = true;
 }
 
 let lightmapTex: Texture | null = null;
-/** Loads the baked lightmap once (KTX2 through the model loader's transcoder, or PNG). */
-async function loadLightmap(url: string, gl: WebGLRenderer): Promise<Texture> {
+/**
+ * Loads the baked lightmap once. C1 (09): desktop takes the 2048 KTX2 (UASTC, sRGB transfer: the GPU
+ * decodes it to linear) through the model loader's transcoder; phones the 1024 WebP (sRGB-encoded),
+ * so a phone never fetches the Basis transcoder for it. The 16-bit PNG is a source file only.
+ */
+async function loadLightmap(urls: BoothLightmap, gl: WebGLRenderer, mobile: boolean): Promise<Texture | null> {
   if (lightmapTex) return lightmapTex;
+  const url = mobile ? urls.phone : urls.desktop;
+  if (!url) return null;
   let t: Texture;
   if (url.endsWith('.ktx2')) {
     const { KTX2Loader } = await import('three/examples/jsm/loaders/KTX2Loader.js');
     t = await new KTX2Loader().setTranscoderPath('/basis/').detectSupport(gl).loadAsync(url);
-  } else t = await new TextureLoader().loadAsync(url);
+  } else {
+    t = await new TextureLoader().loadAsync(url);
+    t.flipY = false;
+  }
   t.channel = 1;
-  t.colorSpace = LinearSRGBColorSpace;
-  t.flipY = false;
+  t.colorSpace = SRGBColorSpace;
+  t.minFilter = LinearMipmapLinearFilter;
+  t.magFilter = LinearFilter;
   lightmapTex = t;
   return t;
 }
+/** C1 (09): the lightmap variants that exist in public/booth, resolved at build time (site layout). */
+export type BoothLightmap = { desktop: string | null; phone: string | null };
 
 let partsCache: ShellPart[] | null = null;
 /** The shell, built once (the same geometry the bake used). */
@@ -287,7 +312,7 @@ function shellMaterials(mobile: boolean): ShellMats {
     const r = wallRoughness().clone();
     r.repeat.set(2, 1.4);
     r.needsUpdate = true;
-    return new MeshStandardMaterial({ color: BOOTH_GREY, roughness: 0.98, roughnessMap: r, aoMap: ao, aoMapIntensity: 1, side: BackSide, envMapIntensity: 0.35 });
+    return new MeshStandardMaterial({ color: BOOTH_GREY, roughness: 0.98, roughnessMap: r, aoMap: ao, aoMapIntensity: 1, envMapIntensity: 0.35 });
   };
   const floor = new MeshStandardMaterial({
     // pushed back in depth: anything standing on the floor wins every depth tie
@@ -298,7 +323,6 @@ function shellMaterials(mobile: boolean): ShellMats {
     roughness: mobile ? 0.42 : 0.5,
     roughnessMap: rough,
     aoMap: ao,
-    side: BackSide,
     envMapIntensity: mobile ? 0.9 : 0.6,
   });
   const hidden = new MeshBasicMaterial({ visible: false });
@@ -345,7 +369,7 @@ function baseMaterialFor(kind: 'plinth' | 'riser' | 'tray', mobile: boolean): Ma
  * edge with the maker's plate on the sill, the calibration shelf, and the soft shadow the cabinet
  * casts on the page. Desktop: a blurred, low-mix reflection on the satin floor.
  */
-export function BoothRoom({ lineup, lightmap = null }: { lineup: string[]; lightmap?: string | null }) {
+export function BoothRoom({ lineup, lightmap = null }: { lineup: string[]; lightmap?: BoothLightmap | null }) {
   const mobile = isMobileTier();
   const parts = booth(lineup);
   const mats = useMemo(() => shellMaterials(mobile), [mobile]);
@@ -364,19 +388,22 @@ export function BoothRoom({ lineup, lightmap = null }: { lineup: string[]; light
   useEffect(() => {
     if (!lightmap) return;
     let live = true;
-    loadLightmap(lightmap, gl)
+    // the reveal (and the first environment capture) waits for the lightmap, so it never pops in
+    const release = holdModels();
+    loadLightmap(lightmap, gl, mobile)
       .then((t) => {
-        if (!live) return;
+        if (!live || !t) return;
         const lit = [...mats.interior, mats.lip, mats.shelf, mats.hood].filter((m): m is MeshStandardMaterial => (m as MeshStandardMaterial).isMeshStandardMaterial);
         lit.forEach((m) => applyLightmap(m, t));
         roomLightmap.on = true;
         invalidate();
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(release);
     return () => {
       live = false;
     };
-  }, [lightmap, gl, mats, invalidate]);
+  }, [lightmap, gl, mats, invalidate, mobile]);
 
   const shell = parts.filter((p) => p.role !== 'base');
   const matFor = (p: ShellPart): Material | Material[] =>

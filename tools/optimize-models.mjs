@@ -66,6 +66,35 @@ function facing(node) {
   return sum.map((v) => v / l);
 }
 
+/**
+ * A4 (09): a device's `screen` plane must face the viewer (+Z, the device's front): the rebuilt
+ * Mitooshi screen was exported facing into its lid, so it was culled and the logo never showed.
+ * Turned here (winding reversed, normals negated); positions and UV0 untouched.
+ */
+function orientScreen(doc, slug) {
+  const node = doc.getRoot().listNodes().find((n) => n.getName() === 'screen');
+  if (!node) return;
+  const f = facing(node);
+  if (f[2] >= 0) return;
+  for (const p of node.getMesh().listPrimitives()) {
+    const idx = p.getIndices();
+    if (idx) {
+      const a = idx.getArray().slice();
+      for (let i = 0; i + 2 < a.length; i += 3) [a[i + 1], a[i + 2]] = [a[i + 2], a[i + 1]];
+      idx.setArray(a);
+    }
+    const nor = p.getAttribute('NORMAL');
+    if (nor) nor.setArray(nor.getArray().map((v) => -v));
+    const tan = p.getAttribute('TANGENT');
+    if (tan) {
+      const t = tan.getArray().slice();
+      for (let i = 3; i < t.length; i += 4) t[i] = -t[i];
+      tan.setArray(t);
+    }
+  }
+  console.log(`${slug}: screen turned to face the front`);
+}
+
 function nudge(doc, slug) {
   const table = NUDGE[slug];
   if (!table) return;
@@ -140,6 +169,7 @@ async function build(slug, tier) {
   // only the default scene is ever shown, so the others go
   const keep = doc.getRoot().getDefaultScene() ?? doc.getRoot().listScenes()[0];
   for (const sc of doc.getRoot().listScenes()) if (sc !== keep) sc.dispose();
+  orientScreen(doc, slug);
   nudge(doc, slug);
   // lossless PNG art beside the GLB (textures/<texture name>.png) replaces the embedded copy
   for (const t of doc.getRoot().listTextures()) {

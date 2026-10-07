@@ -12,6 +12,7 @@ import { prepareOpening, runOpening } from '@/lib/lampController';
 import { playEvent } from '@/lib/sound';
 import { logEvent } from '@/lib/eventLog';
 import { onViewsChanged, registerStage, viewCount } from '@/lib/views';
+import type { BoothLightmap } from './BoothRoom';
 
 const BoothCanvas = dynamic(() => import('./BoothCanvas'), { ssr: false });
 
@@ -32,7 +33,7 @@ export function boothMode(pathname: string): 'full' | 'header' | 'off' {
  * and the canvas is revealed underneath. The dark-lamp text theme only applies
  * once a dark lamp is actually being drawn.
  */
-export function BoothHost({ lightmap = null }: { lightmap?: string | null }) {
+export function BoothHost({ lightmap = null }: { lightmap?: BoothLightmap | null }) {
   const pathname = usePathname();
   const mode = boothMode(pathname);
   const setActiveSlug = useBooth((s) => s.setActiveSlug);
@@ -40,6 +41,14 @@ export function BoothHost({ lightmap = null }: { lightmap?: string | null }) {
   const [mounted, setMounted] = useState(false);
   const [ready, setReady] = useState(false);
   const [hasViews, setHasViews] = useState(false);
+  // P2 (09): the tray poster stays through its 300ms crossfade after the reveal, then leaves the DOM
+  // (a later project page is drawn live from its first frame: no poster to fetch)
+  const [posterGone, setPosterGone] = useState(false);
+  useEffect(() => {
+    if (!ready) return;
+    const t = window.setTimeout(() => setPosterGone(true), 450);
+    return () => window.clearTimeout(t);
+  }, [ready]);
   const stageRef = useRef<HTMLDivElement>(null);
   // house lights (a mode of this page): no stage is registered, so the canvas draws nothing
   const houseLights = useBooth((s) => s.houseLights);
@@ -112,6 +121,16 @@ export function BoothHost({ lightmap = null }: { lightmap?: string | null }) {
       </div>
       {live && (
         <div ref={stageRef} className="booth-stage" data-mode={mode} data-ready={ready} aria-hidden="true">
+          {/* P2 (09): the project header's placeholder is that sample's own tray shot, rendered from the
+              live booth (tools/make-posters.mjs; the build refuses a stale one), crossfaded by the same
+              reveal gate as the home poster, never a flat grey block */}
+          {mode === 'header' && !posterGone && (
+            <picture className="booth-poster booth-poster--tray">
+              <source media="(max-width: 599px)" srcSet={`/booth/tray/${pathname.split('/')[2]}-phone.webp`} type="image/webp" />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={`/booth/tray/${pathname.split('/')[2]}.webp`} alt="" fetchPriority="high" decoding="async" />
+            </picture>
+          )}
         </div>
       )}
     </>

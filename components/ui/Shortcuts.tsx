@@ -36,8 +36,9 @@ export function Shortcuts() {
     if (!open && d.open) d.close();
   }, [open]);
   return (
-    <dialog ref={dialog} className="shortcuts" aria-label="Keyboard shortcuts" onClose={() => setOpen(false)}>
-      <h2 className="mono">Keyboard</h2>
+    // P8 (09): the dialog is named by its own heading ("Keyboard shortcuts"), never a bare "Keyboard"
+    <dialog ref={dialog} className="shortcuts" aria-labelledby="shortcuts-title" onClose={() => setOpen(false)}>
+      <h2 className="mono" id="shortcuts-title">Keyboard shortcuts</h2>
       <dl>
         {KEYS.map(([k, v]) => (
           <div key={k}>

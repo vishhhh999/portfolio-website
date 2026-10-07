@@ -16,7 +16,7 @@ export type ShellPart = {
   geometry: BufferGeometry;
   position: [number, number, number];
   rotation?: [number, number, number];
-  /** What it is, for materials: interior surfaces are seen from inside (BackSide). */
+  /** What it is, for materials: the interior's faces point into the booth (C4 09), so it is drawn FrontSide. */
   role: 'interior' | 'frame' | 'housing' | 'hood' | 'diffuser' | 'lip' | 'shelf' | 'base';
   /** For bases: the lineup slug standing on it. */
   slug?: string;
@@ -107,6 +107,26 @@ export function shellParts(lineupSlugs: string[], staging: Record<string, Stagin
     // non-indexed: every vertex of the group onto one point (zero-area triangles are never drawn)
     for (let i = front.start; i < front.start + front.count; i++) pos.setXYZ(i, pos.getX(front.start), pos.getY(front.start), pos.getZ(front.start));
     pos.needsUpdate = true;
+  }
+  // C4 (09): the interior faces into the booth: normals and winding turned inward (it used to be an
+  // outward box drawn BackSide, and the Blender bake had to work from a flipped copy). Positions and
+  // both UV sets are untouched, so the lightmap and the AO atlas still line up texel for texel.
+  const nor = interior.getAttribute('normal');
+  for (let i = 0; i < nor.count; i++) nor.setXYZ(i, -nor.getX(i), -nor.getY(i), -nor.getZ(i));
+  nor.needsUpdate = true;
+  if (idx) {
+    for (let i = 0; i + 2 < idx.count; i += 3) {
+      const b = idx.getX(i + 1);
+      idx.setX(i + 1, idx.getX(i + 2));
+      idx.setX(i + 2, b);
+    }
+    idx.needsUpdate = true;
+  } else {
+    // non-indexed (RoundedBoxGeometry): the winding turns through an index, so the vertex arrays
+    // (positions, UV0, UV1) stay byte for byte what the bake used
+    const order = new Uint32Array(pos.count);
+    for (let i = 0; i + 2 < pos.count; i += 3) (order[i] = i), (order[i + 1] = i + 2), (order[i + 2] = i + 1);
+    interior.setIndex(new BufferAttribute(order, 1));
   }
   return parts;
 }

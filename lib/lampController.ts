@@ -66,7 +66,9 @@ export function prepareOpening() {
     sessionStorage.setItem(OPENED_KEY, '1');
   } catch {}
   const st = useBooth.getState();
-  if (seen || reducedMotion() || st.houseLights || st.lamp !== 'D50') return;
+  // P2 (09): the opening is the home page's moment; a visitor arriving straight on a project sees the
+  // work lit at once (its header poster is the lit tray shot)
+  if (seen || reducedMotion() || st.houseLights || st.lamp !== 'D50' || window.location.pathname !== '/') return;
   useBooth.setState({ opening: true, strikeProgress: 0 });
 }
 export function runOpening(sound: (name: string) => void) {

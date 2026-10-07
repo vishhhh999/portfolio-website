@@ -14,7 +14,7 @@ import { track } from '@/lib/analytics';
 import { applyUV } from './uvMaterial';
 import { paperNormal, smudgeMap } from './imperfections';
 import { BOOTH, CERTIFICATE, PROPS } from './staging';
-import { setFocusRect } from './focus';
+import { setCursorTarget, setFocusRect } from './focus';
 
 /**
  * The certificate's face, drawn from the real About page header only (B2): "CERTIFICATE OF
@@ -162,10 +162,12 @@ export function Certificate() {
         if (activeSlug) return;
         if (!hovered) playEvent('hover', e.nativeEvent.clientX);
         setHovered(true);
+        setCursorTarget('About');
         document.body.style.cursor = 'pointer';
       }}
       onPointerOut={() => {
         setHovered(false);
+        setCursorTarget(null);
         document.body.style.cursor = '';
       }}
     >

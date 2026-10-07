@@ -37,6 +37,13 @@ export type LampPreset = {
     /** How dark the key's cast shadows are (0 = none: D50 grounds objects with contact shadows only). */
     shadowIntensity: number;
   };
+  /**
+   * C2 (09): the baked room lightmap (Vishesh's Cycles bake of the diffuser, direct and bounce, neutral
+   * white): its level on the room's surfaces under this lamp, in the lamp's own colour (the diffuser's
+   * for the panel lamps, the key's for A and FLOOD). On the room it replaces the ceiling panel and the
+   * hemisphere bounce; the objects keep their realtime light. The dark lamps take it to near zero.
+   */
+  bake: number;
   /** Bounce off the booth's N7 walls (hemisphere). */
   fill: { intensity: number; sky: RGB; ground: RGB };
   /** Light from the room in front of the booth opening (lights the lip, plate and front faces), 0–1. */
@@ -112,6 +119,7 @@ export const LAMPS: LampPreset[] = [
     panel: { intensity: 2.1, colour: D50, w: 1.36, d: 0.68, z: -0.1 },
     diffuser: 0.95,
     keyLight: { intensity: 1.6, colour: D50, position: [0.1, 0.78, 0.42], target: [0, 0.05, -0.15], angle: 1.4, penumbra: 1, decay: 2, shadowRadius: 9, shadowIntensity: 0.35 },
+    bake: 4.1,
     fill: { intensity: 0.32, sky: D50, ground: [0.55, 0.55, 0.54] },
     front: 0.25,
     contact: 0.55, haze: 0,
@@ -128,6 +136,7 @@ export const LAMPS: LampPreset[] = [
     panel: { intensity: 2.9, colour: TL84, w: 1.36, d: 0.45, z: -0.14 },
     diffuser: 0.9,
     keyLight: { intensity: 1.5, colour: TL84, position: [0, 0.78, -0.38], target: [0, 0, 0.18], angle: 1.3, penumbra: 0.35, decay: 2, shadowRadius: 2.5, shadowIntensity: 0.55 },
+    bake: 4.0,
     fill: { intensity: 0.42, sky: TL84, ground: [0.42, 0.45, 0.42] },
     front: 0.45,
     contact: 0.6, haze: 0,
@@ -145,6 +154,7 @@ export const LAMPS: LampPreset[] = [
     panel: { intensity: 0, colour: TUNGSTEN, w: 1, d: 1, z: 0 },
     diffuser: 0,
     keyLight: { intensity: 9.5, colour: TUNGSTEN, position: [0.56, 0.46, 0.46], target: [-0.3, 0.08, -0.26], angle: 1.15, penumbra: 0.9, decay: 2, shadowRadius: 6, shadowIntensity: 0.8 },
+    bake: 1.6,
     fill: { intensity: 0.13, sky: TUNGSTEN, ground: [0.3, 0.22, 0.15] },
     front: 0.04,
     contact: 0.45, haze: 0,
@@ -163,6 +173,7 @@ export const LAMPS: LampPreset[] = [
     panel: { intensity: 0.22, colour: UV_VIOLET, w: 1.36, d: 0.35, z: -0.2 },
     diffuser: 0.16,
     keyLight: { ...OFF_KEY },
+    bake: 0.02,
     fill: { intensity: 0.13, sky: UV_VIOLET, ground: [0.08, 0.03, 0.16] },
     front: 0.0,
     contact: 0.3, haze: 0,
@@ -179,6 +190,7 @@ export const LAMPS: LampPreset[] = [
     panel: { intensity: 0, colour: FLOOD, w: 1, d: 1, z: 0 },
     diffuser: 0,
     keyLight: { intensity: 4.6, colour: FLOOD, position: [0.06, 0.78, 0.42], target: [0, 0.06, 0.09], angle: 1.02, penumbra: 0.4, decay: 2, shadowRadius: 1.5, shadowIntensity: 0.85 },
+    bake: 0.04,
     fill: { intensity: 0.06, sky: FLOOD, ground: [0.1, 0.1, 0.11] },
     front: 0.02,
     contact: 0.7, haze: 1,
@@ -195,6 +207,7 @@ export const LAMPS: LampPreset[] = [
     panel: { intensity: 0, colour: BLACK, w: 1, d: 1, z: 0 },
     diffuser: 0,
     keyLight: { ...OFF_KEY },
+    bake: 0,
     // G: no fill at all (it lit the walls blue with no visible source); the screens' own area
     // lights are the only light, strong enough that the nearest objects read faintly
     fill: { intensity: 0, sky: BLACK, ground: BLACK },
@@ -212,6 +225,7 @@ export const LAMPS: LampPreset[] = [
     panel: { intensity: 0, colour: BLACK, w: 1, d: 1, z: 0 },
     diffuser: 0,
     keyLight: { intensity: 95, colour: kelvinToAdapted(3600), position: [0, 0.71, 1.78], target: [0, 0.15, 0], angle: 0.14, penumbra: 0.55, decay: 2, shadowRadius: 2, shadowIntensity: 0.8 },
+    bake: 0,
     fill: { intensity: 0, sky: BLACK, ground: BLACK },
     front: 0.0,
     contact: 0, haze: 0,

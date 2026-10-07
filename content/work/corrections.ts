@@ -36,10 +36,11 @@ export const CLIENT_TYPE: Record<string, string> = {
 
 /** Outbound link buttons: these four projects only. */
 export const LINKS: Record<string, { label: string; href: string }> = {
-  mitooshi: { label: 'Live site', href: 'https://www.mitooshi.com/' },
-  sonde: { label: 'Full case study', href: 'https://www.behance.net/gallery/256515787/Sonde-Product-Design-Case-Study' },
-  'house-of-hex': { label: 'Live site', href: 'https://www.houseofhex.design/' },
-  'indo-thai': { label: 'Live site', href: 'https://www.indothai.in/' },
+  // G (09): the button labels (the ↗ is added by the button)
+  mitooshi: { label: 'View live site', href: 'https://www.mitooshi.com/' },
+  sonde: { label: 'Read full case study on Behance', href: 'https://www.behance.net/gallery/256515787/Sonde-Product-Design-Case-Study' },
+  'house-of-hex': { label: 'View live site', href: 'https://www.houseofhex.design/' },
+  'indo-thai': { label: 'View live site', href: 'https://www.indothai.in/' },
 };
 
 export const YEAR: Record<string, number> = { 'house-of-hex': 2026 };

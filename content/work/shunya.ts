@@ -17,8 +17,9 @@ const work: Work = {
     // F3: one row as seen from the booth's camera: the Ritual Set's lid, the glass jar and the Air
     // tin each in clear view (the tin is low, in front of the set; the jar to its right)
     layout: {
+      // H3 (09): every piece at least 2mm clear of the others (tools/mesh-clearance.mjs, in check-sizes)
       shunya_ritual_set: [-0.06, -0.035, 0.12],
-      shunya_pooja_carton: [-0.19, 0.03, 0.25],
+      shunya_pooja_carton: [-0.21, 0.03, 0.25],
       shunya_bhimseni_jar: [0.13, -0.02, 0],
       shunya_air_tin: [0.0, 0.095, 0],
     },

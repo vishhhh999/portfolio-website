@@ -41,8 +41,9 @@ export const viewport: Viewport = { themeColor: '#A8A8A6' };
  * anything renders, and a visitor who chose house lights gets every page's flat version from the first paint (B: a
  * mode, never a redirect).
  * Same keys as lib/store.ts. Only the visitor's own choices ever set them.
+ * M4 (09): `?type=a|b|c` swaps the home headline's face for the type test (data-type on <html>).
  */
-const HOUSE_LIGHTS_BOOT = `(function(){try{var l=sessionStorage.getItem('vm:lamp:v1');if(l)document.documentElement.setAttribute('data-lamp',l);}catch(e){}try{if(localStorage.getItem('vm:houseLights:v2')==='1'||sessionStorage.getItem('vm:autoHouseLights:v1')==='1')document.documentElement.setAttribute('data-house-lights','');}catch(e){}try{var d=document.documentElement;if(!sessionStorage.getItem('vm:opened:v1')&&!d.hasAttribute('data-house-lights')&&(!l||l==='D50')&&!matchMedia('(prefers-reduced-motion: reduce)').matches)d.setAttribute('data-opening','');}catch(e){}})();`;
+const HOUSE_LIGHTS_BOOT = `(function(){try{var l=sessionStorage.getItem('vm:lamp:v1');if(l)document.documentElement.setAttribute('data-lamp',l);}catch(e){}try{if(localStorage.getItem('vm:houseLights:v2')==='1'||sessionStorage.getItem('vm:autoHouseLights:v1')==='1')document.documentElement.setAttribute('data-house-lights','');}catch(e){}try{var t=new URLSearchParams(location.search).get('type');if(t==='a'||t==='b'||t==='c')document.documentElement.setAttribute('data-type',t);}catch(e){}try{var d=document.documentElement;if(location.pathname==='/'&&!sessionStorage.getItem('vm:opened:v1')&&!d.hasAttribute('data-house-lights')&&(!l||l==='D50')&&!matchMedia('(prefers-reduced-motion: reduce)').matches)d.setAttribute('data-opening','');}catch(e){}})();`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

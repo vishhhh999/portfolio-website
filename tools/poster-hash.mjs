@@ -23,7 +23,12 @@ const FILES = [
 const DIRS = ['public/models', 'public/brand'];
 const walk = (d) => readdirSync(join(ROOT, d)).sort().flatMap((f) => (statSync(join(ROOT, d, f)).isDirectory() ? walk(`${d}/${f}`) : [`${d}/${f}`]));
 /** The poster files themselves: a poster swapped by hand (or an old one restored) fails the check too. */
-export const POSTERS = ['poster-cabinet-1200.webp', 'poster-cabinet-2400.webp', 'poster-cabinet-1200.jpg', 'poster-phone.webp', 'poster-cabinet-dark-1200.webp', 'poster-cabinet-dark-2400.webp', 'poster-phone-dark.webp'];
+const SLUGS = ['too-yumm', 'jsw-sports', 'mitooshi', 'sonde', 'house-of-hex', 'bengal-t20', 'sook', 'shunya', 'indo-thai'];
+export const POSTERS = [
+  'poster-cabinet-1200.webp', 'poster-cabinet-2400.webp', 'poster-cabinet-1200.jpg', 'poster-phone.webp', 'poster-cabinet-dark-1200.webp', 'poster-cabinet-dark-2400.webp', 'poster-phone-dark.webp',
+  // P2 (09): every project header's tray poster
+  ...SLUGS.flatMap((s) => [`tray/${s}.webp`, `tray/${s}-phone.webp`]),
+];
 export function posterFileHashes() {
   return Object.fromEntries(POSTERS.map((f) => [f, existsSync(join(ROOT, 'public/booth', f)) ? createHash('sha256').update(readFileSync(join(ROOT, 'public/booth', f))).digest('hex') : null]));
 }

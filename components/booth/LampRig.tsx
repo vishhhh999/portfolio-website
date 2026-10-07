@@ -46,10 +46,12 @@ import { PRINT_FLOORS, proofUniforms } from './proofUniforms';
 import { torch } from '@/lib/torch';
 import { isMobileTier } from '@/lib/perfTier';
 const MOBILE_TIER = typeof window !== 'undefined' && isMobileTier();
-/** 07's one area light per screen (desktop A/B only: `?perf&no=screencombine`). */
-const perScreenLights = typeof window !== 'undefined' && !MOBILE_TIER && perfOff('screencombine');
-/** The combined screen light's level per lit screen (B2: SCREEN reads L* 15–25 on the pouch, book and boxes). */
+/** E (09): desktop lights each screen with its own area light (SCREEN only); phones keep one combined light. */
+const perScreenLights = typeof window !== 'undefined' && !MOBILE_TIER && !perfOff('screenlights');
+/** The combined screen light's level per lit screen (phones; SCREEN reads L* 15–25 on the pouch, book and boxes). */
 const SPILL_GAIN = 0.75;
+/** E (09): each screen's own light under SCREEN on desktop (calibrated: pouch, book and SOOK read L* 15–25). */
+const SCREEN_LIGHT_GAIN = 0.35;
 
 const D50_PRINT = lampById('D50').print;
 const D50_BOUNCE = (() => {
@@ -206,8 +208,10 @@ export function LampRig() {
     const onTray = activeSlug !== null;
 
     scene.environmentIntensity = ENV_INTENSITY[lamp] * env;
-    // a baked shell lightmap (if any) is bounce light: the lamp's colour at its bounce level
-    lightmapTint.value.setRGB(...P.fill.sky).multiplyScalar((P.fill.intensity + P.panel.intensity * 0.25) * env);
+    // C2 (09): the baked room lightmap in the lamp's colour (the diffuser's for the panel lamps, the key's
+    // for A and FLOOD) at the lamp's bake level, struck with the rest of the rig (env = the opening's
+    // light channel: the first visit's dark frame has no lightmap until the tubes strike)
+    lightmapTint.value.setRGB(...(P.panel.intensity > 0 ? P.panel.colour : P.keyLight.colour)).multiplyScalar(P.bake * env);
 
     // ── ceiling panel + its visible diffuser ────────
     const pl = panel.current!;
@@ -320,7 +324,10 @@ export function LampRig() {
       const keep = 1 - ((s.material.userData.dim as number | undefined) ?? 0);
       s.material.emissiveIntensity = P.screens.gain * (0.35 + 0.65 * ch.screens) * keep;
       if (s.light) {
-        s.light.intensity = P.screens.spill * ch.spill * keep;
+        // E (09): only SCREEN has the screens' own pools; under every other lamp the lights are out of
+        // the scene (not at 0), so they cost nothing there
+        s.light.visible = lamp === 'SCREEN';
+        s.light.intensity = s.light.visible ? P.screens.spill * SCREEN_LIGHT_GAIN * ch.spill * keep : 0;
         s.light.color.copy(s.colour);
       }
       spillSum += keep;
@@ -484,6 +491,12 @@ export function LampRig() {
         const keep = scene.environment;
         applyRig(0, 1, ahead);
         captureEnvironment(gl, scene, ahead);
+        // E (09): SCREEN brings its per-screen area lights into the scene: compile every material for
+        // that light set now, while idle, so the visitor's first SCREEN switch never stalls on shaders
+        if (ahead === 'SCREEN') {
+          gl.compile(scene, camera);
+          logEvent('SCREEN shaders pre-warmed (idle)');
+        }
         scene.environment = keep;
         logEvent(`env capture ${ahead} (ahead, idle)`);
       }

@@ -7,6 +7,7 @@ import { registerFrame } from '@/lib/views';
 import { playEvent } from '@/lib/sound';
 import { CABINET_FACE, PHONE_LAYOUT, STAGING } from './staging';
 import { BoothFocus } from './BoothFocus';
+import { BoothHint } from '@/components/ui/BoothHint';
 
 export type FrameSample = { slug: string; title: string; meta: string };
 
@@ -108,6 +109,7 @@ export function BoothFrame({ samples: given }: { samples: FrameSample[] }) {
           <source srcSet="/booth/poster-cabinet-1200.webp 1200w, /booth/poster-cabinet-2400.webp 2400w" sizes="min(100vw, 1800px)" type="image/webp" />
           <img src="/booth/poster-cabinet-1200.jpg" alt="" fetchPriority="high" decoding="async" />
         </picture>
+        <BoothHint />
       </div>
       {current && (
         <div className="booth-swipe" aria-label="Samples in the booth">

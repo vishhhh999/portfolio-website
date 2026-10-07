@@ -1,1 +1,7 @@
-c02dc86e4de6b4aa1aa646f621c4258cc81b691f91062c38b3c8cffe68230367
+44daeea5b72725c794cb69ef7cf9c6315f20c185c85f914e23d38da51c9e2cee
+# History (the first line is the hash bake-booth checks; these notes are kept on a rewrite)
+# aa0e153 (08 A): room FROZEN, sha256 c02dc86e4de6b4aa1aa646f621c4258cc81b691f91062c38b3c8cffe68230367. Vishesh's lightmap (8cbbcc1) is baked from it.
+# 09 C4: only the `interior` mesh's normals changed. They now face into the booth (negated), and its winding
+#   is turned by a new index buffer. POSITION, TEXCOORD_0 and TEXCOORD_1 are byte-identical to aa0e153 in
+#   all 13 parts (tools/_roomdiff.mjs), so the lightmap still lines up texel for texel and needs no re-bake.
+#   The glTF material `interior` is no longer double-sided. ao.png and ao-phone.png re-baked bit-identical.

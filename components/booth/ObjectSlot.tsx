@@ -18,7 +18,7 @@ import { PLINTH_GREY, RECEDE_DZ, STAGING, TRAY } from './staging';
 import { trayHidden } from './shots';
 import { stageRect } from '@/lib/views';
 import { applyUV, blankInk, createProofInk } from './uvMaterial';
-import { hoverFocus, setFocusRect } from './focus';
+import { cursorTarget, hoverFocus, setCursorTarget, setFocusRect } from './focus';
 import { playEvent } from '@/lib/sound';
 import { track } from '@/lib/analytics';
 import { openProject, warmProject } from '@/lib/navigate';
@@ -554,6 +554,7 @@ export function ObjectSlot({ work, lineup }: { work: Work; lineup: string[] }) {
         // I: press and drag turns the object (phones: only the one on the project tray)
         if (!work.model || (mobile && !active) || e.button !== 0) return;
         e.stopPropagation();
+        setCursorTarget(cursorTarget.label, true);
         const sp = spinOf(work.slug);
         let last = e.nativeEvent.clientX, travel = 0, t = performance.now();
         sp.target = null;
@@ -573,6 +574,7 @@ export function ObjectSlot({ work, lineup }: { work: Work; lineup: string[] }) {
           invalidate();
         };
         const up = () => {
+          setCursorTarget(hoverFocus.slug === work.slug && !active ? `Open ${work.title}` : null, false);
           window.removeEventListener('pointermove', move);
           window.removeEventListener('pointerup', up);
           window.removeEventListener('pointercancel', up);
@@ -601,11 +603,13 @@ export function ObjectSlot({ work, lineup }: { work: Work; lineup: string[] }) {
         if (!active) warmProject(router, work.slug);
         setHovered(true);
         hoverFocus.slug = work.slug;
+        if (!cursorTarget.pressed) setCursorTarget(active ? null : `Open ${work.title}`);
         document.body.style.cursor = active ? '' : 'pointer';
       }}
       onPointerOut={() => {
         setHovered(false);
         if (hoverFocus.slug === work.slug) hoverFocus.slug = null;
+        if (!cursorTarget.pressed) setCursorTarget(null);
         document.body.style.cursor = '';
       }}
     >
