@@ -25,7 +25,7 @@ for (const [w, h, dpr, mobile, file, dark] of [[1568, 980, 1, false, 'booth/post
   await p.waitForSelector('.booth-stage[data-ready="true"]');
   // the poster the page actually shows here (its <picture> picks by viewport)
   const shown = dark ? '' : await p.evaluate(() => document.querySelector('.booth-poster img')?.currentSrc ?? '');
-  await p.addStyleTag({ content: '.booth-poster,.masthead,.hero__copy,.panel-slot,.footer,.booth-swipe,.booth-focus,.specchip{visibility:hidden!important}' });
+  await p.addStyleTag({ content: '.booth-poster,.masthead,.hero__copy,.panel-slot,.footer,.booth-swipe,.booth-focus,.specchip,.sampletags,.boothhint,.cursorlabel{visibility:hidden!important}' });
   await p.waitForTimeout(4000);
   const r = await p.locator('.booth-frame').boundingBox();
   const live = await sharp(await p.screenshot({ clip: { x: r.x, y: r.y, width: r.width, height: r.height }, timeout: 900000 })).flatten({ background: '#f2f0ea' }).removeAlpha().raw().toBuffer({ resolveWithObject: true });
@@ -50,7 +50,7 @@ for (const slug of (process.env.TRAY ?? 'too-yumm,jsw-sports,mitooshi,sonde,hous
     });
     await p.goto(`${BASE}/work/${slug}?gpu=high`, { waitUntil: 'networkidle' });
     await p.waitForSelector('.booth-stage[data-ready="true"]');
-    await p.addStyleTag({ content: '.booth-poster,.panel,.masthead,.specchip,.booth-stage::after{visibility:hidden!important}' });
+    await p.addStyleTag({ content: '.booth-poster,.panel,.masthead,.specchip,.cursorlabel,.booth-stage::after{visibility:hidden!important}' });
     await p.waitForTimeout(5000);
     const r = await p.locator('.booth-stage').boundingBox();
     const live = await sharp(await p.screenshot({ clip: { x: r.x, y: r.y, width: r.width, height: Math.min(r.height, h - r.y) }, timeout: 900000 })).flatten({ background: '#f2f0ea' }).removeAlpha().raw().toBuffer({ resolveWithObject: true });

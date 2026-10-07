@@ -76,7 +76,8 @@ if (run('reveal')) {
   await p.goto(BASE + '/?perf', { waitUntil: 'domcontentloaded' });
   await p.waitForSelector('.booth-frame');
   await p.waitForFunction(() => document.querySelector('.booth-poster img')?.complete);
-  await p.addStyleTag({ content: '.specchip,.booth-focus{visibility:hidden!important}' });
+  // DOM over the booth (spec chips, the keyboard layer, 09's sample tags, hint and cursor label) is not the booth
+  await p.addStyleTag({ content: '.specchip,.booth-focus,.sampletags,.boothhint,.cursorlabel{visibility:hidden!important}' });
   const r = await p.locator('.booth-frame').boundingBox();
   const clip = { x: r.x, y: r.y, width: r.width, height: r.height };
   const frames = [];
@@ -107,6 +108,7 @@ await p.addInitScript(() => sessionStorage.setItem('vm:opened:v1', '1')); // J5:
 p.setDefaultTimeout(900000);
 await p.goto(BASE + '/?perf&events', { waitUntil: 'networkidle' });
 await p.waitForSelector('.booth-stage[data-ready="true"]', { timeout: 900000 });
+await p.addStyleTag({ content: '.sampletags,.boothhint,.cursorlabel{visibility:hidden!important}' });
 await p.waitForTimeout(2000);
 
 // ── hover: across the page and on/off every sample, under D50 and A ─────────────────────────

@@ -109,7 +109,7 @@ function ProofFrame({ d, index, serial, onPlay, sizes }: { d: Deliverable; index
         {/* C4: this image's own palette (tools/extract-palettes.mjs), lightest first; hover for the hex */}
         <span className="proof__bar">
           {(PALETTES[d.type === 'video' ? d.poster ?? '' : d.src] ?? []).map((c) => (
-            <i key={c.hex} style={{ background: c.hex }} data-hex={c.hex} title={c.hex} aria-label={`Colour ${c.hex}`} />
+            <i key={c.hex} style={{ background: c.hex }} data-hex={c.hex} title={c.hex} role="img" aria-label={`Colour ${c.hex}`} />
           ))}
         </span>
         <div className="proof__image">

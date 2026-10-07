@@ -19,7 +19,7 @@ const BASE = process.env.BASE || 'http://localhost:3100';
 const OUT = new URL('../public/booth/', import.meta.url).pathname;
 mkdirSync(OUT, { recursive: true });
 
-const HIDE = '.booth-poster,.masthead,.hero__copy,.panel-slot,.footer,.booth-swipe,.booth-focus,.specchip{visibility:hidden!important}';
+const HIDE = '.booth-poster,.masthead,.hero__copy,.panel-slot,.footer,.booth-swipe,.booth-focus,.specchip,.sampletags,.boothhint,.cursorlabel{visibility:hidden!important}';
 const browser = await pw.chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 async function capture(w, h, dpr, mobile, dark = false) {
   // dark: the first visit of a session, the booth's own first frame with the tubes off (the opening
@@ -66,7 +66,7 @@ async function trayCapture(slug, w, h, dpr, mobile) {
   });
   await page.goto(`${BASE}/work/${slug}?gpu=high`, { waitUntil: 'networkidle' });
   await page.waitForSelector('.booth-stage[data-ready="true"]');
-  await page.addStyleTag({ content: '.booth-poster,.panel,.masthead,.specchip,.booth-stage::after{visibility:hidden!important}' });
+  await page.addStyleTag({ content: '.booth-poster,.panel,.masthead,.specchip,.cursorlabel,.booth-stage::after{visibility:hidden!important}' });
   await page.waitForTimeout(5000);
   const r = await page.locator('.booth-stage').boundingBox();
   const meta = await page.evaluate(() => ({

@@ -737,3 +737,23 @@ html[data-type='c'] .hero h1 { font-family: 'Type C', var(--sans); font-weight: 
   opacity: 0; transition: opacity 400ms linear; }
 html[data-booth-ready] .sampletag[data-on='true'] { opacity: 0.9; }
 .sampletags[data-dark='true'], html[data-house-lights] .sampletags, html[data-home-index] .sampletags { display: none; }
+
+/* P1: hit areas everywhere (24px with a mouse, 44px on touch) and 12px type on phones */
+.wordmark { display: inline-flex; align-items: center; min-height: 44px; }
+.sitenav > a { min-width: 24px; justify-content: center; }
+.footer__social a, .cert__links a { display: inline-flex; align-items: center; min-height: 28px; }
+@media (pointer: coarse) { .rocker { min-height: 44px; } }
+@media (max-width: 760px) {
+  .calib, .cert__head, .cert__fields dt, .chip__n, .lampchip { font-size: 12px; }
+}
+
+/* P8: label text at a contrast that passes AA (it was the ink at 55% opacity) */
+.calib__rows dt { opacity: 1; color: #5a5a56; }
+.cert__portrait figcaption { opacity: 1; color: #5a5a56; }
+.cert__fields dt { opacity: 1; color: #5a5a56; }
+@media (pointer: coarse) {
+  .sitenav > a, .sitenav > button { min-width: 44px; min-height: 44px; }
+  .footer__social a, .cert__links a { min-height: 44px; }
+}
+.index__legend { opacity: 1; color: #5a5a56; }
+.nf__sill span { color: #a29fae; }

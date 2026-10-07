@@ -21,7 +21,7 @@ export default function NotFound() {
           </div>
           <div className="nf__floor" />
         </div>
-        <div className="nf__sill">
+        <div className="nf__sill" aria-hidden="true">
           <span className="mono">VM VIEWING BOOTH · UV-A · 365NM</span>
         </div>
       </section>

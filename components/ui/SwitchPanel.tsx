@@ -255,24 +255,23 @@ export function SwitchPanel() {
               setOpen(true);
             }}
             aria-expanded="false"
-            aria-label={`Lamps: ${onIndex ? 'house lights on' : active.ariaLabel}. Show the lamp panel`}
+            aria-label={`${onIndex ? 'House lights' : active.label}: show the lamp panel`}
           >
             <span className="panel__status-led" style={{ ['--lamp' as string]: onIndex ? '#f2f0ea' : active.indicator }} aria-hidden="true" />
             {/* P9 (09): the label crossfades (150ms) when the lamp changes */}
             <span key={onIndex ? 'house' : lamp} className="panel__pilllabel">{onIndex ? 'House lights' : active.label}</span>
           </button>
           {/* F1 (09): house lights is always one press away, also from the folded pill */}
-          <button type="button" className="rocker rocker--pill" aria-pressed={onIndex} onClick={toggleHouseLights} aria-keyshortcuts="I" title={HOUSE_TITLE} aria-label={HOUSE_TITLE}>
-            <kbd aria-hidden="true">I</kbd>
-            <span className="rocker__state" aria-hidden="true">{onIndex ? 'Flat' : 'Booth'}</span>
+          <button type="button" className="rocker rocker--pill" aria-pressed={onIndex} onClick={toggleHouseLights} aria-keyshortcuts="I" title={HOUSE_TITLE}>
+            <kbd>I</kbd> <span className="rocker__state">{onIndex ? 'Flat' : 'Booth'}</span>
+            <span className="sr-only">: house lights. {HOUSE_TITLE}</span>
           </button>
         </>
       ) : (
         <>
-          <button type="button" className="rocker" aria-pressed={onIndex} onClick={toggleHouseLights} aria-keyshortcuts="I" title={HOUSE_TITLE} aria-label={HOUSE_TITLE}>
-            <span aria-hidden="true">House lights</span>
-            <span className="rocker__state" aria-hidden="true">{onIndex ? 'Flat' : 'Booth'}</span>
-            <kbd aria-hidden="true">I</kbd>
+          <button type="button" className="rocker" aria-pressed={onIndex} onClick={toggleHouseLights} aria-keyshortcuts="I" title={HOUSE_TITLE}>
+            <span>House lights</span> <span className="rocker__state">{onIndex ? 'Flat' : 'Booth'}</span> <kbd>I</kbd>
+            <span className="sr-only">: {HOUSE_TITLE}</span>
           </button>
 
           {/* House lights on: the booth is off, so the lamp bank folds away. */}
@@ -289,15 +288,15 @@ export function SwitchPanel() {
                       type="button"
                       className="switch"
                       aria-pressed={lamp === l.id}
-                      aria-label={l.ariaLabel}
                       aria-keyshortcuts={l.key}
                       title={l.spec}
                       onClick={(e) => flip(l.id, e.clientX)}
                       style={{ ['--lamp' as string]: l.indicator }}
                     >
                       <span className="switch__led" aria-hidden="true" />
-                      <span className="switch__label" aria-hidden="true">{l.id === 'AFTERDARK' ? 'Dark' : l.id}</span>
-                      <span className="switch__readout" aria-hidden="true">{l.readout}</span>
+                      <span className="switch__label">{l.id === 'AFTERDARK' ? 'Dark' : l.id}</span>{' '}
+                      <span className="switch__readout">{l.readout}</span>
+                      <span className="sr-only">: {l.ariaLabel}</span>
                     </button>
                   </li>
                 ))}

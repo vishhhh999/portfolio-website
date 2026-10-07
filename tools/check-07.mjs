@@ -68,7 +68,7 @@ const page = async (url, w = 1568, h = 980) => {
   const toMin = (s) => +s.slice(0, 2) * 60 + +s.slice(3, 5);
   const diff = m ? Math.min(Math.abs(toMin(`${m[1]}:${m[2]}`) - toMin(now)), 1440 - Math.abs(toMin(`${m[1]}:${m[2]}`) - toMin(now))) : 99;
   check('LOCATION reads India + live IST clock', !!m && diff <= 1, `"${where}", Asia/Kolkata now ${now}`);
-  check('clock is not announced (aria-live off)', (await p.locator('.istclock').getAttribute('aria-live')) === 'off');
+  check('clock is not announced (aria-live off)', (await p.locator('.cert .istclock').getAttribute('aria-live')) === 'off');
   const hydr = logs.filter((l) => /hydrat|did not match/i.test(l));
   check('no hydration mismatch', hydr.length === 0, hydr[0] ?? '');
   const text = await p.locator('main').innerText();
@@ -128,6 +128,20 @@ const page = async (url, w = 1568, h = 980) => {
   check('chips filter, kept in ?series=', posters === 10 && /series=posters/.test(p.url()), `${posters} posters`);
   const chips = await p.locator('.chip').allInnerTexts();
   check('one row of chips: All · Music cover art · 3D explorations · Posters · Other', chips.map((c) => c.replace(/\s*\d+$/, '').trim()).join(' · ') === 'All · Music cover art · 3D explorations · Posters · Other', chips.join(' | '));
+  await p.close();
+}
+// M5 (09): every "Book a viewing" / contact link on the site is the one helper's mailto (lib/site.ts):
+// the visitor's own mail app, To work@visheshmahendru.com, the agreed subject and body, CRLF encoded
+{
+  const enc = (s) => encodeURIComponent(s).replace(/[!'()*]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
+  const want = `mailto:work@visheshmahendru.com?subject=${enc("Saw your portfolio, let's connect")}&body=${enc("Hi Vishesh,\r\nI just went through your portfolio at www.visheshmahendru.com and really liked your work. I'd love to connect.")}`;
+  const p = await b.newPage({ viewport: { width: 1568, height: 980 }, reducedMotion: 'reduce' });
+  for (const route of ['/', '/about', '/archive', '/house-lights', '/work/sonde', '/nope-404']) {
+    await p.goto(BASE + route, { waitUntil: 'domcontentloaded' });
+    const hrefs = await p.$$eval('a[href^="mailto:"]', (as) => as.map((a) => a.getAttribute('href')));
+    const bad = hrefs.filter((h) => h !== want);
+    check(`${route}: ${hrefs.length} contact links, all the shared helper's mailto`, hrefs.length > 0 && bad.length === 0, bad[0] ?? '');
+  }
   await p.close();
 }
 await b.close();
