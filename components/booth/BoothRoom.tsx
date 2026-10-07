@@ -420,6 +420,10 @@ export function BoothRoom({ lineup, lightmap = null }: { lineup: string[]; light
           material={matFor(p)}
           position={p.position}
           rotation={p.rotation ?? [0, 0, 0]}
+          // C5 (09): the hood's square ends stopped short of the coved top corners (a slanted sliver of
+          // wall at the left, the end face as a dark diagonal at the right): drawn 2.2% wider, its ends
+          // run into the walls and are hidden there. The frozen room file and its UV1 are untouched.
+          scale={p.role === 'hood' ? [1.022, 1, 1] : [1, 1, 1]}
           receiveShadow={p.role === 'interior' || p.role === 'lip' || p.role === 'shelf'}
           castShadow={p.role === 'lip' || p.role === 'shelf' || p.role === 'hood'}
         />

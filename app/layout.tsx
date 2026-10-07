@@ -11,7 +11,9 @@ const GeistSans = localFont({ src: './fonts/geist-sans-subset.woff2', variable: 
 const GeistMono = localFont({ src: './fonts/geist-mono-subset.woff2', variable: '--font-geist-mono', weight: '100 900', display: 'swap', preload: true, adjustFontFallback: false, fallback: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'] });
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://www.visheshmahendru.com'),
+  // M1 (09): on a Vercel preview, OG and canonical URLs resolve on that preview (so the share cards can be
+  // checked there); production always uses the real domain
+  metadataBase: new URL(process.env.VERCEL_ENV === 'preview' && process.env.VERCEL_BRANCH_URL ? `https://${process.env.VERCEL_BRANCH_URL}` : 'https://www.visheshmahendru.com'),
   title: { default: 'Vishesh Mahendru · Tested under every light', template: '%s · Vishesh Mahendru' },
   description: 'Brand and digital design by Vishesh Mahendru. India, working worldwide.',
   applicationName: 'Vishesh Mahendru',

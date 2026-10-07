@@ -51,7 +51,7 @@ const perScreenLights = typeof window !== 'undefined' && !MOBILE_TIER && !perfOf
 /** The combined screen light's level per lit screen (phones; SCREEN reads L* 15–25 on the pouch, book and boxes). */
 const SPILL_GAIN = 0.75;
 /** E (09): each screen's own light under SCREEN on desktop (calibrated: pouch, book and SOOK read L* 15–25). */
-const SCREEN_LIGHT_GAIN = 0.35;
+const SCREEN_LIGHT_GAIN = 0.2;
 
 const D50_PRINT = lampById('D50').print;
 const D50_BOUNCE = (() => {
