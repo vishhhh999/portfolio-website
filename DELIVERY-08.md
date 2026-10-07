@@ -11,7 +11,7 @@ Work is on branch `claude/session-access-question-dqidr4`. The screenshots are i
 | Check | What it proves | Result |
 |---|---|---|
 | `check-flicker` (extended, C7) | No presented frame dips: the reveal (poster vs live ≤ 4%), hover on and off every sample under D50 and A, a lamp change, a turntable spin and release, the JSW open | **PASS**. Reveal: poster vs live 1.03%. Hover: worst 0.5% (D50), 0.7% (A). Lamp change: worst dip 0.1% (it was 83.6% before the fix below). Spin: 0.6%. JSW open: 0.0% |
-| `check-poster` (new, C1) | The poster matches the live booth | **PASS**: 1.34% desktop, 0.52% phone (limit 2.5%) |
+| `check-poster` (new, C1) | The poster matches the live booth, for repeat visits and for the first visit (tubes off) | **PASS**: 1.35% desktop, 0.53% phone; first visit 0.23% desktop, 0.05% phone (limit 2.5%) |
 | `poster-hash --check` (in the build) | The build refuses a poster older than the booth, or a poster file that isn't the one `make-posters` rendered (it records each file's own hash) | **PASS** |
 | **07's stale poster** (C7 requirement) | 07's actual poster put back in place | **All three gates reject it**: check-flicker reveal FAIL (44.25% vs live, limit 4%), check-poster FAIL (44.34%, limit 2.5%), build hash check FAIL |
 | `check-sizes` (E, G) | Long side ≥ 11% (9% raised); boxes overlap ≤ 3%; ≥ 8cm clear. Phones: ≥ 14% of the box, all in frame, ≥ 5cm | **PASS** at 1440, 1568, 2560×1271, 1920, 1366, 725. Smallest: the phone, 9.1% (raised); Too Yumm 11.9%; worst overlap 1.0% (725); gap 11.0cm. Phones 390×844 and 430×932: smallest 14.9%, overlap 0.0%, gap 5.5cm, all in frame |
@@ -78,6 +78,10 @@ The still frame is 24% cheaper than the moving one. On a still frame the normal 
     - `check-poster`: 44.3% difference against a 2.5% limit;
     - `check-flicker`'s reveal: 44.3% against a 4% limit.
 - **Reveal.** The poster stays until the visible models are in, the lamp's interior is captured and one full frame has rendered (programs compiled first). It then crossfades over 300ms; a model that arrives later fades in over 250ms. Contact sheet: `reveal-sheet.jpg`.
+- **First visit (follow-up, vishhhh999/portfolio-website#5).** A session's first visit opens with the booth dark and the D50 tubes striking. The lit poster used to crossfade into that black booth, so the very first frames went light → dark → light.
+  - That visit now shows a tubes-off poster rendered from the same booth. The boot script flags the first visit before first paint, and CSS swaps the poster in as a background image, fetched only on that visit.
+  - The sequence is now dark poster → the identical dark booth → the strike, with no dip. check-poster: 0.23% desktop, 0.05% phone.
+  - The certificate spot and the hover key used to glow in the dark booth; they now come up with the strike.
 - **No runtime pass changes.** Every pass exists from the first frame. Lights that switch on, like the hover key and the certificate spot, stay in the scene at intensity 0, so no material recompiles mid-session.
 - **Pre-capture.** Every lamp's environment is captured while idle, after the reveal, so the first switch to a lamp no longer captures on screen.
 - **Contact shadows.** A re-bake after a turntable spin crossfades over 200ms.
@@ -145,8 +149,8 @@ The still frame is 24% cheaper than the moving one. On a still frame the normal 
 
 Also:
 - `reveal-sheet.jpg`: the 12-frame first visit:
-  - two posters while the booth loads;
-  - the real 300ms crossfade held at 0, 100, 200 and 300ms (the booth is dark, ready to strike);
+  - two frames of the tubes-off poster while the booth loads;
+  - the real 300ms crossfade held at 0, 100, 200 and 300ms (dark poster into the identical dark booth: no jump);
   - the D50 tube strike at 12, 25, 40, 55, 75 and 100%.
   - Software rendering can't present either in real time, so the CSS transition is paused and stepped, and the strike is held with `window.__boothStrikeHold`, a review-only hook like `__boothAnimHold`.
 - `jsw-compare.jpg`, `aa-compare.png` and `tray-zoom/`.

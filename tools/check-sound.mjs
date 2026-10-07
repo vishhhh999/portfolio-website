@@ -9,6 +9,7 @@ const pw = require(process.env.PLAYWRIGHT || 'playwright');
 const BASE = process.env.BASE || 'http://localhost:3100';
 const b = await pw.chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--autoplay-policy=no-user-gesture-required'] });
 const p = await b.newPage({ viewport: { width: 1440, height: 900 } });
+await p.addInitScript(() => sessionStorage.setItem('vm:opened:v1', '1')); // past the first-visit strike: the bed follows the lamp's output, so it is silent while the tubes are still dark
 p.setDefaultTimeout(600000);
 const audio = [];
 p.on('request', (r) => { if (/\.(wav|mp3|ogg|opus|m4a|webm|flac)(\?|$)/i.test(r.url()) || r.resourceType() === 'media') audio.push(r.url()); });
