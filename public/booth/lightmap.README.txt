@@ -1,0 +1,29 @@
+BOOTH LIGHTMAP BAKE
+===================
+Source shell     : booth-room.glb (13 meshes, glTF importer defaults, metres, scale 1.0, geometry/UVs untouched)
+UV map baked to  : UVMap.001 (second set, TEXCOORD_1 lightmap atlas)
+Atlas            : booth_lightmap, 2048x2048, 32-bit float, black start, no alpha
+
+Light (single)   : Area, rectangle, white (1,1,1), world black strength 0, no other lights
+Diffuser rect    : centre (0.000, 0.100, 0.796) m, size 1.36 x 0.68 m, faces down (-Z)
+                   corners x +-0.68, y -0.24..0.44, z 0.796
+Light position   : (0.000, 0.100, 0.794) m (2 mm below diffuser), rotation 0,0,0 (emits down)
+Light strength   : 3.3 W (Blender area-light power)
+
+Bake             : Cycles, GPU, Diffuse, Direct + Indirect, Colour OFF
+Samples          : 1024
+Bounces          : 8 total, 4 diffuse
+Margin           : 16 px, extend
+Bake time        : ~100 s
+Denoise          : compositor Denoise node, prefilter Accurate, HDR on, written back to booth_lightmap
+
+Interior note    : the glTF `interior` mesh has outward-facing normals, so it was baked from a temporary
+                   flipped copy (same UVs, same position); the original was hidden during the bake and
+                   restored. The shipped geometry is unchanged.
+
+Result (lightmap.exr, half float RGB, ZIP)
+  min  : 0.000000
+  max  : 0.925293
+  mean : 0.218234 (whole atlas), 0.483166 (lit texels, 45.2% of atlas)
+Colour space     : linear (non-colour). lightmap.png is 16-bit linear, matches the EXR within 0.00025.
+Check render     : lightmap-check.png, 1600x900 from SITE_CAM (LINEUP_16x9), Standard view transform
