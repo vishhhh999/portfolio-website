@@ -56,7 +56,17 @@ for (const [name, vp, mobile] of [['1568', { width: 1568, height: 980 }, false],
     const bad = [];
     for (let i = 0; i <= steps; i++) {
       const y = Math.min(total, Math.round((i * total) / steps));
-      await p.evaluate((y) => window.scrollTo({ top: y, behavior: 'instant' }), y);
+      const moved = await p.evaluate((y) => {
+        window.__pillScrolls = 0;
+        if (!window.__pillCount) (window.__pillCount = true), addEventListener('scroll', () => window.__pillScrolls++, { passive: true });
+        const from = window.scrollY;
+        window.scrollTo({ top: y, behavior: 'instant' });
+        return Math.abs(window.scrollY - from) > 0.5;
+      }, y);
+      // the page's scroll event is what the pill listens to; in software rendering the main thread is
+      // busy with the booth and the browser can hold that event back for seconds, so the timings below
+      // start once it has been delivered (a real browser delivers it on the next frame)
+      if (moved) await p.waitForFunction(() => window.__pillScrolls > 0, null, { timeout: 120000 });
       // a check mid-move (the pill decides every frame while the page moves) and one at rest
       for (const wait of [250, 1700]) {
         await p.waitForTimeout(wait);
