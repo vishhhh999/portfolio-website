@@ -78,8 +78,12 @@ export function ModelRef({ slug }: { slug: string }) {
     camera.aspect = size.width / size.height;
     camera.clearViewOffset();
     const vt = Math.tan(MathUtils.degToRad(camera.fov / 2));
-    const dist = Math.max(fit.s.y / 0.78 / 2 / vt, fit.s.x / 0.78 / 2 / (vt * camera.aspect)) + fit.s.z / 2;
-    camera.position.set(fit.c.x, fit.c.y, fit.c.z + dist);
+    // A6 (09): `&yaw=&elev=` (degrees) orbit the camera to match a 3/4 reference, or to see the back (yaw 180)
+    const q = new URLSearchParams(location.search);
+    const yaw = MathUtils.degToRad(+(q.get('yaw') ?? 0)), elev = MathUtils.degToRad(+(q.get('elev') ?? 0));
+    const span = yaw || elev ? Math.max(fit.s.x, fit.s.y, fit.s.z) : 0;
+    const dist = Math.max((span || fit.s.y) / 0.78 / 2 / vt, (span || fit.s.x) / 0.78 / 2 / (vt * camera.aspect)) + (span ? span * 0.6 : fit.s.z / 2);
+    camera.position.set(fit.c.x + dist * Math.sin(yaw) * Math.cos(elev), fit.c.y + dist * Math.sin(elev), fit.c.z + dist * Math.cos(yaw) * Math.cos(elev));
     camera.lookAt(fit.c);
     camera.updateProjectionMatrix();
   }, 0);

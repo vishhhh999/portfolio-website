@@ -36,6 +36,11 @@ export function attachScreen(root: Object3D, slug: string, aspect: number, mobil
     clearcoatRoughness: 0.6,
     clearcoatRoughnessMap: smudgeMap(),
     envMapIntensity: 0.35,
+    // A4 (09): the display sits 1mm in front of its glass in every rebuilt GLB; polygon offset is the
+    // second guard against depth flicker at booth scale
+    polygonOffset: true,
+    polygonOffsetFactor: -1,
+    polygonOffsetUnits: -4,
   });
   applyUV(material, { inkProj: ink ?? null });
   // F2 (08): no hot spot. The glass keeps its environment sheen (envMapIntensity, roughness ~0.12),

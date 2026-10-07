@@ -16,7 +16,8 @@ export type BaseKind = 'plinth' | 'riser' | 'tray';
  * below 12% of the cabinet width (tools/check-sizes.mjs).
  */
 import { PHONE_PROPS, PHONE_STAGING } from './phoneStaging.ts';
-export type Staging = { object: Size3; base: Size3 & { kind: BaseKind }; x: number; z: number; scale?: number; yaw?: number; sweep?: { w: number; h: number; r: number }; plate?: string; trayW?: number; trayX?: number };
+import { JSW_OPEN, scaledBox, type TrayBox } from './trayBox.ts';
+export type Staging = { object: Size3; base: Size3 & { kind: BaseKind }; x: number; z: number; scale?: number; yaw?: number; sweep?: { w: number; h: number; r: number }; plate?: string; trayBox?: TrayBox };
 
 export const sized = (o: Size3, s: number): Size3 => ({ w: o.w * s, h: o.h * s, d: o.d * s });
 
@@ -56,14 +57,14 @@ export const DESKTOP_STAGING: Record<string, Staging> = {
   'indo-thai': { object: sized({ w: 6.73, h: 1.202, d: 5.7 }, TUG_SCALE), base: { kind: 'plinth', w: 0.33, d: 0.27, h: 0.12 }, x: 0.04, z: FRONT_Z - 0.02, scale: TUG_SCALE, plate: '1:24' },
   sonde: { object: real(0.2821, 0.2399, 0.14), base: { kind: 'plinth', w: 0.34, d: 0.19, h: 0.05 }, x: 0.5, z: FRONT_Z, scale: K },
   // middle row, raised
-  mitooshi: { object: real(0.3152, 0.2125, 0.3035), base: { kind: 'plinth', w: 0.38, d: 0.34, h: 0.24 }, x: -0.5, z: MID_Z, scale: K },
+  // A5 (09): the rebuilt laptop (lid at 110 degrees), its GLB bounds; the model is centred on its footprint
+  mitooshi: { object: real(0.3126, 0.2123, 0.3011), base: { kind: 'plinth', w: 0.38, d: 0.34, h: 0.24 }, x: -0.5, z: MID_Z, scale: K },
   shunya: { object: real(0.42, 0.0905, 0.27), base: { kind: 'riser', w: 0.44, d: 0.3, h: 0.29 }, x: 0.235, z: MID_Z, scale: K, sweep: { w: 0.46, h: 0.12, r: 0.05 } },
   'house-of-hex': { object: real(0.09, 0.1758, 0.13), base: { kind: 'plinth', w: 0.16, d: 0.16, h: 0.32 }, x: 0.6, z: -0.03, scale: K },
   // back, high
   sook: { object: real(0.3016, 0.1012, 0.0951), base: { kind: 'plinth', w: 0.36, d: 0.13, h: 0.53 }, x: -0.42, z: -0.385, scale: K },
-  // closed in the booth; on the tray it opens to two covers wide, leftward from its spine (trayW and
-  // trayX frame the open book)
-  'jsw-sports': { object: real(0.359, 0.275, 0.027), base: { kind: 'plinth', w: 0.42, d: 0.12, h: 0.42 }, x: 0.04, z: BACK_Z, scale: K, trayW: 0.359 * K * 2.05, trayX: (-0.359 * K) / 2 },
+  // closed in the booth; on the tray it opens (A7 09: the tray shot frames the open book, JSW_OPEN)
+  'jsw-sports': { object: real(0.359, 0.275, 0.027), base: { kind: 'plinth', w: 0.42, d: 0.12, h: 0.42 }, x: 0.04, z: BACK_Z, scale: K, trayBox: scaledBox(JSW_OPEN, K) },
 };
 
 /**

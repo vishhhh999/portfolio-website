@@ -65,6 +65,8 @@ export type Work = {
     screen?: { aspect: number };
     /** A display stand under the model: 'wedge' (a sloped block matching the model's tilt, for flat sets). */
     stand?: 'wedge';
+    /** A5 (09): centre the model on its footprint (x, z) at load: its origin is not under its middle (the open laptop's lid reaches back). */
+    center?: boolean;
     /** The one animated object (A5): the named clip plays to its end while the object is on the tray. */
     animation?: string;
   };

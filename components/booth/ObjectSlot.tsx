@@ -213,6 +213,13 @@ function ModelObject({ work, onReady }: { work: Work; onReady: () => void }) {
             node.position.z += lz - c.z;
           }
         }
+        // A5 (09): a model whose origin is not under its middle is centred on its footprint
+        if (m.center) {
+          scene.updateMatrixWorld(true);
+          const c = new Box3().setFromObject(scene).getCenter(new Vector3());
+          scene.position.x -= c.x;
+          scene.position.z -= c.z;
+        }
         const st = STAGING[work.slug];
         const real = { w: st.object.w / (st.scale ?? 1), h: st.object.h / (st.scale ?? 1) };
         const ink = objectInk(work, real.w, real.h);
