@@ -37,7 +37,7 @@ const MODEL = {
   mitooshi: { center: true },
 };
 /** How the room's parts are drawn (BoothRoom.tsx): override with ROOM_SIDES='{"interior":"front"}'. */
-const ROOM_SIDES = { interior: 'back', hood: 'double', ...JSON.parse(process.env.ROOM_SIDES || '{}') };
+const ROOM_SIDES = { interior: 'front', hood: 'double', ...JSON.parse(process.env.ROOM_SIDES || '{}') };
 /** Runtime side overrides per object (content/work: Too Yumm is FrontSide only; the rest as authored). */
 const FRONT_ONLY = new Set(['too-yumm']);
 
