@@ -1,52 +1,40 @@
-SOOK BOX TRIO - WEB EXPORT
-Generated 2026-10-04 (rebuilt with the flavour textures). Working copy: sook_web-export.blend (original untouched).
+SOOK TEA BOX TRIO (slug sook)  |  Batch 3 repair
 
-SOURCE
-- Geometry: "3D Box.blend" (the brief named "3D Model.blend", which does not exist). One lid-and-base box: outer sleeve
-  (4 sides + top) over an inner tray (4 sides + bottom), 10 card panels. All three nodes share this mesh.
-- Artwork: E:\Portfolio 2026\SOOK\textures\<flavour>. Each image was matched to its panel by aspect ratio and by layout
-  against your gold box (which panel each gold image sits on). All matched at their native orientation; nothing rotated,
-  cropped or redrawn.
+WHAT WAS WRONG
+- Boxes were named after flavours, not the requested sook_box_white / sook_box_aqua / sook_box_red.
+- Textures were baked on one packed UV with hidden faces squeezed into a corner; no per-face islands, art resolution low on the fronts.
+- Mesh carried 20 zero-area sliver faces and a 0.04 mm bevel that merged away; UV1 islands were closer than 0.005 (needs >= 0.01).
+- LOD1 was identical to LOD0.
 
-NODES (side by side, 8 mm gaps, each origin at its own bottom centre; group origin at the group's bottom centre)
-sook_box_garden-fresh   x = -0.1032   white sleeve (posts 36, 5, 2, 3, top 4)   over green tray (14, 15, 16, 17, bottom 18)
-sook_box_berry-bloom    x =  0.0      aqua sleeve  (posts 25, 26, 27, 28, top 29) over plain white tray (see below)
-sook_box_summer-sun     x = +0.1032   white sleeve (posts 169-172, top 176)     over orange tray (168, 173-175, bottom 177)
-Each box: 0.0952 W x 0.0951 D x 0.1012 H m.  Group: 0.3016 x 0.0951 x 0.1012 m.
-Triangles: LOD0 1,060 per box (3,180 total; budget 6,000 per box). LOD1 = LOD0 (already under the 1,500 per box budget).
+WHAT CHANGED
+- Rebuilt the box as 10 closed card panels (sleeve: front, back, left, right, top; tray: front, back, left, right, bottom) at the source dimensions, 0.4 mm 2-segment bevel, triangulated. 1,080 tris per box, 0 non-manifold, 0 loose, 0 zero-area, normals outward.
+- UV0 (artwork): one island per panel face, art fills the whole face at native orientation, 16 px edge-extend padding, no overlap. Bevel and thin edge faces clamp to the face edge pixels, so no art bleed on edges. Inner (hidden) faces point at a small plain-card island.
+- UV1 (ORM/AO): Smart UV, 60 islands, margin 0.02 (checked: no pair of islands closer than 0.01). AO rebaked (Cycles, 128 spp) into orm.png: R = AO, G = roughness 0.6, B = metallic 0. No normal map (flat print).
+- Atlas 2048 basecolor per box. Sleeve front 1200x1061 px (about 12.6 px/mm), sleeve back/left/right 608x538, top 500x500, tray panels 267x303, tray bottom 230x230. Mobile copies at 1024.
+- LOD1: Decimate (collapse, ratio 0.5) per box, 1024 textures.
+- Old outputs kept as *_OLD08. Source .blend untouched; work file sook_web-export_v3.blend.
 
-GAPS IN THE ARTWORK
-- Berry-Bloom has two complete sleeve sets (aqua 25-29 and white 42-46) but no tray artwork (no portrait panels).
-  The node uses the aqua sleeve; its tray is plain white card (0.9) as a placeholder. Only the strip of tray below the
-  lid (~17 mm) and the base show when closed. The white-sleeve version is baked as basecolor_berry-bloom-white.png.
-- A few panel PNGs (Garden 15, 18; Summer 173, 177) have 0.2-0.5% transparent edge pixels that bake as thin dark edges.
+NODE NAMES / POSITIONS (8 mm gaps, each origin at its own bottom centre)
+sook_box_white  x = -0.1032 m   = GARDEN FRESH (white sleeve, green tray)
+sook_box_aqua   x =  0.0   m    = BERRY BLOOM (aqua sleeve)
+sook_box_red    x = +0.1032 m   = SUMMER SUN (white sleeve, orange/red tray)
+Naming assumption: the brief gave white / aqua / red for the three flavours; I read it as Garden Fresh / Berry Bloom / Summer Sun in that order (by sleeve and tray colour). Rename if you meant otherwise.
+REAL SIZE per box 95.2 x 95.2 x 101.2 mm; group 301.6 x 95.2 x 101.2 mm.
 
-SCALE (assumption, unchanged from the first export - please confirm)
-Modelled ~1.9 m wide; uniform 0.05 scale applied (-> 95 x 95 x 101 mm). Scale all three nodes uniformly if wrong.
+FACE MAPPING (files in E:\Portfolio 2026\SOOK\textures\<flavour>\ "Instagram post - N.png"; face identified by looking at each file, same layout as the gold box)
+Sleeve: front = logo + illustration + product name; back = nutrition facts / barcode; right (+X) = ABOUT THE TEA text; left (-X) = serving + brewing instructions; top = SOOK logo.
+Tray: front = illustration on flavour colour; back = lorem text panel; left/right = cloud panels; bottom = plain flavour colour.
+  Berry Bloom (aqua):  sleeve front 25, back 26, right 27, left 28, top 29. Tray: no artwork supplied - plain card colour (0.95/0.94/0.92). The folder also holds a white-sleeve set (42-46); not used.
+  Garden Fresh (white): sleeve front 36, back 5, right 2, left 3, top 4. Tray front 14, back 15, left 16, right 17, bottom 18.
+  Summer Sun (red):    sleeve front 169, back 170, right 171, left 172, top 176. Tray front 168, back 173, left 174, right 175, bottom 177.
+Nothing rotated, redrawn or recoloured. A 1-2 px transparent edge on some tray PNGs was cropped.
 
-MATERIALS / TEXTURES (2048 PNG on UV1; hidden interior faces packed into a small corner)
-basecolor_garden-fresh.png, basecolor_berry-bloom.png, basecolor_summer-sun.png   one per node
-basecolor_berry-bloom-white.png   swap-in: Berry-Bloom with the white sleeve
-basecolor_gold.png                swap-in: the gold "Thrice Spiced" box from 3D Box.blend
-orm.png (shared)   R = AO 128 spp, G = roughness 0.6 (card, per brief), B = metallic 0 (no foil in any artwork)
-No normal map: the panels are flat print with no emboss/deboss.
-Geometry: 0.8 mm 2-segment bevel on every edge, Smooth by Angle 30, merged at 0.0001, triangulated. ~71 non-manifold edges
-remain where the separate card panels butt at the corners (modelled as slabs, not a folded net).
+TRIANGLES: LOD0 1,080 per box (3,240 total) | LOD1 540 per box (1,620 total)
+FILES: sook.glb 3.66 MB | sook.mobile.glb 1.32 MB
+TEXTURES (textures\): sook_box_<white|aqua|red>_basecolor.png 2048 and _1024.png; sook_box_orm.png 2048 and _1024.png
 
-FILE SIZES
-sook.glb          1.87 MB
-sook.mobile.glb   1.87 MB
-basecolor_berry-bloom-white.png   0.29 MB
-basecolor_berry-bloom.png         0.30 MB
-basecolor_garden-fresh.png        0.38 MB
-basecolor_gold.png                0.45 MB
-basecolor_summer-sun.png          0.40 MB
-orm.png                           0.57 MB
-sook.ref.png                      2.03 MB
-
-VALIDATION (both GLBs re-imported into empty scenes)
-3 mesh nodes with the right names, group 0.3016 x 0.0951 x 0.1012 m, bottom at 0, centred, 4 images at 2048, 0 missing.
-
-OTHER
-AgX in Blender 5.2 has no "Medium Contrast" look; reference render uses AgX Base Contrast.
-sook_web-export.blend1 is Blender's automatic backup; safe to delete.
+NOT FIXABLE / NOTES
+- Berry Bloom tray has no artwork in the supplied files.
+- Card panels overlap by about 0.9 mm where sleeve and tray panels meet (as in the source); the overlapped parts are hidden. No coincident faces.
+- Tray left/right (cloud) faces and the tray bottom are barely visible when closed, so their orientation was not separately checked on the sheet.
+- Check sheet uses AgX Base Contrast (no Medium Contrast look in Blender 5.2).

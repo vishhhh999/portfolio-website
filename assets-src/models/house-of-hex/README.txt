@@ -1,15 +1,29 @@
-HOUSE OF HEX PHONE ON A STAND - web export (slug: house-of-hex)
-Source: E:\Portfolio 2026\House of Hex\assets\models\iphone-17-pro-ma_...\iphone-17-pro-max_2K_...blend (original asset). 3.blend inspected: it holds the same phone twice inside a scene with backdrop, rails and video/PNG screen textures, not a standalone set-up phone, so the original asset was used. Working copy: house-of-hex_web-export.blend
-Nodes: phone (body + camera + separate GLASS material on the glass faces), stand (modelled: 5 mm angled back plate at 12 deg, front lip, flat foot, matte dark-grey aluminium, 0.8 mm bevel), screen (display only)
-Phone leans back 12 deg; front faces -Y; origin bottom centre of the group (foot underside).
-Dimensions (m): group 0.0900 W x 0.1300 D x 0.1758 H. Phone 0.0785 x 0.163 x 0.0135. Stand 0.090 x 0.130 x 0.1624.
-LOD0: 22975 tris, 3.22 MB (house-of-hex.glb)
-LOD1: 7196 tris, 1.22 MB (house-of-hex.mobile.glb)
-Textures (textures/): house-of-hex_phone_basecolor/orm (2048), house-of-hex_stand_basecolor/orm (1024); mobile: house-of-hex_phone.mobile_* (1024), house-of-hex_stand.mobile_* (512). No normal maps: the phone's detail is geometry; the source normal was a 1024 brushed-metal jpg that did not need re-baking.
-Screen: object 'screen', material 'SCREEN' (black, roughness 0.1, no image). UV0 maps the visible display (rounded-rect n-gon) 0-1 by its bounding box: 0.0730 x 0.1580 m, aspect 0.4621 (w/h), portrait. The surface sits 0.08 mm in front of the bezel glass to avoid z-fighting.
-Ref render: house-of-hex.ref.png (screen black)
-Not done / caveats:
- - Merge-by-distance at 0.0001 removed ~3.3k sub-0.1 mm faces from the source (30,032 -> ~22.6k tris phone), no visible change expected.
- - Camera lens glass is baked into the atlas (dark lens), only the 442-tri GLASS part uses transmission.
- - Stand foot and plate are one extruded mesh; phone and stand AO were baked separately so there is no contact shadow between them in the ORM map (the site lamps/AO should handle it).
- - Export logged a one-off 'mesh not valid' warning on the first LOD0 export; mesh.validate() found nothing to fix and the re-export was clean.
+HOUSE OF HEX PHONE + STAND - web export v3 (screen flicker fix)
+Source: E:\Portfolio 2026\House of Hex\3D Website\house-of-hex_web-export.blend. Working copy: house-of-hex_web-export_v3.blend (original untouched).
+Previous files kept as *_OLD08 (GLBs, textures folder, ref PNG, README).
+
+WHAT WAS WRONG
+- `screen` sat 0.01-0.08 mm from the front glass: three layers were effectively coplanar (phone front panel at y'=-0.04900, glass sheet at -0.04902, screen at -0.04903 in the phone frame). At booth scale this causes depth flicker.
+
+WHAT CHANGED
+- The front glass sheet was exactly the display region (226 faces, 113.4 cm2 = display area, free-floating, no bezel ring). All 226 faces deleted, so the display area has one surface: the screen.
+- `screen` moved to 1.0 mm in front of the former glass plane, along the phone's face normal (12 deg back-tilt). The phone's own front panel is now 1.1 mm behind the screen. UV0 re-fitted to exactly 0-1.
+- Hygiene on `phone`: merged by distance 0.0001 (273 verts), no loose verts/edges, no zero-area faces.
+- Everything else as before: pose, sizes, materials, textures, node names, UV maps, LOD ratios. Stand untouched (closed, 332 tris).
+
+DISPLAY: 73.01 x 158.01 mm, aspect 0.4621:1.
+SCREEN OFFSET: 1.0 mm in front of the glass surface (was ~0.01-0.08 mm).
+
+OBJECTS: phone (house-of-hex_phone_mat + GLASS for lenses/camera), stand (house-of-hex_stand_mat), screen (SCREEN).
+DIMENSIONS (assembled): 90 x 130 x 175.8 mm (stand footprint 90 x 130; phone body 79.1 mm wide).
+TRIANGLES: LOD0 22,671 (phone 22,265, stand 332, screen 74). LOD1 7,084 (phone decimated 0.3, textures 1024 / stand 512).
+FILES: house-of-hex.glb 3.37 MB (LOD0) | house-of-hex.mobile.glb 1.27 MB (LOD1).
+
+NON-MANIFOLD EDGES: stand 0; screen 76 (single-sided flat plane by design); phone 2,728 (1,887 open boundary + 841 edges shared by >2 faces).
+- Phone cannot be closed without remodelling: it is 47 touching source shells (frame, buttons, lens rings, camera, internals) that share edges and have open interiors. Normal recalculation was NOT applied: it would flip 2,556 faces of those open shells wrongly. Normals were checked visually on all 8 views: no flipped/black faces, no holes, no see-through areas from the back, sides or top.
+- Stand viewed from all sides: closed solid, backrest back face reads dark (source material), no holes.
+
+TEXTURES (textures/, unchanged from the previous export): house-of-hex_phone_basecolor.png + _orm.png (2048), house-of-hex_phone.mobile_* (1024), house-of-hex_stand_* (1024), house-of-hex_stand.mobile_* (512; the stand art is 1024).
+UV: UVMap(UV0)/UV1 on phone and stand as before; no new bake.
+CHECK SHEET: house-of-hex.check-sheet.png (8 views, 4x2, 600px, 50mm, world 0.18, one soft area light, AgX 'Base Contrast' = neutral Medium Contrast look in Blender 5.2). house-of-hex.ref.png = 3/4 view.
+VALIDATION: both GLBs re-imported into an empty scene; scale, origin at bottom centre (min z=0), 3 named nodes and textures correct.
