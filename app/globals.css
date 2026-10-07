@@ -154,6 +154,12 @@ html[data-house-lights] .panel-slot { margin-top: 0; }
 .hero a { pointer-events: auto; }
 .hero h1 { font-size: clamp(34px, 4vw, 64px); }
 .hero p { margin: 10px auto 0; max-width: 52ch; font-size: clamp(15px, 1.1vw, 18px); }
+/* P12 (09): on large screens the headline and subtext grow with the stage (width and height both),
+   so the booth no longer sits small in cream at 1920 and 2560 */
+@media (min-width: 1700px) and (min-height: 1000px) {
+  .hero h1 { font-size: clamp(64px, min(4vw, 6.6vh), 104px); }
+  .hero p { font-size: clamp(18px, min(1.05vw, 1.75vh), 24px); }
+}
 
 /* ── C5: the home page's Index view (the nav swaps it in place; the booth is off meanwhile) ── */
 .homeindex { display: none; }
@@ -242,7 +248,8 @@ html:has(.panel[data-place='float']) { --panel-clear: 76px; }
 }
 
 /* Dark lamps (UV, FLOOD, SCREEN, AFTER DARK): DOM over the booth goes light. */
-html[data-dark='true'] .masthead,
+/* F2 (09): the masthead always sits on paper (the header stage starts under it), so it keeps its ink
+   under every lamp; it used to turn paper-coloured under the dark lamps and vanish */
 html[data-dark='true'] .hero { color: var(--paper); }
 html[data-dark='true'] .booth-stage::after { mix-blend-mode: screen; opacity: 0.05; }
 html[data-dark='true'][data-lamp='AFTERDARK'] main { cursor: none; }
@@ -415,8 +422,8 @@ html[data-house-lights] .work__turn { display: none; }
   .cert__body { grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); }
   .cert__col--record > .cert__section:first-child { margin-top: 0; }
   /* J (09): the record runs the full height of the person's column: its sections are spread over it
-     (equal gaps, never under 48px), so the two columns end together at the portrait's caption */
-  .cert__col--record { padding-top: 6px; display: flex; flex-direction: column; justify-content: space-between; row-gap: 48px; }
+     (equal gaps, never under 28px), so the two columns end together at the portrait's caption */
+  .cert__col--record { padding-top: 6px; display: flex; flex-direction: column; justify-content: space-between; row-gap: 28px; }
   .cert__col--record > .cert__section, .cert__col--record > .cert__links { margin-top: 0 !important; }
   .cert__col--record .cert__fields div { padding: 14px 0; }
   .cert__col--person .cert__portrait { margin-bottom: 0; }
@@ -586,7 +593,6 @@ main:focus { outline: none; }
 .sitenav a[aria-current='page'] { text-decoration: underline; text-underline-offset: 4px; }
 .sitenav__book { padding: 0 16px; min-height: 36px; background: var(--ink); color: var(--paper); border-radius: 2px; text-decoration: none !important; }
 .sitenav__book:hover { background: #2b2b29; }
-html[data-dark='true'] .sitenav__book { background: var(--paper); color: var(--ink); }
 
 /* G: the outbound link as a real button */
 .calib__live { padding: 12px; border-top: 1.5px solid var(--ink); }
@@ -706,3 +712,28 @@ html[data-type='c'] .hero h1 { font-family: 'Type C', var(--sans); font-weight: 
 
 /* P2: the project header's tray poster fills the stage (cover, centred on the sample) */
 .booth-poster--tray img { object-fit: cover; object-position: 50% 50%; }
+
+/* P11: archive tiles: dominant colour + blur-up until the image lands; the whole tile opens the viewer */
+.archive__fig { position: relative; }
+.archive__frame { background-size: cover; background-position: center; }
+.archive__open { position: absolute; inset: 0; width: 100%; border: 0; padding: 0; background: transparent; cursor: zoom-in; }
+.archive__open:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+.lightbox { padding: 0; border: 0; background: transparent; max-width: 100vw; max-height: 100vh; width: 100vw; height: 100dvh; margin: 0; }
+.lightbox::backdrop { background: rgba(12, 12, 11, 0.94); }
+.lightbox__fig { margin: 0; height: 100%; display: grid; grid-template-rows: minmax(0, 1fr) auto; gap: 12px; padding: clamp(12px, 3vw, 40px); box-sizing: border-box; }
+.lightbox__fig img, .lightbox__fig video { width: 100%; height: 100%; object-fit: contain; min-height: 0; }
+.lightbox__bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px; color: var(--paper); }
+.lightbox__title { font-size: 16px; }
+.lightbox__nav { margin-left: auto; display: flex; gap: 8px; }
+.lightbox__btn { min-width: 44px; min-height: 44px; border: 1px solid #f2f0ea55; background: transparent; color: var(--paper); border-radius: 2px; font-size: 18px; cursor: pointer; }
+.lightbox__btn:hover { background: #f2f0ea22; }
+.lightbox__btn:focus-visible { outline: 2px solid var(--paper); outline-offset: 2px; }
+
+/* P10: the sample tags on the home booth (desktop and tablet-wide), after the reveal, room lamps only */
+.sampletags { position: fixed; inset: 0; z-index: 1; pointer-events: none; display: none; }
+@media (min-width: 900px) { .sampletags { display: block; } }
+.sampletag { position: absolute; left: 0; top: 0; white-space: nowrap; padding: 2px 6px; font-size: var(--chrome-fs-sm); letter-spacing: 0.1em;
+  color: #3b3b39; background: rgba(214, 213, 209, 0.82); box-shadow: inset 0 1px 0 rgba(0,0,0,0.18), inset 0 -1px 0 rgba(255,255,255,0.5); border-radius: 1px;
+  opacity: 0; transition: opacity 400ms linear; }
+html[data-booth-ready] .sampletag[data-on='true'] { opacity: 0.9; }
+.sampletags[data-dark='true'], html[data-house-lights] .sampletags, html[data-home-index] .sampletags { display: none; }

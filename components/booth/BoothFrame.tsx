@@ -7,6 +7,7 @@ import { registerFrame } from '@/lib/views';
 import { playEvent } from '@/lib/sound';
 import { CABINET_FACE, PHONE_LAYOUT, STAGING } from './staging';
 import { BoothFocus } from './BoothFocus';
+import { SampleTags } from './SampleTags';
 import { BoothHint } from '@/components/ui/BoothHint';
 
 export type FrameSample = { slug: string; title: string; meta: string };
@@ -93,6 +94,7 @@ export function BoothFrame({ samples: given }: { samples: FrameSample[] }) {
   return (
     <div className="booth-frame-wrap">
       <BoothFocus samples={samples} />
+      <SampleTags samples={samples} />
       <div
         ref={ref}
         className="booth-frame"

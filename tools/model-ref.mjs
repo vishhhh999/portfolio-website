@@ -16,10 +16,10 @@ mkdirSync(OUT, { recursive: true });
 const b = await pw.chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 const LIST = process.argv[2] ? process.argv[2].split(',') : ['too-yumm', 'sook', 'jsw-sports', 'jsw-sports:open', 'shunya', 'mitooshi', 'house-of-hex', 'sonde', 'indo-thai', 'bengal-t20'];
 for (const item of LIST) {
-  // A6 (09): slug[:variant][@yaw,elev] orbits the camera (degrees): a 3/4 view to match a reference, or the back
+  // A6 (09): slug[:variant][@yaw/elev] orbits the camera (degrees): a 3/4 view to match a reference, or the back
   const [main, angles] = item.split('@');
   const [slug, variant] = main.split(':');
-  const [yaw, elev] = (angles ?? '').split(',');
+  const [yaw, elev] = (angles ?? '').split('/');
   const p = await b.newPage({ viewport: { width: 800, height: 800 }, reducedMotion: 'reduce' });
   p.setDefaultTimeout(600000);
   await p.goto(`${BASE}/?modelref=${slug}&gpu=high&tone=agx${variant ? '&open' : ''}${angles ? `&yaw=${yaw}&elev=${elev}` : ''}`, { waitUntil: 'networkidle' });

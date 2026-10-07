@@ -4,6 +4,11 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { ARCHIVE_CATEGORIES, type ArchiveCategory, type ArchivePiece } from '@/content/archive';
 import { playEvent } from '@/lib/sound';
+import LQIP from '@/content/archive-lqip.json';
+
+/** P11 (09): a tile's dominant colour and 16px blur-up, shown until its image arrives. */
+const lqip = (p: ArchivePiece) => (LQIP as Record<string, { c: string; q: string }>)[p.type === 'video' ? p.poster ?? '' : p.src];
+const tag = (p: ArchivePiece) => `A${String(p.no).padStart(2, '0')}`;
 
 /** Column width: 4 columns on desktop, 2 on phones (globals.css .archive). */
 const SIZES = '(max-width: 760px) 50vw, (max-width: 1100px) 33vw, 25vw';
@@ -32,7 +37,14 @@ export function ArchiveGrid({ pieces }: { pieces: ArchivePiece[] }) {
     playEvent('loupe');
     router.replace(q ? `${pathname}?${q}` : pathname, { scroll: false });
   };
-  return <ArchiveView pieces={pieces} current={params.get('series') ?? 'all'} onSet={set} />;
+  const current = params.get('series') ?? 'all';
+  const shown = pieces.filter((p) => current === 'all' || p.category === current);
+  return (
+    <>
+      <ArchiveView pieces={pieces} current={current} onSet={set} onOpen={(p) => window.dispatchEvent(new CustomEvent('archive:open', { detail: p.src }))} />
+      <ArchiveLightbox pieces={shown} />
+    </>
+  );
 }
 
 /** G2: a clip loops, muted, only while it is on screen; its poster is sized to the column. */
@@ -61,7 +73,7 @@ function Clip({ p }: { p: ArchivePiece }) {
 }
 
 /** The grid itself; also the server-rendered, unfiltered fallback (no onSet: the chips are inert until hydrated). */
-export function ArchiveView({ pieces, current = 'all', onSet }: { pieces: ArchivePiece[]; current?: string; onSet?: (value: string) => void }) {
+export function ArchiveView({ pieces, current = 'all', onSet, onOpen }: { pieces: ArchivePiece[]; current?: string; onSet?: (value: string) => void; onOpen?: (p: ArchivePiece) => void }) {
   const chips: Chip[] = [{ id: 'all', label: 'All' }, ...ARCHIVE_CATEGORIES];
   const shown = pieces.filter((p) => current === 'all' || p.category === current);
   const count = (id: Chip['id']) => (id === 'all' ? pieces.length : pieces.filter((p) => p.category === id).length);
@@ -86,7 +98,10 @@ export function ArchiveView({ pieces, current = 'all', onSet }: { pieces: Archiv
         {shown.map((p, i) => (
           <li key={p.src} id={`a${String(p.no).padStart(2, '0')}`} className="archive__item">
             <figure className="archive__fig">
-              <span className="archive__frame" style={{ aspectRatio: `${p.width ?? 1} / ${p.height ?? 1}` }}>
+              <span
+                className="archive__frame"
+                style={{ aspectRatio: `${p.width ?? 1} / ${p.height ?? 1}`, backgroundColor: lqip(p)?.c, backgroundImage: lqip(p) ? `url(${lqip(p)!.q})` : undefined }}
+              >
                 {p.type === 'video' ? (
                   <Clip p={p} />
                 ) : (
@@ -108,12 +123,109 @@ export function ArchiveView({ pieces, current = 'all', onSet }: { pieces: Archiv
                 )}
               </span>
               <figcaption className="archive__caption mono">
-                <span className="archive__no">A{String(p.no).padStart(2, '0')}</span> {p.title}
+                <span className="archive__no">{tag(p)}</span> {p.title}
               </figcaption>
+              {/* P11 (09): the whole tile opens the viewer (click, Enter or Space) */}
+              <button type="button" className="archive__open" aria-label={`View ${tag(p)}, ${p.title}`} onClick={() => onOpen?.(p)} />
             </figure>
           </li>
         ))}
       </ol>
     </>
+  );
+}
+
+/**
+ * P11 (09): the archive viewer. Click or Enter on a tile opens it; ← → (and a swipe) move through the
+ * pieces shown; Esc closes; focus stays inside (a modal <dialog>); the URL hash names the piece (#A07),
+ * so a link opens straight onto it. The images are the plain files.
+ */
+export function ArchiveLightbox({ pieces }: { pieces: ArchivePiece[] }) {
+  const ref = useRef<HTMLDialogElement>(null);
+  const [at, setAt] = useState<number | null>(null);
+  const open = (i: number | null) => setAt(i);
+  useEffect(() => {
+    const fromHash = () => {
+      const m = /^#A(\d{2})$/i.exec(window.location.hash);
+      const i = m ? pieces.findIndex((p) => p.no === +m[1]) : -1;
+      setAt(i >= 0 ? i : null);
+    };
+    fromHash();
+    window.addEventListener('hashchange', fromHash);
+    const onOpen = (e: Event) => {
+      const i = pieces.findIndex((p) => p.src === (e as CustomEvent<string>).detail);
+      if (i >= 0) setAt(i);
+    };
+    window.addEventListener('archive:open', onOpen);
+    return () => {
+      window.removeEventListener('hashchange', fromHash);
+      window.removeEventListener('archive:open', onOpen);
+    };
+  }, [pieces]);
+  useEffect(() => {
+    const d = ref.current;
+    if (!d) return;
+    if (at !== null) {
+      if (!d.open) d.showModal();
+      const h = `#${tag(pieces[at])}`;
+      if (window.location.hash !== h) history.replaceState(null, '', `${window.location.pathname}${window.location.search}${h}`);
+    } else {
+      if (d.open) d.close();
+      if (window.location.hash) history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
+    }
+  }, [at, pieces]);
+  const step = (d: number) => setAt((i) => (i === null ? i : (i + d + pieces.length) % pieces.length));
+  const touch = useRef<number | null>(null);
+  const p = at !== null ? pieces[at] : null;
+  return (
+    <dialog
+      ref={ref}
+      className="lightbox"
+      aria-label={p ? `${tag(p)}, ${p.title}` : 'Archive viewer'}
+      onClose={() => open(null)}
+      onKeyDown={(e) => {
+        if (e.key === 'ArrowRight') (e.preventDefault(), step(1));
+        if (e.key === 'ArrowLeft') (e.preventDefault(), step(-1));
+      }}
+      onTouchStart={(e) => (touch.current = e.touches[0].clientX)}
+      onTouchEnd={(e) => {
+        const x0 = touch.current;
+        touch.current = null;
+        if (x0 === null) return;
+        const dx = e.changedTouches[0].clientX - x0;
+        if (Math.abs(dx) > 40) step(dx < 0 ? 1 : -1);
+      }}
+      onClick={(e) => {
+        if (e.target === ref.current) open(null);
+      }}
+    >
+      {p && (
+        <figure className="lightbox__fig">
+          {p.type === 'video' ? (
+            <video key={p.src} src={p.src} poster={p.poster} muted loop playsInline autoPlay controls aria-label={p.alt} />
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img key={p.src} src={p.src} alt={p.alt} width={p.width} height={p.height} />
+          )}
+          <figcaption className="lightbox__bar">
+            <span className="mono">
+              {tag(p)} · {at! + 1} / {pieces.length}
+            </span>
+            <span className="lightbox__title">{p.title}</span>
+            <span className="lightbox__nav">
+              <button type="button" className="lightbox__btn" onClick={() => step(-1)} aria-label="Previous piece">
+                ←
+              </button>
+              <button type="button" className="lightbox__btn" onClick={() => step(1)} aria-label="Next piece">
+                →
+              </button>
+              <button type="button" className="lightbox__btn" onClick={() => open(null)} aria-label="Close the viewer" autoFocus>
+                ✕
+              </button>
+            </span>
+          </figcaption>
+        </figure>
+      )}
+    </dialog>
   );
 }
