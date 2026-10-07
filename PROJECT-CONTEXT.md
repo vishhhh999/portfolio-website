@@ -1,6 +1,6 @@
 # visheshmahendru.com: The Booth. Full project context
 
-This document holds everything needed to pick the project up cold, by you or by a new Claude session. It is current as of 4 Oct 2026, after batch 06 (glitches, layout, proofs untouched, house lights as a mode, About, composition, SCREEN).
+This document holds everything needed to pick the project up cold, by you or by a new Claude session. It is current as of 7 Oct 2026, after batch 08 and its follow-up (PR #5). `HANDOVER.md` has the session wrap-up, including Vishesh's three later commits on `main` (covers, repaired source models, the lightmap) that still need integrating.
 
 Paste it (or point to it) at the start of any new session, together with `BRIEF.md` from the repo.
 
@@ -86,7 +86,7 @@ The full original concept, phases and locked rules are in `BRIEF.md` in the repo
 
 **Contact:** work@visheshmahendru.com ("Book a viewing" mailto plus a copy-email button), in the site footer only.
 
-**Lamp panel:** on `/` it sits in the flow, centred under the booth (portalled into `#panel-slot`). On project pages it floats bottom centre as a pill showing the active lamp; it opens on hover or click and folds back when the page scrolls content under it; pages keep `--panel-clear` of space under their last content. No panel on `/about`, `/archive`, `/house-lights`.
+**Lamp panel:** on `/` it sits in the flow, centred under the booth (portalled into `#panel-slot`). On project pages it is a small centred pill (dot + lamp name) that opens on hover or click. While the booth header is on screen it rides the header's bottom edge; below that it slides away while scrolling down and returns on scroll up or after 1.2s still, never over a proof (08 H3, `SwitchPanel.tsx`). Pages keep `--panel-clear` of space under their last content. No panel on `/about`, `/archive`, `/house-lights`.
 
 **Socials** (in `lib/site.ts`):
 - Instagram vishafterdark
@@ -441,7 +441,7 @@ The detailed delivery report for the batch is `DELIVERY.md` in the repo.
 
 ## 12. How to work on this project (for any future Claude session)
 
-1. **Read** `BRIEF.md`, then this file, then the latest `DELIVERY-0N.md`.
+1. **Read** `BRIEF.md`, then this file, then `HANDOVER.md`, then the latest `DELIVERY-0N.md`.
 2. **Ask before building.** Explain the plan in plain language: Vishesh doesn't code. Once approved, execute fully without stopping halfway.
 3. **Branch, preview, merge.** Work on a branch and let Vercel build a preview. Merge to `main` only after a green preview, because `main` is the live site.
 4. **Commit and push after each meaningful step.** Cloud containers are ephemeral.
