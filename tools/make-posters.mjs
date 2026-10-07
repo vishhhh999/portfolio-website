@@ -66,6 +66,9 @@ async function trayCapture(slug, w, h, dpr, mobile) {
   });
   await page.goto(`${BASE}/work/${slug}?gpu=high`, { waitUntil: 'networkidle' });
   await page.waitForSelector('.booth-stage[data-ready="true"]');
+  // the neighbours load when idle and fade in: capture the settled shelf, not a moment in its loading
+  await page.waitForLoadState('networkidle');
+  await page.waitForTimeout(2500);
   await page.addStyleTag({ content: '.booth-poster,.panel,.masthead,.specchip,.cursorlabel,.booth-stage::after{visibility:hidden!important}' });
   await page.waitForTimeout(5000);
   const r = await page.locator('.booth-stage').boundingBox();

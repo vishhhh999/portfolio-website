@@ -50,6 +50,9 @@ for (const slug of (process.env.TRAY ?? 'too-yumm,jsw-sports,mitooshi,sonde,hous
     });
     await p.goto(`${BASE}/work/${slug}?gpu=high`, { waitUntil: 'networkidle' });
     await p.waitForSelector('.booth-stage[data-ready="true"]');
+    // the neighbours load when idle and fade in: capture the settled shelf, not a moment in its loading
+    await p.waitForLoadState('networkidle');
+    await p.waitForTimeout(2500);
     await p.addStyleTag({ content: '.booth-poster,.panel,.masthead,.specchip,.cursorlabel,.booth-stage::after{visibility:hidden!important}' });
     await p.waitForTimeout(5000);
     const r = await p.locator('.booth-stage').boundingBox();
