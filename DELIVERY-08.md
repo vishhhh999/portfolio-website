@@ -12,7 +12,8 @@ Work is on branch `claude/session-access-question-dqidr4`. The screenshots are i
 |---|---|---|
 | `check-flicker` (extended, C7) | No presented frame dips: the reveal (poster vs live ≤ 4%), hover on and off every sample under D50 and A, a lamp change, a turntable spin and release, the JSW open | **PASS**. Reveal: poster vs live 1.03%. Hover: worst 0.5% (D50), 0.7% (A). Lamp change: worst dip 0.1% (it was 83.6% before the fix below). Spin: 0.6%. JSW open: 0.0% |
 | `check-poster` (new, C1) | The poster matches the live booth | **PASS**: 1.34% desktop, 0.52% phone (limit 2.5%) |
-| `poster-hash --check` (in the build) | The build refuses a poster older than the booth | **PASS** |
+| `poster-hash --check` (in the build) | The build refuses a poster older than the booth, or a poster file that isn't the one `make-posters` rendered (it records each file's own hash) | **PASS** |
+| **07's stale poster** (C7 requirement) | 07's actual poster put back in place | **All three gates reject it**: check-flicker reveal FAIL (44.25% vs live, limit 4%), check-poster FAIL (44.34%, limit 2.5%), build hash check FAIL |
 | `check-sizes` (E, G) | Long side ≥ 11% (9% raised); boxes overlap ≤ 3%; ≥ 8cm clear. Phones: ≥ 14% of the box, all in frame, ≥ 5cm | **PASS** at 1440, 1568, 2560×1271, 1920, 1366, 725. Smallest: the phone, 9.1% (raised); Too Yumm 11.9%; worst overlap 1.0% (725); gap 11.0cm. Phones 390×844 and 430×932: smallest 14.9%, overlap 0.0%, gap 5.5cm, all in frame |
 | `check-picking` (B4) | A click opens only what is seen, on `/` and all nine project pages, at 1568×980, 390×844 and 430×932 | **PASS**, every point on all 30 route × size runs |
 | `check-views` | The booth drawn on its DOM rect | **PASS**, 12 of 12 (after fitting the cabinet 1px inside its frame: the antialiased silhouette had overhung by 2.5–3px at 1920 and 2560) |
@@ -72,7 +73,10 @@ The still frame is 24% cheaper than the moving one. On a still frame the normal 
 - **The poster is the live booth.** `tools/make-posters.mjs` renders it from the current staging: the cabinet frame crop at 1200 and 2400, plus a 4:5 phone poster.
   - The build refuses a stale poster (`tools/poster-hash.mjs --check` hashes every input of the booth image).
   - `check-poster` compares the poster with the live render: 1.34% mean difference on desktop, 0.52% on the phone (limit 2.5%).
-  - 07's poster showed an older staging (it was a still from before the 07 layout). The build's hash check now makes that impossible: any change to the staging, models, lamps or materials changes the hash and stops the build until the posters are regenerated.
+  - 07's poster showed the batch-06 booth. Three gates now stop that, and all three were run against 07's actual poster and failed it:
+    - the build's hash check: any change to the staging, models, lamps or materials, or a poster file swapped by hand, stops the build until the posters are regenerated;
+    - `check-poster`: 44.3% difference against a 2.5% limit;
+    - `check-flicker`'s reveal: 44.3% against a 4% limit.
 - **Reveal.** The poster stays until the visible models are in, the lamp's interior is captured and one full frame has rendered (programs compiled first). It then crossfades over 300ms; a model that arrives later fades in over 250ms. Contact sheet: `reveal-sheet.jpg`.
 - **No runtime pass changes.** Every pass exists from the first frame. Lights that switch on, like the hover key and the certificate spot, stay in the scene at intensity 0, so no material recompiles mid-session.
 - **Pre-capture.** Every lamp's environment is captured while idle, after the reveal, so the first switch to a lamp no longer captures on screen.
@@ -124,11 +128,10 @@ The still frame is 24% cheaper than the moving one. On a still frame the normal 
 1. "Play with sound" appears only for a video with an audio stream (ffprobe at build, `content/audio.json`). **None of the eight current videos has one**, so the button is hidden everywhere until a video with sound is added.
 2. The "CHECKED UNDER… / PASS" row is gone from the calibration label.
 3. The lamp pill:
-   - shrinks to a dot and the lamp name;
-   - docks bottom left;
-   - slides away while scrolling down;
-   - returns on scroll up or after 1.2s still;
-   - never returns over a proof.
+   - stays centred and small: a dot and the lamp name;
+   - at load it sits on the booth header's bottom edge, over the 3D view rather than proof 01;
+   - past the header it takes the bottom slot, slides away while scrolling down, and returns on scroll up or after 1.2s still;
+   - never returns over a proof: it decides every frame while the page moves, because the smooth scroll moves the page after the scroll event.
 4. The Index preview box takes each still's own aspect (max 70svh), with no letterbox.
 5. Lazy proofs start loading one screen ahead. `review-shots` full-page captures wait for every image.
 6. The manifest is linked with `crossOrigin="use-credentials"` everywhere (it was only on Vercel previews).
@@ -141,7 +144,11 @@ The still frame is 24% cheaper than the moving one. On a still frame the normal 
 - /work/mitooshi, /work/jsw-sports (open), /work/shunya and /work/indo-thai.
 
 Also:
-- `reveal-sheet.jpg`: 12 frames. Two posters while the booth loads, the real 300ms crossfade held at nine points (0–300ms; software rendering can't present it in real time, so the CSS transition is paused and stepped), and the live booth.
+- `reveal-sheet.jpg`: the 12-frame first visit:
+  - two posters while the booth loads;
+  - the real 300ms crossfade held at 0, 100, 200 and 300ms (the booth is dark, ready to strike);
+  - the D50 tube strike at 12, 25, 40, 55, 75 and 100%.
+  - Software rendering can't present either in real time, so the CSS transition is paused and stepped, and the strike is held with `window.__boothStrikeHold`, a review-only hook like `__boothAnimHold`.
 - `jsw-compare.jpg`, `aa-compare.png` and `tray-zoom/`.
 
 ## 10. Budgets
@@ -149,7 +156,9 @@ Also:
 | Budget | Target | Now |
 |---|---|---|
 | Frame at 1440p (RTX) | p50 ≤ 8ms, p95 ≤ 11ms | Read on the RTX with the §2 commands. In software rendering, a still frame costs 76% of a moving one |
-| Models, desktop | | 8.77MB in total across nine files, loaded in view priority (JSW 1.52 → 0.64MB) |
-| Models, mobile | | 2.22MB |
+| JS before 3D (gz) | ≤ 200KB | **181.6KB** |
+| Lazy 3D chunk (gz) | ≤ 460KB | **427.3KB** |
+| Models, desktop | ≤ 6MB | **8.77MB: over.** Nine files, loaded in view priority. The two heaviest are SHUNYA (2.09MB) and Bengal (1.47MB). JSW went down (1.52 → 0.64MB); the overage came in with 07's six new models |
+| Models, mobile | ≤ 2.5MB | **2.22MB** |
 | SCREEN on pouch / book / SOOK | 15–25 L* | 19.3 / 22.4 / 20.8 |
 | Poster vs live | ≤ 2.5% | 1.34% desktop, 0.52% phone |

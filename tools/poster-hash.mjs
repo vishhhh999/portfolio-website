@@ -18,6 +18,11 @@ const FILES = [
 ];
 const DIRS = ['public/models', 'public/brand'];
 const walk = (d) => readdirSync(join(ROOT, d)).sort().flatMap((f) => (statSync(join(ROOT, d, f)).isDirectory() ? walk(`${d}/${f}`) : [`${d}/${f}`]));
+/** The poster files themselves: a poster swapped by hand (or an old one restored) fails the check too. */
+export const POSTERS = ['poster-cabinet-1200.webp', 'poster-cabinet-2400.webp', 'poster-cabinet-1200.jpg', 'poster-phone.webp', 'poster-cabinet-dark-1200.webp', 'poster-cabinet-dark-2400.webp', 'poster-phone-dark.webp'];
+export function posterFileHashes() {
+  return Object.fromEntries(POSTERS.map((f) => [f, existsSync(join(ROOT, 'public/booth', f)) ? createHash('sha256').update(readFileSync(join(ROOT, 'public/booth', f))).digest('hex') : null]));
+}
 export function posterHash() {
   const h = createHash('sha256');
   for (const f of [...FILES, ...DIRS.flatMap(walk)]) {
@@ -32,7 +37,14 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   if (!process.argv.includes('--check')) console.log(hash);
   else {
     const meta = join(ROOT, 'public/booth/posters.json');
-    const at = existsSync(meta) ? JSON.parse(readFileSync(meta, 'utf8')).hash : null;
+    const m = existsSync(meta) ? JSON.parse(readFileSync(meta, 'utf8')) : {};
+    const at = m.hash ?? null;
+    const files = posterFileHashes();
+    const changed = POSTERS.filter((f) => !m.files || m.files[f] !== files[f]);
+    if (changed.length) {
+      console.error(`✗ the booth posters are not the ones make-posters rendered: ${changed.join(', ')}.\n  Run: npm run build && npx next start -p 3100 & then node tools/make-posters.mjs`);
+      process.exit(1);
+    }
     if (at !== hash) {
       console.error(`✗ the booth posters are stale (rendered from ${at ? at.slice(0, 12) : 'nothing'}, the booth is now ${hash.slice(0, 12)}).\n  Run: npm run build && npx next start -p 3100 & then node tools/make-posters.mjs`);
       process.exit(1);

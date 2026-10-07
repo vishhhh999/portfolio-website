@@ -1,4 +1,13 @@
 {
-  "hash": "03d5697d720541a7a7000c9d375c3ed90613ad00717ebaf2eb4868ad8e02a6b1",
-  "rendered": "2026-10-05T23:10:13.810Z"
+  "hash": "d85a3aff62870e5c6020f6d8094fb2447ee0c64419c091df786308a4ed5191b0",
+  "files": {
+    "poster-cabinet-1200.webp": "f06f3156cdaa3132b18f3e14d7430252d33c05143bbdabaae3ce49766621e1fc",
+    "poster-cabinet-2400.webp": "2bbea720c20175260a049af88a839286fc127c2a5c326329f1cef5ae2c65ac20",
+    "poster-cabinet-1200.jpg": "83885931dad5f4ec81434101befd5db434b35050f4c565b89c96cf112ad86dbb",
+    "poster-phone.webp": "46f1d850b7c92cba9550aba00e24722709a257ec0766c05004049ed0fabdab9e",
+    "poster-cabinet-dark-1200.webp": "bd2ddc34e525251800152f95699db978261b7ca91462c8a1d2f0db3419af9cae",
+    "poster-cabinet-dark-2400.webp": "2986792e1ec196558d9c53169a3d84500ede98617447b993ef3ee094db242a94",
+    "poster-phone-dark.webp": "a87d1c26f0433f5da7db26dd4ae4d499df2ab5b6b8ff74daa50fd4cdadd79ab1"
+  },
+  "rendered": "2026-10-07T09:43:08.631Z"
 }

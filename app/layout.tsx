@@ -42,7 +42,7 @@ export const viewport: Viewport = { themeColor: '#A8A8A6' };
  * mode, never a redirect).
  * Same keys as lib/store.ts. Only the visitor's own choices ever set them.
  */
-const HOUSE_LIGHTS_BOOT = `(function(){try{var l=sessionStorage.getItem('vm:lamp:v1');if(l)document.documentElement.setAttribute('data-lamp',l);}catch(e){}try{if(localStorage.getItem('vm:houseLights:v2')==='1'||sessionStorage.getItem('vm:autoHouseLights:v1')==='1')document.documentElement.setAttribute('data-house-lights','');}catch(e){}})();`;
+const HOUSE_LIGHTS_BOOT = `(function(){try{var l=sessionStorage.getItem('vm:lamp:v1');if(l)document.documentElement.setAttribute('data-lamp',l);}catch(e){}try{if(localStorage.getItem('vm:houseLights:v2')==='1'||sessionStorage.getItem('vm:autoHouseLights:v1')==='1')document.documentElement.setAttribute('data-house-lights','');}catch(e){}try{var d=document.documentElement;if(!sessionStorage.getItem('vm:opened:v1')&&!d.hasAttribute('data-house-lights')&&(!l||l==='D50')&&!matchMedia('(prefers-reduced-motion: reduce)').matches)d.setAttribute('data-opening','');}catch(e){}})();`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

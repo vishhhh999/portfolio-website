@@ -76,12 +76,22 @@ export function runOpening(sound: (name: string) => void) {
   let t0 = -1;
   stop = addTicker((now) => {
     if (t0 < 0) t0 = now;
-    const p = Math.min(1, (now - t0) / OPENING_S);
+    // review tools hold the strike at a given progress (window.__boothStrikeHold, like __boothAnimHold),
+    // because software rendering cannot present a 1.2s strike in real time
+    const hold = typeof window !== 'undefined' ? window.__boothStrikeHold : undefined;
+    const p = hold ?? Math.min(1, (now - t0) / OPENING_S);
     useBooth.getState().setStrikeProgress(p);
-    if (p >= 1) {
+    if (hold === undefined && p >= 1) {
       useBooth.setState({ opening: false });
       stop = null;
       return false;
     }
   });
+}
+
+declare global {
+  interface Window {
+    /** Review tools only: holds the first-visit strike at this progress (0..1). */
+    __boothStrikeHold?: number;
+  }
 }
