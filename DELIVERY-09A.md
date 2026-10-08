@@ -11,7 +11,7 @@ PR: https://github.com/vishhhh999/portfolio-website/pull/7 · branch `claude/qui
 |---|---|
 | `poster-hash --check` (build gate; now hashes the served lightmap and the 18 tray posters) | PASS |
 | `check-poster` (home, first visit, and every tray poster, desktop + phone) | PASS 22/22 (worst 1.95%, limit 2.5%). Too Yumm desktop tray was 3.39% on the first run (captured before its neighbours settled); re-rendered on the settled shelf, now 0.37% |
-| `check-flicker` (reveal, hover D50/A, lamp change, **new: D50 → SCREEN → D50**, spin, JSW open) | SUITE:check-flicker |
+| `check-flicker` (reveal, hover D50/A, lamp change, **new: D50 → SCREEN → D50**, spin, JSW open) | PASS, every scenario: no frame dips (worst 1.0%, limit 5%); poster vs live 1.62%. SCREEN switch 64ms key-to-frame in software; the idle SCREEN shader pre-warm had not run yet when the test switched, so on a real GPU the switch can only be cheaper |
 | `check-coplanar` (new, B1) | PASS: 0 separate parts within 0.5mm where a camera sees them. The 08 House of Hex fails it (screen 0.005mm off its glass, 11,337mm²) |
 | `check-sizes` (+ new SHUNYA mesh clearance, H3) | PASS at all 8 sizes. Phone 10.6% (was 9.4%), worst overlap 1.1% at 1568, min gap 8.9cm. SHUNYA pieces ≥ 11.3mm apart (the Pooja carton was intersecting the Ritual Set) |
 | `check-picking` | PASS 30/30 |

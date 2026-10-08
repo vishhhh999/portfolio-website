@@ -2,7 +2,7 @@
 
 ## 09A update (8 Oct 2026, read this first)
 
-Batch 09A is PR #7 (`claude/quirky-knuth-70j1df`). Full report: `DELIVERY-09A.md`. The three half-integrated commits from 08's wrap-up (covers 82eb8e1, repaired models e3dea76, lightmap 8cbbcc1) are now fully integrated. **Next: 09B, the responsive shelf system.**
+Batch 09A is PR #7 (`claude/quirky-knuth-70j1df`), squash-merged to `main`; every check in DELIVERY-09A §1 passes (software rendering). Full report: `DELIVERY-09A.md`. The three half-integrated commits from 08's wrap-up (covers 82eb8e1, repaired models e3dea76, lightmap 8cbbcc1) are now fully integrated. **Next: 09B, the responsive shelf system.**
 
 What changed that the next agent must know:
 - **Lightmap:** served as `public/booth/lightmap.ktx2` (desktop) and `lightmap-phone.webp` (phones); sources in `assets-src/booth/`. Re-encode with `node tools/encode-lightmap.mjs`. Per-lamp `bake` levels in `lib/lampPresets.ts`. On room surfaces the bake replaces the ceiling panel and the hemisphere (shader patch in `BoothRoom.applyLightmap`, which throws if three's chunks change shape). The 08 tint patch had never applied.
