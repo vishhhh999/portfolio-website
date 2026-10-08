@@ -11,6 +11,7 @@
  *   screen      D50 → SCREEN → D50 (E 09: the per-screen lights enter and leave; shaders pre-warmed)
  *   spin        a turntable drag on a sample and its release (the coast, the contact-shadow re-bake)
  *   jsw         the JSW book opened from the lineup (the dolly, the tray, the open animation)
+ *   resize      L2 (09B): a window dragged across every shape and back, an iPad rotated both ways
  *
  *   node tools/check-flicker.mjs [width=1280]   (against a running build)
  */
@@ -209,6 +210,36 @@ if (run('jsw')) {
     await p.waitForTimeout(5000);
   });
   report('JSW open (dolly, tray, open)', lums, '', true);
+}
+
+// ── L2 (09B): a window dragged across every shape and an iPad rotated, both ways ───────────
+// The canvas's own presented frames (the cover over it is CSS): a switch is a step from one
+// arrangement to the other, never a frame below both sides of it
+if (run('resize')) {
+  const q = await b.newPage({ viewport: { width: 2560, height: 1440 } });
+  q.setDefaultTimeout(900000);
+  await q.addInitScript(() => sessionStorage.setItem('vm:opened:v1', '1'));
+  await q.goto(BASE + '/?perf', { waitUntil: 'networkidle' });
+  await q.waitForSelector('.booth-stage[data-ready="true"]', { timeout: 900000 });
+  await q.addStyleTag({ content: '.sampletags,.boothhint,.cursorlabel{visibility:hidden!important}' });
+  await q.waitForTimeout(2000);
+  const settle = async (w, h) => {
+    await q.setViewportSize({ width: w, height: h });
+    await q.waitForFunction(([w, h]) => { const s = window.__boothShape?.(); return s && s.w === w && Math.abs(s.h - h) < 2; }, [w, h], { timeout: 300000, polling: 500 });
+    await q.waitForFunction(() => !document.querySelector('.booth-cover') || document.querySelector('.booth-cover').hidden, null, { timeout: 300000, polling: 500 });
+    for (let i = 0; i < 3; i++) (await q.evaluate(() => window.__boothBench?.(1)), await q.waitForTimeout(200));
+  };
+  const seqs = {
+    'window drag 2560x1440 → 1376x940 → 1032x1230 → 393x659 → back': [[1376, 940], [1032, 1230], [393, 659], [1032, 1230], [1376, 940], [2560, 1440]],
+    'iPad Pro 13 rotation 1032x1230 ↔ 1376x980': [[1032, 1230], [1376, 980], [1032, 1230], [1376, 980]],
+  };
+  for (const [name, seq] of Object.entries(seqs)) {
+    const lums = await capture(q, async () => {
+      for (const [w, h] of seq) await settle(w, h);
+    });
+    report(`resize: ${name}`, lums, '', true);
+  }
+  await q.close();
 }
 
 await b.close();

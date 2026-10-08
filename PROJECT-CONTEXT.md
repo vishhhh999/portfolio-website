@@ -1,6 +1,6 @@
 # visheshmahendru.com: The Booth. Full project context
 
-This document holds everything needed to pick the project up cold, by you or by a new Claude session. It is current as of 8 Oct 2026, after batch 09A (PR #7: the repaired models, the lightmap, the covers and the experience pass are integrated). `HANDOVER.md` has the session wrap-up; `DELIVERY-09A.md` the batch report. 09B (the responsive shelf system) is next.
+This document holds everything needed to pick the project up cold, by you or by a new Claude session. It is current as of 8 Oct 2026, after batch 09B (PR #8: the layout chosen by screen shape, switched live, and the shelf on tall screens), on top of 09A (PR #7). `HANDOVER.md` has the session wrap-up; `DELIVERY-09B.md` and `DELIVERY-09A.md` the batch reports.
 
 Paste it (or point to it) at the start of any new session, together with `BRIEF.md` from the repo.
 
@@ -179,9 +179,11 @@ The data shape is in `lib/types.ts`. Key fields:
 
 | File | Role |
 |---|---|
-| `staging.ts` | Booth dimensions (1.5 × 0.8m), cove, cabinet header (4.5cm since 08), hood, diffuser; the 9 samples at one display scale (K = 1, real size; the Indo Thai tug is a 1:24 model with an engraved plate) in 3 tiers; SHUNYA's N5.5 sweep card on a high riser; the size rule (`sizeFloor`: long side ≥ 11% of the cabinet, 9% on a raised plinth with nothing taller in front); JSW's open width on the tray (`trayW`); the certificate (1.6×, own soft spot); lens FOV 35; eye height and pitch. `PHONE_LAYOUT` (viewport < 600px at load) swaps in `phoneStaging.ts` |
-| `phoneStaging.ts` | G (08): the phone arrangement, all ten objects in three tiers inside the 4:5 portrait box at 0.68 × real size, each ≥ 14% of the box width |
-| `shots.ts` | Camera shots: `cabinetShot` contain-fits the cabinet to the stage, with lens shift (phones: the portrait shot, leaning ≤ 2.5% toward the focused sample on a swipe); `trayShot` for project pages; `trayHidden` (F1, 08): which neighbours drop out of a tray shot (anything overlapping the tray object or cut by the frame) |
+| `staging.ts` | Booth dimensions (1.5 × 0.8m), cove, cabinet header (4.5cm since 08), hood, diffuser; the 9 samples at one display scale (K = 1, real size; the Indo Thai tug is a 1:24 model with an engraved plate) in 3 tiers; SHUNYA's N5.5 sweep card on a high riser; the size rule (`sizeFloor`: long side ≥ 11% of the cabinet, 9% on a raised plinth with nothing taller in front); JSW's open box on the tray (`trayBox`); the certificate; lens FOV 35; eye height and pitch. 09B: a registry of arrangements (`wide`, `square`, `shelf2`, `shelf3`, `shelf4`); `STAGING`, `PROPS` and `CERTIFICATE` are live views of the active one (`setActiveLayout`, `layoutKeyFor(shape, columns, route)`). A sample may stand on a raised floor (`y`, a shelf board) on no base (`kind: 'none'`) |
+| `phoneStaging.ts` | G (08): the gathered arrangement, all ten objects in three tiers in the middle of the cabinet at 0.68 × real size. 09B: used as `square`, the cabinet behind the project tray on tall and square screens |
+| `shelf.ts`, `ShelfUnit.tsx` | 09B: the wall shelf (tall: 2 columns under 600px, 3 from 600px; square: 4 columns, 3 tiers), in the booth's N8/N8.5 materials, outside the frozen room file: its rows (`ROWS2/3/4`), geometry with its own uv1 atlas, an engraved label rail under every sample, the certificate in its own slot, the tug on a low plinth with its plate. AO: `public/booth/ao-shelf{2,3,4}.png` (`tools/bake-shelf.mjs`). Not locked yet: `SHELF_LOCK=1 node --experimental-strip-types tools/bake-shelf.mjs` writes `tools/booth-shelf.lock` once Vishesh approves the shelf |
+| `layoutSwitch.ts`, `useLayout.ts` | 09B: every change of arrangement goes through `requestLayout`; the canvas's `LayoutGate` (in `BoothCanvas.tsx`) copies the frame on screen into a 2D canvas over the WebGL one (once, GPU side, the moment before the page changes), applies the new arrangement, waits for its tree, its AO map and its shaders, draws one full frame under the cover, then crossfades 250ms (none under reduced motion). Route-driven switches fade the canvas in instead |
+| `shots.ts` | Camera shots: `cabinetShot` contain-fits the cabinet to the stage, with lens shift; `trayShot` for project pages; `trayHidden` (F1, 08): which neighbours drop out of a tray shot. 09B: `shelfShot`, the scroll-linked dolly: no pitch, the camera at the viewport's centre and at the distance where the shelf's front edges span the frame, so the front plane moves with the page exactly and deeper things a little less; under reduced motion a fixed pose per shelf (the nearest row) and a plain lens shift. `clearShotCaches` on every switch |
 | `CameraRig.tsx` | Smooth camera moves; pointer parallax max 1.5° (0.6° vertical) |
 | `shell.ts` | Booth shell geometry (rounded boxes, second UV set for the baked AO/lightmap atlas) |
 | `BoothRoom.tsx` | Shell materials (N8 walls), floor (reflective on desktop), diffuser, lightmap hook; the cabinet's solid parts are picking occluders |
@@ -200,6 +202,13 @@ The data shape is in `lib/types.ts`. Key fields:
 | `lib/dirty.ts` | B (08): dirty flags per system (reflector, shadow, normals). The floor reflection, shadow map and SSAO normals re-render only when the camera, lamp, an object, the view, the DPR or a model load changes them; shown in `?perf` |
 | `BoothFocus.tsx`, `focus.ts` | Keyboard focus and the hover spec plate for samples |
 | `ModelRef.tsx` | `?modelref=<slug>` debug view for comparing GLBs against Blender reference renders |
+
+### Layout by shape (09B)
+
+- **`lib/shape.ts`** is the single source: `wide` (aspect ≥ 1.3), `square` (0.88 to 1.3), `tall` (< 0.88), `phone-landscape` (wide with an svh height under 480). Aspect = visual viewport width / small viewport height (100svh: toolbars shown), so a collapsing toolbar never changes it. ±0.04 hysteresis; recomputed on resize / orientationchange, debounced 150ms, only on a > 2% change. `?shape=` forces one. The pre-paint script (`shapeBootScript`, the same function's source) sets `<html data-shape data-columns>`; the shape, aspect and columns show in the `?perf` readout.
+- **What each shape gets on home:** wide → the cabinet as wide as the content (side bands ≤ 3% of the window; the lamp panel docks at the window's bottom until its place under the cabinet scrolls in); phone-landscape → the cabinet in the full height, the headline in the masthead row, the panel a rail along the bottom; square → the 4-column shelf, whole; tall → the 2 or 3 column shelf, taller than the screen, scrolled with the page. Project pages on tall and square screens use the `square` cabinet behind the tray (taller header on phones).
+- **Posters:** one per shape and lamp state (`tools/poster-matrix.mjs`), picked before first paint by an inline script (`BoothFrame`, `BoothHost` for the tray), so no poster-to-layout jump. Shelf posters are the shelf's first screen.
+- **On the shelf:** tap opens; a sideways drag turns a sample (the first 8px decide: mostly sideways turns it, anything else scrolls; `touch-action: pan-y`); the lamp panel floats (rail on phones, pill on tablets) and steps away from the engraved labels and from the sample under a finger; keyboard ↑ ↓ follow the shelf's order and scroll the sample into view.
 
 ### Lighting details
 

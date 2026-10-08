@@ -40,3 +40,5 @@ export function setCursorTarget(label: string | null, pressed = cursorTarget.pre
 export type ScreenBox = { left: number; top: number; right: number; bottom: number };
 export const shelfLabelRects = new Map<string, ScreenBox>();
 export const tappedRect = { r: null as ScreenBox | null };
+/** Called after the shelf has written its label rects (each rendered frame on the shelf). */
+export const shelfLabelListeners = new Set<() => void>();

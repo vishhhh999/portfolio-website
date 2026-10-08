@@ -6,6 +6,7 @@
  * pauses, then open a project from the booth. Also checks that the registered views match each
  * route: / → the cabinet stage; /work/* → the tray stage (+ proof planes only under AFTER DARK).
  *
+ * L7 (09B): the shelf scrolled, and the live resize / rotation sequence (SKIP_SHAPES=1 to skip).
  *   node tools/check-smear.mjs [widths=1568,2560]
  */
 import { createRequire } from 'module';
@@ -99,6 +100,42 @@ for (const W of widths) {
   await p.waitForTimeout(2500);
   v = await check(p, `${W} back on /`);
   report(kinds(v) === 'stage', `${W} views on / = ${kinds(v)} (expected stage)`);
+  await ctx.close();
+}
+// L7 (09B): the shelf (tall phone and tablet): scrolled down it and back, and the live resize and
+// rotation sequence on one page: at every step the right arrangement and no stale pixel
+if (!process.env.SKIP_SHAPES) {
+  for (const [W, H] of [[393, 659], [1032, 1230]]) {
+    const ctx = await b.newContext({ viewport: { width: W, height: H }, deviceScaleFactor: 1, isMobile: W < 1100, hasTouch: W < 600 });
+    const p = await ctx.newPage();
+    await p.addInitScript(() => sessionStorage.setItem('vm:opened:v1', '1'));
+    p.setDefaultTimeout(600000);
+    await p.goto(BASE + '/', { waitUntil: 'networkidle' });
+    await p.waitForSelector('.booth-stage[data-ready="true"]', { timeout: 600000 }).catch(() => {});
+    await p.waitForTimeout(1500);
+    for (const y of [0, 400, 900, 1600, 0]) {
+      await scrollTo(p, y);
+      await check(p, `${W}x${H} / (shelf) scroll ${y}`);
+    }
+    await ctx.close();
+  }
+  const ctx = await b.newContext({ viewport: { width: 2560, height: 1440 }, deviceScaleFactor: 1 });
+  const p = await ctx.newPage();
+  await p.addInitScript(() => sessionStorage.setItem('vm:opened:v1', '1'));
+  p.setDefaultTimeout(900000);
+  await p.goto(BASE + '/', { waitUntil: 'networkidle' });
+  await p.waitForSelector('.booth-stage[data-ready="true"]');
+  await p.waitForTimeout(1500);
+  const want = { '2560x1440': 'wide', '1376x940': 'wide', '1376x980': 'wide', '1032x1230': 'shelf3', '393x659': 'shelf2' };
+  for (const [w, h] of [[1376, 940], [1032, 1230], [393, 659], [1032, 1230], [1376, 940], [2560, 1440], [1032, 1230], [1376, 980], [1032, 1230], [1376, 980]]) {
+    await p.setViewportSize({ width: w, height: h });
+    await p.waitForFunction(([w, h]) => { const s = window.__boothShape?.(); return s && s.w === w && Math.abs(s.h - h) < 2; }, [w, h], { timeout: 300000, polling: 500 });
+    await p.waitForFunction(() => !document.querySelector('.booth-cover') || document.querySelector('.booth-cover').hidden, null, { timeout: 300000, polling: 500 });
+    await p.waitForTimeout(1500);
+    const layout = await p.evaluate(() => document.documentElement.dataset.layout);
+    report(layout === want[`${w}x${h}`], `resize → ${w}x${h}: arrangement ${layout} (want ${want[`${w}x${h}`]})`);
+    await check(p, `resize → ${w}x${h}`);
+  }
   await ctx.close();
 }
 await b.close();

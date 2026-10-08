@@ -4,7 +4,7 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useShape } from '@/lib/shape';
-import { shelfLabelRects, tappedRect } from '@/components/booth/focus';
+import { shelfLabelListeners, shelfLabelRects, tappedRect } from '@/components/booth/focus';
 import { LAMPS, lampById } from '@/lib/lampPresets';
 import { pickLamp } from '@/lib/lampController';
 import { bedLevel, enableSound, playEvent } from '@/lib/sound';
@@ -222,6 +222,12 @@ export function SwitchPanel() {
       idle = window.setTimeout(settle, 1200);
     };
     settle();
+    // L3 (09B): the shelf's labels move with every frame it draws (and first appear after the panel
+    // does): a panel that would sit on one steps away at once
+    const onLabels = () => {
+      if (coversProof(place())) setAway(true);
+    };
+    shelfLabelListeners.add(onLabels);
     window.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', settle);
     return () => {
@@ -229,6 +235,7 @@ export function SwitchPanel() {
       window.clearTimeout(idle);
       window.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', settle);
+      shelfLabelListeners.delete(onLabels);
     };
   }, [floating, pathname]);
 

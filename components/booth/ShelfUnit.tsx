@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Box3, CanvasTexture, MeshStandardMaterial, SRGBColorSpace, Vector3, type Material, type Mesh } from 'three';
-import { shelfLabelRects } from './focus';
+import { shelfLabelListeners, shelfLabelRects } from './focus';
 import { lineup } from '@/content/work';
 import { markDirty } from '@/lib/dirty';
 import { BOOTH_GREY, ContactBlob, roughnessNoise, shellAO } from './BoothRoom';
@@ -119,7 +119,10 @@ export function ShelfUnit({ parts, def, mobile }: { parts: ShelfPart[]; def: She
   const size = useThree((s) => s.size);
   const labelMeshes = useRef(new Map<string, Mesh>());
   const tmp = useMemo(() => ({ box: new Box3(), v: new Vector3() }), []);
-  useEffect(() => () => shelfLabelRects.clear(), []);
+  useEffect(() => {
+    window.__boothShelfLabels = () => Object.fromEntries(shelfLabelRects);
+    return () => shelfLabelRects.clear();
+  }, []);
   useFrame(() => {
     for (const [slug, m] of labelMeshes.current) {
       m.geometry.computeBoundingBox();
@@ -133,6 +136,7 @@ export function ShelfUnit({ parts, def, mobile }: { parts: ShelfPart[]; def: She
         }
       shelfLabelRects.set(slug, { left: l, top: t, right: r, bottom: b });
     }
+    shelfLabelListeners.forEach((cb) => cb());
   });
 
   const matFor = (p: ShelfPart): Material | Material[] =>
@@ -166,4 +170,11 @@ export function ShelfUnit({ parts, def, mobile }: { parts: ShelfPart[]; def: She
       </group>
     </group>
   );
+}
+
+declare global {
+  interface Window {
+    /** L7 (09B): the shelf's labels on screen, viewport CSS px (tools/check-shapes.mjs). */
+    __boothShelfLabels?: () => Record<string, { left: number; top: number; right: number; bottom: number }>;
+  }
 }
