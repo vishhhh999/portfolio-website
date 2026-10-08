@@ -38,9 +38,30 @@ async function capture(w, h, dpr, mobile, dark = false) {
   await page.addStyleTag({ content: HIDE_HOME });
   await page.waitForTimeout(4000);
   const r = await page.locator('.booth-frame').boundingBox();
-  const png = await page.screenshot({ clip: { x: r.x, y: r.y, width: r.width, height: Math.min(r.height, h - r.y) }, timeout: 900000 });
+  const top = await page.screenshot({ clip: { x: r.x, y: r.y, width: r.width, height: Math.min(r.height, h - r.y) }, timeout: 900000 });
+  // the shelf's poster is its first screen; the cabinet's covers its whole frame: on a wide window the
+  // cabinet can run past the first screen (side bands ≤ 3%), so the rest is captured scrolled and stitched
+  const shelf = await page.evaluate(() => (document.documentElement.dataset.layout ?? '').startsWith('shelf'));
+  if (shelf || r.y + r.height <= h) {
+    await page.close();
+    return top;
+  }
+  const dy = Math.ceil(r.y + r.height - h + 8);
+  await page.evaluate((y) => window.scrollTo({ top: y, behavior: 'instant' }), dy);
+  await page.waitForTimeout(4000);
+  const r2 = await page.locator('.booth-frame').boundingBox();
+  const bottom = await page.screenshot({ clip: { x: r2.x, y: Math.max(0, r2.y), width: r2.width, height: r2.y + r2.height - Math.max(0, r2.y) }, timeout: 900000 });
   await page.close();
-  return png;
+  // composite in device pixels: the bottom capture's last rows complete the frame under the top capture
+  const W = Math.round(r.width * dpr), H = Math.round(r.height * dpr);
+  const tb = await sharp(top).metadata(), bb = await sharp(bottom).metadata();
+  return sharp({ create: { width: W, height: H, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
+    .composite([
+      { input: await sharp(bottom).extract({ left: 0, top: 0, width: Math.min(W, bb.width), height: Math.min(H, bb.height) }).toBuffer(), left: 0, top: Math.max(0, H - bb.height) },
+      { input: await sharp(top).extract({ left: 0, top: 0, width: Math.min(W, tb.width), height: Math.min(H, tb.height) }).toBuffer(), left: 0, top: 0 },
+    ])
+    .png()
+    .toBuffer();
 }
 // the paper colour behind the booth (the frame box shows the page around the booth's shadow)
 const flat = (buf) => sharp(buf).flatten({ background: '#f2f0ea' });
@@ -122,7 +143,7 @@ for (const slug of TRAY) {
   await shareCard(desk.png, desk.meta.title, `${desk.meta.disciplines} · ${desk.meta.year}`, `${OG}${slug}.jpg`);
   console.log('tray posters + share card', slug);
 }
-if (!process.env.DARK_ONLY && !process.env.TRAY_ONLY && !process.env.ONLY_HOME) {
+if (!process.env.DARK_ONLY && !process.env.TRAY_ONLY && homes.some((e) => e.name === 'cabinet')) {
   await shareCard(readFileSync(`${OUT}poster-cabinet-2400.webp`), 'Tested under every light.', 'Brand and digital design · India', `${OG}site.jpg`);
   console.log('share card site');
 }

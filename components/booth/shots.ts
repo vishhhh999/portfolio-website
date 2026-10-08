@@ -233,30 +233,37 @@ export function trayHidden(slug: string, aspect: number): Set<string> {
 }
 
 /**
- * L3 (09B): the shelf's scroll-linked dolly. The camera looks straight at the unit (no pitch) from
- * the viewport's centre, at the distance where the unit's front edges span the frame's width, and
- * stands at the height of the frame's point now at the viewport's centre. So the shelf's front plane
- * moves with the page exactly (the page scrolls, Lenis eases it, nothing is hijacked) and what stands
- * deeper on the boards moves a little less: the camera travels down the shelf as the page scrolls.
- * Reduced motion: the camera holds a fixed pose per shelf (the nearest row's centre) and the picture
- * follows the scroll as a plain shift of the lens (no perspective change while scrolling).
+ * L3 (09B): the shelf's scroll-linked dolly. The camera looks straight at the unit (no pitch), its
+ * front edges spanning the frame's width (`s` px per metre on the front plane), from a fixed distance
+ * (2.6 unit widths). Its eye is a fixed `EYE_PX` from the top of the screen, a height that depends on
+ * the frame's width only: so a toolbar showing or hiding (the screen's height) changes nothing in the
+ * picture, and the first screen is the same on every phone of that width (the poster is). The lens is
+ * shifted (an off-centre projection) so that eye point sits there. As the page scrolls the eye stays
+ * on the screen and the shelf's front plane moves with the page exactly; what stands deeper on the
+ * boards moves a little less: the camera travels down the shelf. Nothing is eased or hijacked.
+ * Reduced motion: a fixed pose per shelf (the nearest row's centre) and the picture follows the
+ * scroll as a plain shift of the lens (no perspective change while scrolling).
+ * Returns the shot and the full (virtual) image the screen is a window of: setViewOffset(full…).
  */
-export function shelfShot(def: ShelfDef, frame: { left: number; top: number; width: number }, view: { width: number; height: number }, reduced: boolean): FramedShot {
+export const shelfEyePx = (frameWidth: number) => Math.min(600, frameWidth * 0.9);
+export function shelfShot(def: ShelfDef, frame: { left: number; top: number; width: number }, view: { width: number; height: number }, reduced: boolean): FramedShot & { full: [number, number] } {
   const s = frame.width / def.width; // px per metre on the front plane
-  const dist = view.height / 2 / (s * tanV);
+  const dist = 2.6 * def.width;
+  const fullH = 2 * s * dist * tanV; // the image height this lens covers at 35°
+  const eye = shelfEyePx(frame.width);
   const x = -(frame.left + frame.width / 2 - view.width / 2) / s;
-  const yc = def.height - (view.height / 2 - frame.top) / s;
+  const yc = def.height - (eye - frame.top) / s; // the world height now under the eye point
   let y = yc;
-  let oy = 0;
+  let oy = fullH / 2 - eye;
   if (reduced) {
-    // the row whose opening is nearest the viewport's centre
+    // the row whose opening is nearest the eye
     let best = def.floors[0];
     for (let i = 0; i < def.rows.length; i++) {
       const c = def.floors[i] + def.rows[i].clear / 2;
       if (Math.abs(c - yc) < Math.abs(best - yc)) best = c;
     }
     y = best;
-    oy = (y - yc) * s;
+    oy += (y - yc) * s;
   }
-  return { position: [x, y, def.frontZ + dist], target: [x, y, def.frontZ - 1], dist, offset: [0, oy] };
+  return { position: [x, y, def.frontZ + dist], target: [x, y, def.frontZ - 1], dist, offset: [0, oy], full: [view.width, fullH] };
 }

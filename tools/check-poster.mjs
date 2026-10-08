@@ -67,9 +67,10 @@ for (const slug of process.env.TRAY ? process.env.TRAY.split(',').filter(Boolean
       sessionStorage.setItem('vm:opened:v1', '1');
       window.__boothAnimHold = 1;
     });
-    await p.goto(`${BASE}/work/${slug}?gpu=high`, { waitUntil: 'networkidle' });
-    await p.waitForSelector('.booth-stage[data-ready="true"]');
+    await p.goto(`${BASE}/work/${slug}?gpu=high`, { waitUntil: 'domcontentloaded' });
+    // the poster the page picked, read before the booth is ready (the poster leaves the page 450ms after)
     const shown = await p.evaluate(() => document.querySelector('#booth-tray-poster')?.getAttribute('src') ?? '');
+    await p.waitForSelector('.booth-stage[data-ready="true"]');
     // the neighbours load when idle and fade in: capture the settled shelf, not a moment in its loading
     await p.waitForLoadState('networkidle');
     await p.waitForTimeout(2500);

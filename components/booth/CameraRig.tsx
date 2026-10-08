@@ -77,10 +77,13 @@ export function CameraRig() {
     // L3 (09B): on the shelf the picture is the whole canvas (the frame is taller than the screen),
     // and the camera is locked to the page's scroll, not eased after it
     const onShelf = L.kind === 'shelf' && !activeSlug && !!f && !!L.shelf;
+    let full: [number, number] | null = null;
     if (onShelf) {
-      r = { left: 0, top: 0, width: size.width, height: size.height };
-      aspect = size.width / size.height;
-      goal = shelfShot(L.shelf!, f!, size, reduced);
+      const sh = shelfShot(L.shelf!, f!, size, reduced);
+      full = sh.full;
+      r = { left: 0, top: 0, width: full[0], height: full[1] };
+      aspect = full[0] / full[1];
+      goal = sh;
     } else if (activeSlug) goal = { ...trayShot(activeSlug, aspect), offset: [0, 0] };
     else if (f) {
       const fs = useBooth.getState().focusSlug;
@@ -108,16 +111,20 @@ export function CameraRig() {
     // parallax: swing the camera around its target (yaw about up, pitch about the camera's right)
     const { p, right } = tmp.current;
     p.copy(c.position).sub(c.target);
-    p.applyAxisAngle(UP, smooth.current.x * PARALLAX_YAW);
+    // no pointer parallax on the shelf: its front plane stays locked to the page
+    const par = onShelf ? 0 : 1;
+    p.applyAxisAngle(UP, smooth.current.x * PARALLAX_YAW * par);
     right.crossVectors(UP, p).normalize();
-    p.applyAxisAngle(right, smooth.current.y * PARALLAX_PITCH);
+    p.applyAxisAngle(right, smooth.current.y * PARALLAX_PITCH * par);
     camera.position.copy(c.target).add(p);
     camera.lookAt(c.target);
     // One projection for the whole canvas: the booth's picture is the stage rect (aspect, lens
     // shift) and the canvas is a window onto it, so depth, normals (SSAO), raycasts and labels all
     // share one mapping. Outside the stage the views pass scissors the booth away.
     camera.aspect = aspect;
-    camera.setViewOffset(r.width, r.height, c.ox - r.left, c.oy - r.top, size.width, size.height);
+    // the shelf: the screen is a window of a taller virtual image (its eye at a fixed screen height)
+    if (full) camera.setViewOffset(full[0], full[1], c.ox, c.oy, size.width, size.height);
+    else camera.setViewOffset(r.width, r.height, c.ox - r.left, c.oy - r.top, size.width, size.height);
     camera.updateProjectionMatrix();
 
     const moving =
