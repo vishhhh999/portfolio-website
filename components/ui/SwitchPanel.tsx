@@ -3,6 +3,8 @@
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useShape } from '@/lib/shape';
+import { shelfLabelRects, tappedRect } from '@/components/booth/focus';
 import { LAMPS, lampById } from '@/lib/lampPresets';
 import { pickLamp } from '@/lib/lampController';
 import { bedLevel, enableSound, playEvent } from '@/lib/sound';
@@ -129,10 +131,14 @@ export function SwitchPanel() {
   // booth pages it floats bottom centre as a pill that opens on hover or click, and folds back when
   // the page scrolls content under it.
   const home = pathname === '/';
+  // L3 (09B): on the shelf (tall screens) the panel floats like on the project pages (the bottom rail
+  // on phones, the centred pill on tablets), clear of the shelf's labels; elsewhere on home it sits in the flow
+  const tallHome = useShape((s) => s.shape) === 'tall' && home;
+  const inline = home && !tallHome;
   const [slot, setSlot] = useState<HTMLElement | null>(null);
   useEffect(() => {
-    setSlot(home ? document.getElementById('panel-slot') : null);
-  }, [home, pathname]);
+    setSlot(inline ? document.getElementById('panel-slot') : null);
+  }, [inline, pathname]);
   const [open, setOpen] = useState(false);
   const pinned = useRef(false);
   useEffect(() => {
@@ -140,7 +146,7 @@ export function SwitchPanel() {
     pinned.current = false;
   }, [pathname]);
   useEffect(() => {
-    if (home || !open) return;
+    if (inline || !open) return;
     const y0 = window.scrollY;
     const onScroll = () => {
       if (Math.abs(window.scrollY - y0) > 24) {
@@ -150,14 +156,14 @@ export function SwitchPanel() {
     };
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
-  }, [home, open]);
+  }, [inline, open]);
 
   // H3 (08): the folded pill stays centred and small, and never covers a proof. While the booth header
   // is on screen it rides the header's bottom edge (over the 3D view, not the proofs below it); past
   // the header it sits at the bottom of the viewport, slides away while the page scrolls down, and
   // comes back on a scroll up or after 1.2s still, only where no proof is under it
   const [away, setAway] = useState(false);
-  const floating = !home && !open;
+  const floating = !inline && !open;
   useEffect(() => {
     const nav = () => document.querySelector<HTMLElement>('.panel[data-place="float"]');
     if (!floating) {
@@ -187,10 +193,10 @@ export function SwitchPanel() {
     };
     // F3 (09): the pill never sits on the calibration label, a proof or a link button
     const coversProof = (at: ReturnType<typeof place>) =>
-      [...document.querySelectorAll('.proof__image, .calib, .livelink, .workend__card')].some((el) => {
-        const p = el.getBoundingClientRect();
-        return p.top < at.bottom && p.bottom > at.top && p.left < at.right && p.right > at.left;
-      });
+      [...document.querySelectorAll('.proof__image, .calib, .livelink, .workend__card')].map((el) => el.getBoundingClientRect() as { top: number; bottom: number; left: number; right: number })
+        // L3 (09B): on the shelf, its engraved labels and the sample a finger is on
+        .concat([...shelfLabelRects.values()], tappedRect.r ? [tappedRect.r] : [])
+        .some((p) => p.top < at.bottom && p.bottom > at.top && p.left < at.right && p.right > at.left);
     const settle = () => {
       const at = place();
       setAway(coversProof(at));
@@ -227,22 +233,22 @@ export function SwitchPanel() {
   }, [floating, pathname]);
 
   if (!hasBooth) return null;
-  if (home && !slot) return null;
+  if (inline && !slot) return null;
   const active = lampById(lamp);
-  const folded = !home && !open;
+  const folded = !inline && !open;
   const panel = (
     <nav
       className="panel"
       aria-label="Booth lamps"
-      data-place={home ? 'inline' : 'float'}
+      data-place={inline ? 'inline' : 'float'}
       data-folded={folded}
       data-away={folded && away}
       data-house={onIndex}
       onPointerEnter={(e) => {
-        if (!home && e.pointerType === 'mouse') setOpen(true);
+        if (!inline && e.pointerType === 'mouse') setOpen(true);
       }}
       onPointerLeave={(e) => {
-        if (!home && e.pointerType === 'mouse' && !pinned.current) setOpen(false);
+        if (!inline && e.pointerType === 'mouse' && !pinned.current) setOpen(false);
       }}
     >
       {folded ? (
@@ -307,7 +313,7 @@ export function SwitchPanel() {
               </button>
             </>
           )}
-          {!home && (
+          {!inline && (
             <button
               type="button"
               className="panel__fold"
@@ -326,5 +332,5 @@ export function SwitchPanel() {
       <LampAnnouncer lamp={onIndex ? 'house' : lamp} />
     </nav>
   );
-  return home ? createPortal(panel, slot!) : panel;
+  return inline ? createPortal(panel, slot!) : panel;
 }

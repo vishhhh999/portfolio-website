@@ -1,5 +1,6 @@
 import { MathUtils, PerspectiveCamera, Vector3 } from 'three';
 import { BOOTH, CABINET_FACE, EYE, FACE_Z, FOV, RECEDE_DZ, STAGING, TRAY } from './staging.ts';
+import type { ShelfDef } from './shelf.ts';
 
 /**
  * A camera pose: where it stands, what it looks at (pitched EYE.pitchDeg down), and a lens shift
@@ -49,6 +50,12 @@ function faceBox(shot: Shot, stage: { width: number; height: number }) {
 }
 
 const cache = new Map<string, FramedShot>();
+/** L2 (09B): a new arrangement moves the samples: every cached shot is stale. */
+export function clearShotCaches() {
+  cache.clear();
+  boxCache.clear();
+  hideCache.clear();
+}
 
 /**
  * Cabinet shot (home): the whole cabinet as an object on the page, placed into `box` (CSS px,
@@ -223,4 +230,33 @@ export function trayHidden(slug: string, aspect: number): Set<string> {
   if (hideCache.size > 64) hideCache.clear();
   hideCache.set(key, out);
   return out;
+}
+
+/**
+ * L3 (09B): the shelf's scroll-linked dolly. The camera looks straight at the unit (no pitch) from
+ * the viewport's centre, at the distance where the unit's front edges span the frame's width, and
+ * stands at the height of the frame's point now at the viewport's centre. So the shelf's front plane
+ * moves with the page exactly (the page scrolls, Lenis eases it, nothing is hijacked) and what stands
+ * deeper on the boards moves a little less: the camera travels down the shelf as the page scrolls.
+ * Reduced motion: the camera holds a fixed pose per shelf (the nearest row's centre) and the picture
+ * follows the scroll as a plain shift of the lens (no perspective change while scrolling).
+ */
+export function shelfShot(def: ShelfDef, frame: { left: number; top: number; width: number }, view: { width: number; height: number }, reduced: boolean): FramedShot {
+  const s = frame.width / def.width; // px per metre on the front plane
+  const dist = view.height / 2 / (s * tanV);
+  const x = -(frame.left + frame.width / 2 - view.width / 2) / s;
+  const yc = def.height - (view.height / 2 - frame.top) / s;
+  let y = yc;
+  let oy = 0;
+  if (reduced) {
+    // the row whose opening is nearest the viewport's centre
+    let best = def.floors[0];
+    for (let i = 0; i < def.rows.length; i++) {
+      const c = def.floors[i] + def.rows[i].clear / 2;
+      if (Math.abs(c - yc) < Math.abs(best - yc)) best = c;
+    }
+    y = best;
+    oy = (y - yc) * s;
+  }
+  return { position: [x, y, def.frontZ + dist], target: [x, y, def.frontZ - 1], dist, offset: [0, oy] };
 }

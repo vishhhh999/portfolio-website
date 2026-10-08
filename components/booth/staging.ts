@@ -7,7 +7,7 @@
 export type Size3 = { w: number; h: number; d: number };
 
 /** What a sample stands on. Two or three plinth heights, one acrylic riser, one shallow tray. */
-export type BaseKind = 'plinth' | 'riser' | 'tray';
+export type BaseKind = 'plinth' | 'riser' | 'tray' | 'none';
 
 /**
  * One sample: the object (display size: real size × scale), its base and where that base stands.
@@ -16,8 +16,10 @@ export type BaseKind = 'plinth' | 'riser' | 'tray';
  * below 12% of the cabinet width (tools/check-sizes.mjs).
  */
 import { PHONE_PROPS, PHONE_STAGING } from './phoneStaging.ts';
+import { shelfLayout, type ShelfDef } from './shelf.ts';
 import { JSW_OPEN, scaledBox, type TrayBox } from './trayBox.ts';
-export type Staging = { object: Size3; base: Size3 & { kind: BaseKind }; x: number; z: number; scale?: number; yaw?: number; sweep?: { w: number; h: number; r: number }; plate?: string; trayBox?: TrayBox };
+/** `y` (L3 09B): the floor the slot stands on (a shelf board's top; 0 = the booth floor). */
+export type Staging = { object: Size3; base: Size3 & { kind: BaseKind }; x: number; y?: number; z: number; scale?: number; yaw?: number; sweep?: { w: number; h: number; r: number }; plate?: string; trayBox?: TrayBox };
 
 export const sized = (o: Size3, s: number): Size3 => ({ w: o.w * s, h: o.h * s, d: o.d * s });
 
@@ -87,7 +89,7 @@ export function sizeFloor(slug: string) {
 }
 
 /** The About object (B2; H2 09: 1.25× the 07 size, it was 1.6× and competed with the JSW book): a framed certificate on the shelf, top right, under its own soft spot. */
-const DESKTOP_CERTIFICATE = { w: 0.2, h: 0.15, d: 0.014, x: 0.52, lean: 0.12 };
+const DESKTOP_CERTIFICATE = { w: 0.2, h: 0.15, d: 0.014, x: 0.52, lean: 0.12, z: -0.45 + 0.035 };
 
 /** Plinths: matte, Munsell N8.5, a touch warmer than the N8 walls. */
 export const PLINTH_GREY = '#CBCAC6';
@@ -148,14 +150,78 @@ export const DESKTOP_PROPS = {
 };
 
 /**
- * G (08): phones (a viewport under 600px wide at load) get their own arrangement, composed for the
- * 4:5 portrait box (phoneStaging.ts): same room, the samples gathered into its middle in three tiers.
- * Chosen once, at load; the server and the tools see the desktop arrangement.
+ * L2 (09B): the arrangement is chosen at runtime by the page's shape (lib/shape.ts) and route, and can
+ * change while the page is open (a window drag, an iPad rotation):
+ *   wide     the cabinet, the desktop arrangement (wide and phone-landscape shapes)
+ *   square   the cabinet framed square, the samples gathered into its middle in three tiers
+ *            (phoneStaging.ts; square shapes, and the project tray on tall screens)
+ *   shelf2   the wall shelf, two columns (tall shapes under 600px wide, home)
+ *   shelf3   the wall shelf, three columns (tall shapes from 600px, home)
+ * STAGING, PROPS and CERTIFICATE always describe the active arrangement (the server and the tools
+ * see `wide`). Models and textures are shared across arrangements: only transforms, bases, the
+ * camera and the AO map change.
  */
-export const PHONE_LAYOUT = typeof window !== 'undefined' && window.innerWidth < 600;
-export const STAGING: Record<string, Staging> = PHONE_LAYOUT ? PHONE_STAGING : DESKTOP_STAGING;
-export const PROPS = { ledge: (PHONE_LAYOUT ? PHONE_PROPS : DESKTOP_PROPS).ledge };
-export const CERTIFICATE = (PHONE_LAYOUT ? PHONE_PROPS : DESKTOP_PROPS).certificate;
+export type LayoutKey = 'wide' | 'square' | 'shelf2' | 'shelf3';
+export type Ledge = { x: number; y: number; w: number; d: number; h: number };
+export type CertificateSpec = { w: number; h: number; d: number; x: number; lean: number; z: number };
+export type LayoutDef = {
+  key: LayoutKey;
+  kind: 'cabinet' | 'shelf';
+  staging: Record<string, Staging>;
+  ledge: Ledge;
+  certificate: CertificateSpec;
+  /** The baked AO over this arrangement's atlas (uv1). */
+  ao: string;
+  shelf?: ShelfDef;
+};
+const defs = new Map<LayoutKey, LayoutDef>();
+export function layoutDef(key: LayoutKey): LayoutDef {
+  const hit = defs.get(key);
+  if (hit) return hit;
+  let d: LayoutDef;
+  if (key === 'wide') d = { key, kind: 'cabinet', staging: DESKTOP_STAGING, ledge: DESKTOP_PROPS.ledge, certificate: DESKTOP_CERTIFICATE, ao: '/booth/ao.png' };
+  else if (key === 'square') d = { key, kind: 'cabinet', staging: PHONE_STAGING, ledge: PHONE_PROPS.ledge, certificate: { ...PHONE_PROPS.certificate, z: BOOTH.backZ + 0.035 }, ao: '/booth/ao-phone.png' };
+  else {
+    const shelf = shelfLayout(DESKTOP_STAGING, key === 'shelf2' ? 2 : 3);
+    d = { key, kind: 'shelf', staging: shelf.staging, ledge: shelf.ledge, certificate: { ...DESKTOP_CERTIFICATE, ...shelf.certificate }, ao: `/booth/ao-${key}.png`, shelf: shelf.def };
+  }
+  defs.set(key, d);
+  return d;
+}
+
+let active: LayoutDef | null = null;
+const current = () => (active ??= layoutDef('wide'));
+export const activeLayout = () => current();
+const layoutListeners = new Set<() => void>();
+/** Makes `key` the active arrangement; listeners (the canvas, the frame) re-render on it. */
+export function setActiveLayout(key: LayoutKey) {
+  if (current().key === key) return;
+  active = layoutDef(key);
+  Object.assign(PROPS.ledge, active.ledge);
+  Object.assign(CERTIFICATE, active.certificate);
+  layoutListeners.forEach((l) => l());
+}
+export function onLayoutChange(cb: () => void) {
+  layoutListeners.add(cb);
+  return () => void layoutListeners.delete(cb);
+}
+
+/** The arrangement for a shape and a route (home: the full booth; a project page: the tray header). */
+export function layoutKeyFor(shape: string, columns: number, mode: 'full' | 'header' | 'off'): LayoutKey {
+  if (shape === 'tall') return mode === 'full' ? (columns === 2 ? 'shelf2' : 'shelf3') : 'square';
+  if (shape === 'square') return 'square';
+  return 'wide';
+}
+
+/** The active arrangement's samples (a live view: always the current layout). */
+export const STAGING: Record<string, Staging> = new Proxy({} as Record<string, Staging>, {
+  get: (_, k) => (typeof k === 'string' ? current().staging[k] : undefined),
+  has: (_, k) => typeof k === 'string' && k in current().staging,
+  ownKeys: () => Reflect.ownKeys(current().staging),
+  getOwnPropertyDescriptor: (_, k) => (typeof k === 'string' && k in current().staging ? { value: current().staging[k], enumerable: true, configurable: true, writable: false } : undefined),
+});
+export const PROPS = { ledge: { ...DESKTOP_PROPS.ledge } };
+export const CERTIFICATE: CertificateSpec = { ...DESKTOP_CERTIFICATE };
 
 /** Base positions for a set of lineup slugs (explicit staging, not computed). */
 export function lineupLayout(slugs: string[]) {

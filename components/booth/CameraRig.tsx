@@ -6,9 +6,9 @@ import { MathUtils, Vector3, type PerspectiveCamera } from 'three';
 import { useBooth } from '@/lib/store';
 import { useReducedMotion } from '@/lib/useReducedMotion';
 import { frameRect, stageRect } from '@/lib/views';
-import { cabinetShot, lineupShot, trayShot } from './shots';
+import { cabinetShot, lineupShot, shelfShot, trayShot } from './shots';
 import { spinDragging } from '@/lib/spin';
-import { FOV, STAGING } from './staging';
+import { activeLayout, FOV, STAGING } from './staging';
 
 const PARALLAX_YAW = MathUtils.degToRad(1.5);
 const PARALLAX_PITCH = MathUtils.degToRad(0.6);
@@ -34,6 +34,7 @@ export function CameraRig() {
   const goalTarget = useRef(new Vector3());
   const goalPos = useRef(new Vector3());
   const tmp = useRef({ p: new Vector3(), right: new Vector3() });
+  const layoutJump = useRef<string | null>(null);
 
   useEffect(() => {
     camera.fov = FOV;
@@ -67,12 +68,20 @@ export function CameraRig() {
     // a non-monotonic or stalled clock never jumps or inverts the motion: 0 ≤ dt ≤ 100ms
     const dt = Math.min(0.1, Math.max(0, rawDt || 0));
     // The booth renders into the stage rect, so its aspect is the stage's, not the canvas's.
-    const r = stageRect() ?? { left: 0, top: 0, width: size.width, height: size.height };
-    const aspect = r.height > 0 ? r.width / r.height : size.width / size.height;
+    let r = stageRect() ?? { left: 0, top: 0, width: size.width, height: size.height };
+    let aspect = r.height > 0 ? r.width / r.height : size.width / size.height;
 
     let goal: { target: [number, number, number]; position: [number, number, number]; offset: [number, number] };
     const f = frameRect();
-    if (activeSlug) goal = { ...trayShot(activeSlug, aspect), offset: [0, 0] };
+    const L = activeLayout();
+    // L3 (09B): on the shelf the picture is the whole canvas (the frame is taller than the screen),
+    // and the camera is locked to the page's scroll, not eased after it
+    const onShelf = L.kind === 'shelf' && !activeSlug && !!f && !!L.shelf;
+    if (onShelf) {
+      r = { left: 0, top: 0, width: size.width, height: size.height };
+      aspect = size.width / size.height;
+      goal = shelfShot(L.shelf!, f!, size, reduced);
+    } else if (activeSlug) goal = { ...trayShot(activeSlug, aspect), offset: [0, 0] };
     else if (f) {
       const fs = useBooth.getState().focusSlug;
       const st = fs ? STAGING[fs] : null;
@@ -82,7 +91,9 @@ export function CameraRig() {
     goalPos.current.set(...goal.position);
 
     // the dolly between the lineup and the tray: ~95% of the way in 0.7s, critically damped
-    const k = reduced || !current.current ? 1 : 1 - Math.exp(-dt * 4.3);
+    const k = reduced || onShelf || !current.current || layoutJump.current !== L.key ? 1 : 1 - Math.exp(-dt * 4.3);
+    // a new arrangement is a cut (the crossfade over the canvas covers it), never a dolly
+    layoutJump.current = L.key;
     if (!current.current) current.current = { target: goalTarget.current.clone(), position: goalPos.current.clone(), ox: goal.offset[0], oy: goal.offset[1] };
     const c = current.current;
     c.target.lerp(goalTarget.current, k);

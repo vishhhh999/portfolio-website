@@ -75,6 +75,16 @@ type ShapeState = { shape: Shape; columns: 2 | 3; w: number; h: number; aspect: 
 /** The current shape. Read with useShape(selector) in components, useShape.getState() elsewhere. */
 export const useShape = create<ShapeState>(() => ({ shape: 'wide', columns: 3, w: 1440, h: 900, aspect: 1.6, forced: false }));
 
+const before = new Set<(next: { shape: Shape; columns: 2 | 3 }) => void>();
+/**
+ * L2 (09B): called just before a new shape is applied (before <html data-shape> changes the page), so
+ * the canvas can keep its last frame while the new arrangement is prepared.
+ */
+export function onBeforeShapeChange(cb: (next: { shape: Shape; columns: 2 | 3 }) => void) {
+  before.add(cb);
+  return () => void before.delete(cb);
+}
+
 let started = false;
 /**
  * Starts the classifier (once, client side): the boot script's answer first (so React's first
@@ -86,6 +96,8 @@ export function startShape() {
   started = true;
   const forced = shapeOverride();
   const apply = (w: number, h: number, shape: Shape) => {
+    const prev = useShape.getState();
+    if (started && (prev.shape !== shape || prev.columns !== columnsFor(w))) before.forEach((cb) => cb({ shape, columns: columnsFor(w) }));
     useShape.setState({ shape, columns: columnsFor(w), w, h, aspect: +(w / h).toFixed(3), forced: !!forced });
     document.documentElement.dataset.shape = shape;
     document.documentElement.dataset.columns = String(columnsFor(w));

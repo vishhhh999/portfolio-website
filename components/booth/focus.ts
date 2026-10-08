@@ -32,3 +32,11 @@ export function setCursorTarget(label: string | null, pressed = cursorTarget.pre
   cursorTarget.pressed = pressed;
   cursorTarget.version++;
 }
+
+/**
+ * L3 (09B): the shelf's engraved labels on screen (viewport CSS px), written by the shelf every
+ * rendered frame, and the sample a finger is pressing; the floating lamp panel stays clear of both.
+ */
+export type ScreenBox = { left: number; top: number; right: number; bottom: number };
+export const shelfLabelRects = new Map<string, ScreenBox>();
+export const tappedRect = { r: null as ScreenBox | null };

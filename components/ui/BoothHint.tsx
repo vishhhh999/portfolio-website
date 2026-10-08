@@ -3,6 +3,7 @@
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useBooth } from '@/lib/store';
+import { useShape } from '@/lib/shape';
 
 const KEY = 'vm:hint:v1';
 
@@ -19,6 +20,7 @@ export function BoothHint() {
   const house = useBooth((s) => s.houseLights);
   const [state, setState] = useState<'wait' | 'on' | 'gone'>('wait');
   const [touch, setTouch] = useState(false);
+  const tall = useShape((s) => s.shape) === 'tall';
   useEffect(() => setTouch(matchMedia('(pointer: coarse)').matches), []);
   useEffect(() => {
     if (pathname !== '/' || state !== 'wait' || opening || house) return;
@@ -51,7 +53,8 @@ export function BoothHint() {
   if (pathname !== '/' || house) return null;
   return (
     <p className="boothhint mono" aria-hidden="true" data-on={state === 'on'}>
-      {touch ? 'Swipe to browse. Tap to open.' : 'Drag to turn. Click to open. 1 to 7 change the lamp.'}
+      {/* L3 (09B): the shelf scrolls with the page; a sideways drag turns a sample */}
+      {touch ? (tall ? 'Tap to open. Drag sideways to turn.' : 'Tap to open. Drag to turn.') : 'Drag to turn. Click to open. 1 to 7 change the lamp.'}
     </p>
   );
 }

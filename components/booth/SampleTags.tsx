@@ -21,7 +21,9 @@ export function SampleTags({ samples }: { samples: FrameSample[] }) {
   const refs = useRef(new Map<string, HTMLSpanElement>());
   useEffect(() => {
     const place = () => {
-      const taken: DOMRect[] = [];
+      // L3 (09B): the lamp panel docked over the cabinet's front (wide screens) hides the tags under it
+      const panel = document.querySelector('.panel[data-place="inline"]')?.getBoundingClientRect();
+      const taken: DOMRect[] = panel ? [panel] : [];
       for (const s of [...samples].sort((a, b) => lineup.findIndex((w) => w.slug === a.slug) - lineup.findIndex((w) => w.slug === b.slug))) {
         const el = refs.current.get(s.slug);
         const r = focusRects.get(s.slug);

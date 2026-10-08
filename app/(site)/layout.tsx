@@ -39,6 +39,8 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
       <a className="skiplink" href="#main">Skip to content</a>
       <header className="masthead">
         <Link href="/" className="wordmark">Vishesh Mahendru</Link>
+        {/* L1 (09B): on a phone held sideways the home headline joins this row (the h1 stays in the page) */}
+        <span className="masthead__tagline mono" aria-hidden="true">Tested under every light.</span>
         <SiteNav />
       </header>
       <SwitchPanel />

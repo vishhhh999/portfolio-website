@@ -69,11 +69,13 @@ html[data-house-lights] .hero { min-height: 0; padding-bottom: 32px; }
 html[data-house-lights] .houselights--inline { display: block; padding-top: 0; min-height: 0; }
 .booth-canvas[data-visible='false'] { visibility: hidden; }
 .booth-canvas canvas { display: block; }
+/* L2 (09B): the last frame, held over the canvas while a new arrangement is prepared, then crossfaded */
+.booth-canvas .booth-cover { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; }
 .booth-stage {
   position: absolute; left: 0; right: 0; top: 0; height: 100svh; z-index: 1; pointer-events: none;
   background: var(--booth); transition: background-color 500ms linear;
 }
-.booth-stage[data-mode='full'] { background: transparent; }
+.booth-stage[data-mode='full'] { background: transparent; height: max(100svh, var(--booth-stage-h, 0px)); }
 .booth-stage[data-mode='header'] { height: 46svh; }
 .booth-stage[data-ready='true'] { background-color: transparent; }
 .booth-frame { position: relative; }
@@ -85,7 +87,12 @@ html[data-booth-ready] .booth-poster { opacity: 0; }
    same booth dark (set by the boot script before first paint); a background image, fetched only then */
 html[data-opening] .booth-poster img { visibility: hidden; }
 html[data-opening] .booth-poster { background: center / 100% 100% no-repeat; background-image: image-set(url('/booth/poster-cabinet-dark-1200.webp') 1x, url('/booth/poster-cabinet-dark-2400.webp') 2x); }
-@media (max-width: 599px) { html[data-opening] .booth-poster { background-image: url('/booth/poster-phone-dark.webp'); } }
+html[data-opening][data-poster='square'] .booth-poster { background-image: image-set(url('/booth/poster-square-dark-1x.webp') 1x, url('/booth/poster-square-dark-2x.webp') 2x); }
+html[data-opening][data-poster='shelf2'] .booth-poster { background-image: image-set(url('/booth/poster-shelf2-dark-1x.webp') 1x, url('/booth/poster-shelf2-dark-2x.webp') 2x); }
+html[data-opening][data-poster='shelf3'] .booth-poster { background-image: image-set(url('/booth/poster-shelf3-dark-1x.webp') 1x, url('/booth/poster-shelf3-dark-2x.webp') 2x); }
+/* L6 (09B): the shelf's poster is its first screen (the top of the unit), at the frame's width */
+html[data-poster^='shelf'] .booth-poster img { height: auto; bottom: auto; }
+html[data-opening][data-poster^='shelf'] .booth-poster { background-size: 100% auto; background-position: top center; }
 /* Paper grain over the booth interior (project pages): print, not pixels. */
 .booth-stage[data-mode='header']::after {
   content: ''; position: absolute; inset: 0; pointer-events: none; opacity: 0.09; mix-blend-mode: multiply;
@@ -506,17 +513,6 @@ mark.tbc { background: #fff1a8; color: var(--ink); padding: 1px 4px; font-family
   .cert__head { flex-direction: column; gap: 4px; }
 }
 
-/* phones (< 700px): a portrait crop of the cabinet, swiped sample to sample. From 700px up the whole
-   cabinet is contain-fit, all eight samples in view (F9). */
-@media (max-width: 599px) {
-  .booth-frame { flex: none; min-height: 0; max-height: none; aspect-ratio: 4 / 5 !important; height: auto !important; pointer-events: auto; touch-action: pan-y; }
-  .booth-swipe { display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; gap: 8px; margin-top: 10px; pointer-events: auto; }
-  .booth-swipe__btn { height: 44px; border: 1px solid var(--ink); background: transparent; border-radius: 2px; font-size: 18px; cursor: pointer; }
-  .booth-swipe__btn:disabled { opacity: 0.25; }
-  .booth-swipe__caption { display: flex; flex-direction: column; align-items: center; gap: 2px; text-decoration: none; text-align: center; }
-  .booth-swipe__title { font-weight: 600; font-size: 17px; letter-spacing: -0.01em; }
-}
-
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: 0s !important; animation-duration: 0s !important; }
 }
@@ -757,3 +753,36 @@ html[data-booth-ready] .sampletag[data-on='true'] { opacity: 0.9; }
 }
 .index__legend { opacity: 1; color: #5a5a56; }
 .nf__sill span { color: #a29fae; }
+
+/* ── L3 (09B): the layout by the page's shape (<html data-shape>, set before first paint) ───────── */
+/* TALL: the shelf, full content width, at its own proportions; the page scrolls down it */
+html[data-shape='tall'] .booth-frame { width: 100% !important; height: auto !important; max-height: none; aspect-ratio: var(--shelf3-aspect); touch-action: pan-y; }
+html[data-shape='tall'][data-columns='2'] .booth-frame { aspect-ratio: var(--shelf2-aspect); }
+/* the engraved rails carry the names on the shelf: no DOM tags */
+html[data-shape='tall'] .sampletags { display: none; }
+/* the frame takes the touches over the shelf: vertical pans scroll the page, a sideways drag turns a sample */
+html[data-shape='tall'] .booth-frame { pointer-events: auto; }
+/* the first-visit hint sits above the shelf's top, never over a label */
+html[data-shape='tall'] .boothhint { top: 8px; bottom: auto; }
+/* SQUARE: a 0.9 box under the headline (BoothFrame sets its size) */
+html[data-shape='square'] .booth-frame { aspect-ratio: var(--square-aspect); width: auto; max-width: 100%; height: min(62svh, 900px); }
+/* PHONE-LANDSCAPE: the headline joins the masthead row, the booth takes the full height, the lamp
+   panel is a slim rail along the bottom; nothing is cropped */
+html[data-shape='phone-landscape'] { --masthead-h: 44px; }
+html[data-shape='phone-landscape'] .masthead { height: 44px; flex-wrap: nowrap; }
+html[data-shape='phone-landscape'] .hero { min-height: 0; padding-bottom: 64px; }
+/* the h1 and the line under it stay in the page for every reader; the masthead shows the headline */
+html[data-shape='phone-landscape'] .hero__copy { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.masthead__tagline { display: none; }
+html[data-shape='phone-landscape']:has(.hero) .masthead__tagline { display: block; flex: 1 1 auto; min-width: 0; max-width: 16ch; margin: 0 auto; text-align: center; font-size: 11px; line-height: 1.15; letter-spacing: 0.04em; text-transform: uppercase; }
+html[data-shape='phone-landscape'] .wordmark { white-space: nowrap; font-size: 15px; }
+html[data-shape='phone-landscape'] .sitenav { gap: 12px; white-space: nowrap; }
+html[data-shape='phone-landscape'] .booth-frame-wrap { margin-top: 4px; }
+html[data-shape='phone-landscape'] .panel-slot { position: fixed; left: 8px; right: 8px; bottom: 6px; margin: 0; z-index: 4; }
+html[data-shape='phone-landscape'] .panel[data-place='inline'] { width: auto; max-width: 100%; flex-wrap: nowrap; padding: 4px 6px; gap: 2px; }
+html[data-shape='phone-landscape'] .panel[data-place='inline'] .switches { order: 0; flex: 1 1 auto; }
+html[data-shape='phone-landscape'] .panel[data-place='inline'] .switch { padding: 4px 2px; row-gap: 2px; }
+html[data-shape='phone-landscape'] .panel[data-place='inline'] .panel__active { display: none; }
+/* WIDE: the cabinet runs the content width (no side band over 3% of the window); while the lamp panel's
+   place under it is below the first screen, the panel waits docked at the bottom of the window */
+html[data-shape='wide'] .panel-slot { position: sticky; bottom: 10px; z-index: 3; }

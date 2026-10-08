@@ -13,7 +13,9 @@ import { playEvent } from '@/lib/sound';
 import { logEvent } from '@/lib/eventLog';
 import { onViewsChanged, registerStage, viewCount } from '@/lib/views';
 import type { BoothLightmap } from './BoothRoom';
-import { startShape } from '@/lib/shape';
+import { startShape, useShape } from '@/lib/shape';
+import { layoutKeyFor } from './staging';
+import { requestLayout } from './layoutSwitch';
 
 // L1 (09B): the shape classifier runs from the first client render (the boot script already set <html data-shape>)
 if (typeof window !== 'undefined') startShape();
@@ -68,6 +70,16 @@ export function BoothHost({ lightmap = null }: { lightmap?: BoothLightmap | null
   useEffect(() => {
     setActiveSlug(mode === 'header' ? pathname.split('/')[2] : null);
   }, [pathname, mode, setActiveSlug]);
+  // L2 (09B): the arrangement for this shape and route (the shelf on tall screens at home, the square
+  // cabinet for a tall screen's project tray, the cabinet elsewhere), switched live
+  const shape = useShape((s) => s.shape);
+  const columns = useShape((s) => s.columns);
+  const lastMode = useRef(mode);
+  useEffect(() => {
+    const why = lastMode.current !== mode ? 'route' : 'shape';
+    lastMode.current = mode;
+    requestLayout(layoutKeyFor(shape, columns, mode), why);
+  }, [shape, columns, mode]);
   // I3: a turned object faces front again when the route changes
   useEffect(() => resetSpins(), [pathname]);
 

@@ -33,7 +33,10 @@ import {
 import { isMobileTier } from '@/lib/perfTier';
 import { useBooth } from '@/lib/store';
 import { shellParts, type ShellPart } from './shell';
-import { BOOTH, CABINET, CABINET_FACE, COVE, DIFFUSER, PHONE_LAYOUT, PLINTH_GREY, PROPS, STAGING, TRAY } from './staging';
+import { activeLayout, BOOTH, CABINET, CABINET_FACE, COVE, DIFFUSER, PLINTH_GREY, PROPS, STAGING, TRAY, type LayoutKey } from './staging';
+import { shelfParts, type ShelfPart } from './shelf';
+import { useLayoutKey } from './useLayout';
+import { ShelfUnit } from './ShelfUnit';
 import { applyUV } from './uvMaterial';
 import { holdModels } from './models';
 import { smudgeMap, wallRoughness } from './imperfections';
@@ -137,16 +140,23 @@ function diffuserTexture(tubes: number, tubesOnly = false) {
   return t;
 }
 
-let aoTex: Texture | null = null;
-/** The baked AO over the shell atlas (tools/bake-booth.mjs), sampled on uv1. */
-export function shellAO() {
-  if (aoTex) return aoTex;
-  aoTex = new TextureLoader().load(PHONE_LAYOUT ? '/booth/ao-phone.png' : '/booth/ao.png');
-  aoTex.channel = 1;
-  aoTex.colorSpace = NoColorSpace;
-  aoTex.minFilter = LinearMipmapLinearFilter;
-  aoTex.magFilter = LinearFilter;
-  return aoTex;
+const aoTex = new Map<LayoutKey, Texture>();
+/** The baked AO over the active arrangement's atlas (tools/bake-booth.mjs, tools/bake-shelf.mjs), sampled on uv1. */
+export function shellAO(key: LayoutKey = activeLayout().key) {
+  let t = aoTex.get(key);
+  if (t) return t;
+  t = new TextureLoader().load(activeLayout().key === key ? activeLayout().ao : `/booth/ao${key === 'wide' ? '' : key === 'square' ? '-phone' : `-${key}`}.png`);
+  t.channel = 1;
+  t.colorSpace = NoColorSpace;
+  t.minFilter = LinearMipmapLinearFilter;
+  t.magFilter = LinearFilter;
+  aoTex.set(key, t);
+  return t;
+}
+
+/** L2 (09B): the arrangement's AO map has arrived (a switch waits for it, so nothing draws without it). */
+export function aoReady(key: LayoutKey) {
+  return !!shellAO(key).image;
 }
 
 /**
@@ -219,11 +229,22 @@ async function loadLightmap(urls: BoothLightmap, gl: WebGLRenderer, mobile: bool
 /** C1 (09): the lightmap variants that exist in public/booth, resolved at build time (site layout). */
 export type BoothLightmap = { desktop: string | null; phone: string | null };
 
-let partsCache: ShellPart[] | null = null;
-/** The shell, built once (the same geometry the bake used). */
+const partsCache = new Map<LayoutKey, ShellPart[]>();
+/** The cabinet shell for the active arrangement, built once each (the same geometry the bake used). */
 export function booth(lineup: string[]) {
-  if (!partsCache) partsCache = shellParts(lineup);
-  return partsCache;
+  const key = activeLayout().key;
+  let p = partsCache.get(key);
+  if (!p) partsCache.set(key, (p = shellParts(lineup, STAGING, PROPS)));
+  return p;
+}
+const shelfCache = new Map<LayoutKey, ShelfPart[]>();
+/** L3 (09B): the shelf unit for the active (shelf) arrangement, built once each. */
+export function shelf() {
+  const L = activeLayout();
+  if (!L.shelf) return [];
+  let p = shelfCache.get(L.key);
+  if (!p) shelfCache.set(L.key, (p = shelfParts(L.shelf.cols, L.staging)));
+  return p;
 }
 
 // ── soft contact shadow (blob) for the cabinet on the page ─────────────────────────────────
@@ -371,8 +392,17 @@ function baseMaterialFor(kind: 'plinth' | 'riser' | 'tray', mobile: boolean): Ma
  */
 export function BoothRoom({ lineup, lightmap = null }: { lineup: string[]; lightmap?: BoothLightmap | null }) {
   const mobile = isMobileTier();
-  const parts = booth(lineup);
+  const layoutKey = useLayoutKey();
+  const L = activeLayout();
+  const parts = L.kind === 'cabinet' ? booth(lineup) : [];
   const mats = useMemo(() => shellMaterials(mobile), [mobile]);
+  // L2 (09B): one set of materials for every arrangement; only the AO map follows the arrangement
+  useEffect(() => {
+    if (L.kind !== 'cabinet') return;
+    const ao = shellAO(layoutKey);
+    for (const m of [...mats.interior, mats.lip, mats.shelf, ceilingMaterial] as MeshStandardMaterial[]) if ((m as MeshStandardMaterial).aoMap) m.aoMap = ao;
+    invalidate();
+  }, [layoutKey, L.kind, mats]);
   const plate = useMemo(plateTexture, []);
   const lamp = useBooth((s) => s.lamp);
   const tubes = lamp === 'TL84' ? 4 : lamp === 'D50' ? 3 : lamp === 'UV' ? 2 : 0;
@@ -406,6 +436,13 @@ export function BoothRoom({ lineup, lightmap = null }: { lineup: string[]; light
   }, [lightmap, gl, mats, invalidate, mobile]);
 
   const shell = parts.filter((p) => p.role !== 'base');
+  if (L.kind === 'shelf')
+    return (
+      <group>
+        <ShelfUnit parts={shelf()} def={L.shelf!} mobile={mobile} />
+        <Tray />
+      </group>
+    );
   const matFor = (p: ShellPart): Material | Material[] =>
     p.role === 'interior' ? mats.interior : p.role === 'diffuser' ? diffuserMaterial : p.role === 'frame' ? mats.frame : p.role === 'housing' ? mats.housing : p.role === 'hood' ? mats.hood : p.role === 'lip' ? mats.lip : mats.shelf;
 
@@ -525,7 +562,8 @@ function Tray() {
 }
 
 /** Staging helpers for slots: the base mesh for a lineup sample (shell geometry, uv1 for the AO). */
-export function baseFor(lineup: string[], slug: string) {
+export function baseFor(lineup: string[], slug: string): { geometry: ShellPart['geometry'] } | null {
+  if (activeLayout().kind === 'shelf') return shelf().find((p) => p.role === 'base' && p.slug === slug) ?? null;
   return booth(lineup).find((p) => p.role === 'base' && p.slug === slug) ?? null;
 }
 
