@@ -153,15 +153,16 @@ export const DESKTOP_PROPS = {
  * L2 (09B): the arrangement is chosen at runtime by the page's shape (lib/shape.ts) and route, and can
  * change while the page is open (a window drag, an iPad rotation):
  *   wide     the cabinet, the desktop arrangement (wide and phone-landscape shapes)
- *   square   the cabinet framed square, the samples gathered into its middle in three tiers
- *            (phoneStaging.ts; square shapes, and the project tray on tall screens)
+ *   square   the cabinet with the samples gathered into its middle in three tiers (phoneStaging.ts):
+ *            the project tray on tall and square screens
+ *   shelf4   the shelf, four columns, three tiers, whole on the first screen (square shapes, home)
  *   shelf2   the wall shelf, two columns (tall shapes under 600px wide, home)
  *   shelf3   the wall shelf, three columns (tall shapes from 600px, home)
  * STAGING, PROPS and CERTIFICATE always describe the active arrangement (the server and the tools
  * see `wide`). Models and textures are shared across arrangements: only transforms, bases, the
  * camera and the AO map change.
  */
-export type LayoutKey = 'wide' | 'square' | 'shelf2' | 'shelf3';
+export type LayoutKey = 'wide' | 'square' | 'shelf2' | 'shelf3' | 'shelf4';
 export type Ledge = { x: number; y: number; w: number; d: number; h: number };
 export type CertificateSpec = { w: number; h: number; d: number; x: number; lean: number; z: number };
 export type LayoutDef = {
@@ -182,7 +183,7 @@ export function layoutDef(key: LayoutKey): LayoutDef {
   if (key === 'wide') d = { key, kind: 'cabinet', staging: DESKTOP_STAGING, ledge: DESKTOP_PROPS.ledge, certificate: DESKTOP_CERTIFICATE, ao: '/booth/ao.png' };
   else if (key === 'square') d = { key, kind: 'cabinet', staging: PHONE_STAGING, ledge: PHONE_PROPS.ledge, certificate: { ...PHONE_PROPS.certificate, z: BOOTH.backZ + 0.035 }, ao: '/booth/ao-phone.png' };
   else {
-    const shelf = shelfLayout(DESKTOP_STAGING, key === 'shelf2' ? 2 : 3);
+    const shelf = shelfLayout(DESKTOP_STAGING, key === 'shelf2' ? 2 : key === 'shelf3' ? 3 : 4);
     d = { key, kind: 'shelf', staging: shelf.staging, ledge: shelf.ledge, certificate: { ...DESKTOP_CERTIFICATE, ...shelf.certificate }, ao: `/booth/ao-${key}.png`, shelf: shelf.def };
   }
   defs.set(key, d);
@@ -209,7 +210,7 @@ export function onLayoutChange(cb: () => void) {
 /** The arrangement for a shape and a route (home: the full booth; a project page: the tray header). */
 export function layoutKeyFor(shape: string, columns: number, mode: 'full' | 'header' | 'off'): LayoutKey {
   if (shape === 'tall') return mode === 'full' ? (columns === 2 ? 'shelf2' : 'shelf3') : 'square';
-  if (shape === 'square') return 'square';
+  if (shape === 'square') return mode === 'full' ? 'shelf4' : 'square';
   return 'wide';
 }
 

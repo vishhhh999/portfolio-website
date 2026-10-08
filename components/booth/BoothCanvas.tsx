@@ -179,10 +179,10 @@ function SizeProbe() {
       }
       return out;
     };
-    // L3 (09B): the shelf 14%, the square cabinet 12% (of the frame); the wide cabinet its own floors
+    // L3 (09B): the tall shelf 14%, the square shelf and the square cabinet 12% (of the frame); the wide cabinet its own floors
     window.__boothSizeFloors = () => {
       const k = activeLayout().key;
-      return Object.fromEntries(lineup.map((w) => [w.slug, k === 'wide' ? sizeFloor(w.slug) : k === 'square' ? 12 : 14]));
+      return Object.fromEntries(lineup.map((w) => [w.slug, k === 'wide' ? sizeFloor(w.slug) : k === 'square' || k === 'shelf4' ? 12 : 14]));
     };
     window.__boothBoxes = () => {
       const W = window.innerWidth, H = window.innerHeight;

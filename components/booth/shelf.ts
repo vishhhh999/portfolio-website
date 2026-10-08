@@ -31,7 +31,7 @@ export const SHELF = {
   crown: 0.026,
   frontZ: 0.2,
   /** samples stand this far behind the front edge */
-  inset: 0.035,
+  inset: 0.025,
   /** chamfer on every edge */
   chamfer: 0.002,
 } as const;
@@ -40,7 +40,7 @@ export type ShelfSlot = { slug: string; col: number; span: 1 | 2 };
 /** A row of bays (top to bottom); `clear` is the opening height above its board. */
 export type ShelfRow = { clear: number; slots: ShelfSlot[] };
 export type ShelfDef = {
-  cols: 2 | 3;
+  cols: 2 | 3 | 4;
   bay: number;
   rows: ShelfRow[];
   width: number;
@@ -78,12 +78,23 @@ const ROWS3: ShelfRow[] = [
   { clear: 0.26, slots: [{ slug: 'bengal-t20', col: 0, span: 1 }, { slug: 'indo-thai', col: 1, span: 1 }, { slug: 'about', col: 2, span: 1 }] },
 ];
 
+/**
+ * Four columns, three tiers (SQUARE shapes, 0.88 to 1.3): the whole unit fits the first screen, every
+ * sample whole and ≥ 12% of the frame. The room is frozen, so the square shape's "taller cabinet" is
+ * this low, wide unit in the booth's materials (never a crop of the cabinet).
+ */
+const ROWS4: ShelfRow[] = [
+  { clear: 0.31, slots: [{ slug: 'too-yumm', col: 0, span: 1 }, { slug: 'house-of-hex', col: 1, span: 1 }, { slug: 'sonde', col: 2, span: 1 }, { slug: 'sook', col: 3, span: 1 }] },
+  { clear: 0.34, slots: [{ slug: 'jsw-sports', col: 0, span: 2 }, { slug: 'mitooshi', col: 2, span: 1 }, { slug: 'bengal-t20', col: 3, span: 1 }] },
+  { clear: 0.27, slots: [{ slug: 'shunya', col: 0, span: 2 }, { slug: 'indo-thai', col: 2, span: 1 }, { slug: 'about', col: 3, span: 1 }] },
+];
+
 const shelfCache = new Map<number, ShelfDef>();
-export function shelfDef(cols: 2 | 3): ShelfDef {
+export function shelfDef(cols: 2 | 3 | 4): ShelfDef {
   const hit = shelfCache.get(cols);
   if (hit) return hit;
-  const rows = cols === 2 ? ROWS2 : ROWS3;
-  const bay = cols === 2 ? 0.46 : 0.34;
+  const rows = cols === 2 ? ROWS2 : cols === 3 ? ROWS3 : ROWS4;
+  const bay = cols === 2 ? 0.46 : cols === 3 ? 0.34 : 0.33;
   const { board: T, kick, crown } = SHELF;
   const width = cols * bay + (cols + 1) * T;
   // rows stack up from the bottom board (on the kick); floors[] is listed top row first
@@ -123,7 +134,7 @@ const TUG_PLINTH = { h: 0.045, w: 0.31, d: 0.25 };
  * The arrangement on the shelf: every sample at its true size (the desktop object sizes), standing
  * on its board `SHELF.inset` behind the front edge, centred in its bay.
  */
-export function shelfLayout(desktop: Record<string, Staging>, cols: 2 | 3) {
+export function shelfLayout(desktop: Record<string, Staging>, cols: 2 | 3 | 4) {
   const def = shelfDef(cols);
   const staging: Record<string, Staging> = {};
   let ledge = { x: 0, y: 0, w: 0.3, d: 0.06, h: 0.012 };
@@ -164,7 +175,7 @@ export const SHELF_ATLAS = { size: 1024, pxPerMetre: 220, pad: 4 } as const;
 const rbox = (w: number, h: number, d: number) => new RoundedBoxGeometry(w, h, d, 1, SHELF.chamfer);
 
 /** Every static part of the unit, with a non-overlapping uv1 atlas (for the AO bake). */
-export function shelfParts(cols: 2 | 3, staging: Record<string, Staging>): ShelfPart[] {
+export function shelfParts(cols: 2 | 3 | 4, staging: Record<string, Staging>): ShelfPart[] {
   const def = shelfDef(cols);
   const { board: T, back: B, depth, kick, crown, frontZ } = SHELF;
   const parts: ShelfPart[] = [];

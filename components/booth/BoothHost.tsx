@@ -20,6 +20,9 @@ import { requestLayout } from './layoutSwitch';
 // L1 (09B): the shape classifier runs from the first client render (the boot script already set <html data-shape>)
 if (typeof window !== 'undefined') startShape();
 
+/** L6 (09B): wide → <slug>.webp, square → -square, tall phone → -phone, tall tablet → -tablet. */
+const TRAY_POSTER_BOOT = `(function(){try{var d=document.documentElement,s=d.getAttribute('data-shape'),c=d.getAttribute('data-columns'),i=document.getElementById('booth-tray-poster');if(!i)return;var v=s==='tall'?(c==='2'?'-phone':'-tablet'):s==='square'?'-square':'';i.src='/booth/tray/'+i.getAttribute('data-slug')+v+'.webp';}catch(e){}})();`;
+
 const BoothCanvas = dynamic(() => import('./BoothCanvas'), { ssr: false });
 
 /** Routes where the booth is on stage. Everywhere else there is no stage (planes may still draw). */
@@ -141,11 +144,13 @@ export function BoothHost({ lightmap = null }: { lightmap?: BoothLightmap | null
               live booth (tools/make-posters.mjs; the build refuses a stale one), crossfaded by the same
               reveal gate as the home poster, never a flat grey block */}
           {mode === 'header' && !posterGone && (
-            <picture className="booth-poster booth-poster--tray">
-              <source media="(max-width: 599px)" srcSet={`/booth/tray/${pathname.split('/')[2]}-phone.webp`} type="image/webp" />
+            <div className="booth-poster booth-poster--tray">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={`/booth/tray/${pathname.split('/')[2]}.webp`} alt="" fetchPriority="high" decoding="async" />
-            </picture>
+              <img id="booth-tray-poster" alt="" fetchPriority="high" decoding="async" data-slug={pathname.split('/')[2]} suppressHydrationWarning />
+              {/* L6 (09B): the variant for the page's shape, chosen before first paint (the header's
+                  aspect differs per shape, so does the tray shot) */}
+              <script dangerouslySetInnerHTML={{ __html: TRAY_POSTER_BOOT }} />
+            </div>
           )}
         </div>
       )}

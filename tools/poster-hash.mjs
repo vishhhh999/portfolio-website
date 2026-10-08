@@ -19,16 +19,15 @@ const FILES = [
   // sources under assets-src/, never served): a new bake fails the build until the posters are redone
   'public/booth/lightmap.ktx2', 'public/booth/lightmap.png', 'public/booth/lightmap-phone.webp', 'public/booth/ao-phone.png',
   'app/(site)/layout.tsx',
+  // L (09B): the shapes, the shelf and its AO, the frame's sizing
+  'lib/shape.ts', 'components/booth/shelf.ts', 'components/booth/ShelfUnit.tsx', 'components/booth/BoothFrame.tsx', 'components/booth/CameraRig.tsx',
+  'public/booth/ao-shelf2.png', 'public/booth/ao-shelf3.png', 'public/booth/ao-shelf4.png',
 ];
 const DIRS = ['public/models', 'public/brand'];
 const walk = (d) => readdirSync(join(ROOT, d)).sort().flatMap((f) => (statSync(join(ROOT, d, f)).isDirectory() ? walk(`${d}/${f}`) : [`${d}/${f}`]));
 /** The poster files themselves: a poster swapped by hand (or an old one restored) fails the check too. */
-const SLUGS = ['too-yumm', 'jsw-sports', 'mitooshi', 'sonde', 'house-of-hex', 'bengal-t20', 'sook', 'shunya', 'indo-thai'];
-export const POSTERS = [
-  'poster-cabinet-1200.webp', 'poster-cabinet-2400.webp', 'poster-cabinet-1200.jpg', 'poster-phone.webp', 'poster-cabinet-dark-1200.webp', 'poster-cabinet-dark-2400.webp', 'poster-phone-dark.webp',
-  // P2 (09): every project header's tray poster
-  ...SLUGS.flatMap((s) => [`tray/${s}.webp`, `tray/${s}-phone.webp`]),
-];
+import { POSTERS } from './poster-matrix.mjs';
+export { POSTERS };
 export function posterFileHashes() {
   return Object.fromEntries(POSTERS.map((f) => [f, existsSync(join(ROOT, 'public/booth', f)) ? createHash('sha256').update(readFileSync(join(ROOT, 'public/booth', f))).digest('hex') : null]));
 }

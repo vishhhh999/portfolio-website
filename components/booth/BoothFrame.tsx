@@ -13,9 +13,9 @@ import { BoothHint } from '@/components/ui/BoothHint';
 export type FrameSample = { slug: string; title: string; meta: string };
 
 /** The shelves' outer proportions (shelf.ts), as CSS aspect ratios for the frame before first paint. */
-const SHELF2 = shelfDef(2), SHELF3 = shelfDef(3);
-/** L3 (09B): the square cabinet's box: the gathered arrangement at ≥ 12% of the box width needs ≤ 0.9. */
-export const SQUARE_BOX = 0.9;
+const SHELF2 = shelfDef(2), SHELF3 = shelfDef(3), SHELF4 = shelfDef(4);
+/** L3 (09B): the square shape's frame: the four-column shelf, whole, at its own proportions. */
+export const SQUARE_BOX = SHELF4.width / SHELF4.height;
 
 /**
  * L1 + L6 (09B): the first poster is the one for the page's shape, chosen before first paint from
@@ -23,13 +23,13 @@ export const SQUARE_BOX = 0.9;
  * the 2 or 3 column shelf. The browser fetches only that one. After a live shape change the booth is
  * already drawn, so no poster is needed.
  */
-const POSTER_BOOT = `(function(){try{var d=document.documentElement,s=d.getAttribute('data-shape'),c=d.getAttribute('data-columns'),i=document.getElementById('booth-poster-img');if(!i)return;var n=s==='tall'?(c==='2'?'shelf2':'shelf3'):s==='square'?'square':'cabinet';if(n==='cabinet'){i.srcset='/booth/poster-cabinet-1200.webp 1200w, /booth/poster-cabinet-2400.webp 2400w';i.sizes='min(100vw, 2560px)';i.src='/booth/poster-cabinet-1200.jpg';}else{i.srcset='/booth/poster-'+n+'-1x.webp 1x, /booth/poster-'+n+'-2x.webp 2x';i.src='/booth/poster-'+n+'-1x.webp';}d.setAttribute('data-poster',n);}catch(e){}})();`;
+const POSTER_BOOT = `(function(){try{var d=document.documentElement,s=d.getAttribute('data-shape'),c=d.getAttribute('data-columns'),i=document.getElementById('booth-poster-img');if(!i)return;var n=s==='tall'?(c==='2'?'shelf2':'shelf3'):s==='square'?'shelf4':'cabinet';if(n==='cabinet'){i.srcset='/booth/poster-cabinet-1200.webp 1200w, /booth/poster-cabinet-2400.webp 2400w';i.sizes='min(100vw, 2560px)';i.src='/booth/poster-cabinet-1200.jpg';}else{i.srcset='/booth/poster-'+n+'-1x.webp 1x, /booth/poster-'+n+'-2x.webp 2x';i.src='/booth/poster-'+n+'-1x.webp';}d.setAttribute('data-poster',n);}catch(e){}})();`;
 
 /**
  * A box in the page layout: the booth camera frames the arrangement into it.
  *   wide     the whole cabinet, as wide as the content (side bands ≤ 3% of the window), its height
  *            the cabinet's at that width
- *   square   a 0.9 box under the headline: the cabinet framed tall, the samples gathered in three tiers
+ *   square   the four-column shelf, three tiers, whole under the headline
  *   tall     the shelf, full content width, taller than the screen: the page scrolls down it
  *   phone-landscape  the cabinet in the full height under the masthead
  */
@@ -68,7 +68,8 @@ export function BoothFrame({ samples: given }: { samples: FrameSample[] }) {
       const top = el.getBoundingClientRect().top + window.scrollY;
       const avail = Math.max(160, svh - top - panelH - 18);
       if (s === 'square') {
-        const h = Math.max(280, Math.min(avail, wrap.clientWidth / SQUARE_BOX));
+        // the square shelf: as large as the first screen allows, whole
+        const h = Math.max(220, Math.min(avail, wrap.clientWidth / SQUARE_BOX));
         el.style.height = `${Math.round(h)}px`;
         el.style.width = `${Math.round(h * SQUARE_BOX)}px`;
         stageH();
@@ -108,7 +109,7 @@ export function BoothFrame({ samples: given }: { samples: FrameSample[] }) {
           ['--cab-aspect' as string]: `${CABINET_FACE.w} / ${CABINET_FACE.h}`,
           ['--shelf2-aspect' as string]: `${SHELF2.width} / ${SHELF2.height}`,
           ['--shelf3-aspect' as string]: `${SHELF3.width} / ${SHELF3.height}`,
-          ['--square-aspect' as string]: `${SQUARE_BOX}`,
+          ['--square-aspect' as string]: `${SHELF4.width} / ${SHELF4.height}`,
         }}
         aria-hidden="true"
       >

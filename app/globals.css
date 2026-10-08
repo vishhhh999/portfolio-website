@@ -87,12 +87,12 @@ html[data-booth-ready] .booth-poster { opacity: 0; }
    same booth dark (set by the boot script before first paint); a background image, fetched only then */
 html[data-opening] .booth-poster img { visibility: hidden; }
 html[data-opening] .booth-poster { background: center / 100% 100% no-repeat; background-image: image-set(url('/booth/poster-cabinet-dark-1200.webp') 1x, url('/booth/poster-cabinet-dark-2400.webp') 2x); }
-html[data-opening][data-poster='square'] .booth-poster { background-image: image-set(url('/booth/poster-square-dark-1x.webp') 1x, url('/booth/poster-square-dark-2x.webp') 2x); }
+html[data-opening][data-poster='shelf4'] .booth-poster { background-image: image-set(url('/booth/poster-shelf4-dark-1x.webp') 1x, url('/booth/poster-shelf4-dark-2x.webp') 2x); }
 html[data-opening][data-poster='shelf2'] .booth-poster { background-image: image-set(url('/booth/poster-shelf2-dark-1x.webp') 1x, url('/booth/poster-shelf2-dark-2x.webp') 2x); }
 html[data-opening][data-poster='shelf3'] .booth-poster { background-image: image-set(url('/booth/poster-shelf3-dark-1x.webp') 1x, url('/booth/poster-shelf3-dark-2x.webp') 2x); }
 /* L6 (09B): the shelf's poster is its first screen (the top of the unit), at the frame's width */
-html[data-poster^='shelf'] .booth-poster img { height: auto; bottom: auto; }
-html[data-opening][data-poster^='shelf'] .booth-poster { background-size: 100% auto; background-position: top center; }
+html[data-poster='shelf2'] .booth-poster img, html[data-poster='shelf3'] .booth-poster img { height: auto; bottom: auto; }
+html[data-opening][data-poster='shelf2'] .booth-poster, html[data-opening][data-poster='shelf3'] .booth-poster { background-size: 100% auto; background-position: top center; }
 /* Paper grain over the booth interior (project pages): print, not pixels. */
 .booth-stage[data-mode='header']::after {
   content: ''; position: absolute; inset: 0; pointer-events: none; opacity: 0.09; mix-blend-mode: multiply;
@@ -759,12 +759,14 @@ html[data-booth-ready] .sampletag[data-on='true'] { opacity: 0.9; }
 html[data-shape='tall'] .booth-frame { width: 100% !important; height: auto !important; max-height: none; aspect-ratio: var(--shelf3-aspect); touch-action: pan-y; }
 html[data-shape='tall'][data-columns='2'] .booth-frame { aspect-ratio: var(--shelf2-aspect); }
 /* the engraved rails carry the names on the shelf: no DOM tags */
-html[data-shape='tall'] .sampletags { display: none; }
+html[data-shape='tall'] .sampletags, html[data-layout^='shelf'] .sampletags { display: none; }
 /* the frame takes the touches over the shelf: vertical pans scroll the page, a sideways drag turns a sample */
 html[data-shape='tall'] .booth-frame { pointer-events: auto; }
 /* the first-visit hint sits above the shelf's top, never over a label */
 html[data-shape='tall'] .boothhint { top: 8px; bottom: auto; }
-/* SQUARE: a 0.9 box under the headline (BoothFrame sets its size) */
+/* the hint never runs wider than the screen (a window narrowed to a phone keeps its desktop wording) */
+.boothhint { max-width: calc(100% - 16px); white-space: normal !important; text-align: center; width: max-content; }
+/* SQUARE: the four-column shelf, whole under the headline (BoothFrame sets its size) */
 html[data-shape='square'] .booth-frame { aspect-ratio: var(--square-aspect); width: auto; max-width: 100%; height: min(62svh, 900px); }
 /* PHONE-LANDSCAPE: the headline joins the masthead row, the booth takes the full height, the lamp
    panel is a slim rail along the bottom; nothing is cropped */
@@ -786,3 +788,11 @@ html[data-shape='phone-landscape'] .panel[data-place='inline'] .panel__active { 
 /* WIDE: the cabinet runs the content width (no side band over 3% of the window); while the lamp panel's
    place under it is below the first screen, the panel waits docked at the bottom of the window */
 html[data-shape='wide'] .panel-slot { position: sticky; bottom: 10px; z-index: 3; }
+/* the folded pill on a phone is one row: the lamp's name and the BOOTH / FLAT switch (it wrapped into
+   a two-row block over the tray) */
+@media (max-width: 760px) {
+  .panel[data-place='float'][data-folded='true'] { flex-wrap: nowrap; }
+  .panel[data-place='float'][data-folded='true'] .rocker--pill .rocker__state { display: inline; }
+}
+/* TALL project pages: a taller tray header on phones, so the object stands clear of the pill riding its edge */
+@media (max-width: 760px) { html[data-shape='tall'] .booth-stage[data-mode='header'], html[data-shape='tall'] .work__stage { height: max(56svh, 340px); } }

@@ -552,8 +552,9 @@ export function ObjectSlot({ work, lineup }: { work: Work; lineup: string[] }) {
       }
       const r = window.__boothStageRect?.();
       if (r) {
-        const ix = Math.max(0, Math.min(x1, r.right) - Math.max(x0, r.left));
-        const iy = Math.max(0, Math.min(y1, r.bottom) - Math.max(y0, r.top));
+        // L5 (09B): the view is the stage as far as it is on screen (the shelf's stage runs past the first screen)
+        const ix = Math.max(0, Math.min(x1, r.right, size.width) - Math.max(x0, r.left, 0));
+        const iy = Math.max(0, Math.min(y1, r.bottom, size.height) - Math.max(y0, r.top, 0));
         pick = (ix * iy) / Math.max(1, (x1 - x0) * (y1 - y0)) >= 0.6;
       }
       if (activeSlug === null) setFocusRect(work.slug, { x: x0, y: y0, w: x1 - x0, h: y1 - y0 });

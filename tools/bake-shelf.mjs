@@ -4,7 +4,7 @@
  * field of the unit, marched out along each texel's normal. The shelf is new geometry outside the
  * frozen room file; it has its own maps and, once approved, its own lock (tools/booth-shelf.lock).
  *
- *   node --experimental-strip-types tools/bake-shelf.mjs            both: ao-shelf2.png, ao-shelf3.png
+ *   node --experimental-strip-types tools/bake-shelf.mjs            all three: ao-shelf2/3/4.png
  *   LAYOUT=shelf2 node --experimental-strip-types tools/bake-shelf.mjs
  */
 import { createHash } from 'crypto';
@@ -17,7 +17,7 @@ import { SHELF, SHELF_ATLAS, shelfParts } from '../components/booth/shelf.ts';
 import { layoutDef } from '../components/booth/staging.ts';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const which = process.env.LAYOUT ? [process.env.LAYOUT] : ['shelf2', 'shelf3'];
+const which = process.env.LAYOUT ? [process.env.LAYOUT] : ['shelf2', 'shelf3', 'shelf4'];
 
 const sdBox = (p, b, r) => {
   const qx = Math.abs(p[0]) - b[0] + r, qy = Math.abs(p[1]) - b[1] + r, qz = Math.abs(p[2]) - b[2] + r;

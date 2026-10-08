@@ -1,7 +1,8 @@
 /**
  * C1 (08): renders the LCP posters from the live booth: the cabinet's own frame box, cropped exactly,
  * so the poster sits in .booth-frame at any viewport and the 300ms crossfade to the canvas never
- * jumps. Desktop: one shot at the cabinet aspect (1200 and 2400 wide). Phone: the 4:5 phone staging.
+ * jumps. L6 (09B): one per shape (tools/poster-matrix.mjs): the cabinet, the square shelf, the 2 and 3
+ * column shelves (their first screen).
  * C (08, first visit): the same shots with the tubes off (poster-*-dark), shown on a session's first
  * visit, when the booth comes up dark and the D50 tubes strike.
  * P2 (09): each project header's tray poster (public/booth/tray/<slug>[-phone].webp) and M1 the share
@@ -13,14 +14,18 @@ import { createRequire } from 'module';
 import { mkdirSync, readFileSync, writeFileSync } from 'fs';
 import sharp from 'sharp';
 import { posterFileHashes, posterHash } from './poster-hash.mjs';
+import { HIDE_HOME, HIDE_TRAY, HOME, SLUGS, TRAY as TRAYS } from './poster-matrix.mjs';
 const require = createRequire(import.meta.url);
 const pw = require(process.env.PLAYWRIGHT || 'playwright');
 const BASE = process.env.BASE || 'http://localhost:3100';
 const OUT = new URL('../public/booth/', import.meta.url).pathname;
 mkdirSync(OUT, { recursive: true });
 
-const HIDE = '.booth-poster,.masthead,.hero__copy,.panel-slot,.footer,.booth-swipe,.booth-focus,.specchip,.sampletags,.boothhint,.cursorlabel{visibility:hidden!important}';
 const browser = await pw.chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+/**
+ * The booth frame as the page shows it at this viewport (L6 09B: the shelf's frame runs past the first
+ * screen, so its poster is the part on the first screen, at the frame's width).
+ */
 async function capture(w, h, dpr, mobile, dark = false) {
   // dark: the first visit of a session, the booth's own first frame with the tubes off (the opening
   // strike held at 0), shown as the poster on that visit so the strike starts from what was already there
@@ -30,30 +35,36 @@ async function capture(w, h, dpr, mobile, dark = false) {
   else await page.addInitScript(() => sessionStorage.setItem('vm:opened:v1', '1'));
   await page.goto(BASE + '/?gpu=high', { waitUntil: 'networkidle' });
   await page.waitForSelector('.booth-stage[data-ready="true"]');
-  await page.addStyleTag({ content: HIDE });
+  await page.addStyleTag({ content: HIDE_HOME });
   await page.waitForTimeout(4000);
   const r = await page.locator('.booth-frame').boundingBox();
-  const png = await page.screenshot({ clip: { x: r.x, y: r.y, width: r.width, height: r.height }, timeout: 900000 });
+  const png = await page.screenshot({ clip: { x: r.x, y: r.y, width: r.width, height: Math.min(r.height, h - r.y) }, timeout: 900000 });
   await page.close();
   return png;
 }
-// the paper colour behind the cabinet (the frame box shows the page around the cabinet's shadow)
+// the paper colour behind the booth (the frame box shows the page around the booth's shadow)
 const flat = (buf) => sharp(buf).flatten({ background: '#f2f0ea' });
-// DARK_ONLY=1 re-renders only the first-visit posters
-if (!process.env.DARK_ONLY) {
-  const desk = await capture(1568, 980, 2, false);
-  for (const w of [1200, 2400]) await flat(desk).resize({ width: w }).webp({ quality: 80, effort: 6 }).toFile(`${OUT}poster-cabinet-${w}.webp`);
-  await flat(desk).resize({ width: 1200 }).jpeg({ quality: 82, progressive: true, mozjpeg: true }).toFile(`${OUT}poster-cabinet-1200.jpg`);
-  const phone = await capture(390, 844, 2, true);
-  await flat(phone).webp({ quality: 80, effort: 6 }).toFile(`${OUT}poster-phone.webp`);
+async function home(entry, dark) {
+  const [w, h, dpr, mobile] = entry.render;
+  const png = await capture(w, h, dpr, mobile, dark);
+  const files = dark ? entry.dark : entry.files;
+  if (entry.name === 'cabinet') {
+    for (const [i, px] of [1200, 2400].entries()) await flat(png).resize({ width: px }).webp({ quality: 80, effort: 6 }).toFile(`${OUT}${files[i]}`);
+    if (!dark) await flat(png).resize({ width: 1200 }).jpeg({ quality: 82, progressive: true, mozjpeg: true }).toFile(`${OUT}${files[2]}`);
+  } else {
+    const meta = await sharp(png).metadata();
+    await flat(png).resize({ width: Math.round(meta.width / dpr) }).webp({ quality: 80, effort: 6 }).toFile(`${OUT}${files[0]}`);
+    await flat(png).webp({ quality: 76, effort: 6 }).toFile(`${OUT}${files[1]}`);
+  }
+  console.log('home poster', entry.name, dark ? '(first visit, dark)' : '');
 }
+// DARK_ONLY=1 re-renders only the first-visit posters; ONLY_HOME=shelf2,shelf3 limits the home posters
+const homes = HOME.filter((e) => !process.env.ONLY_HOME || process.env.ONLY_HOME.split(',').includes(e.name));
+if (!process.env.DARK_ONLY && !process.env.TRAY_ONLY) for (const e of homes) await home(e, false);
 // P2 (09): each project header's poster, its tray shot lit by D50 (the JSW book held open), desktop
 // 1568x980 and phone 390x844, cropped to the header stage; M1: the same shot is the base of the
 // project's 1200x630 share card (project name in Geist), and the cabinet poster of the site's card
-const TRAY = TRAY_SLUGS();
-function TRAY_SLUGS() {
-  return (process.env.TRAY ?? 'too-yumm,jsw-sports,mitooshi,sonde,house-of-hex,bengal-t20,sook,shunya,indo-thai').split(',').filter(Boolean);
-}
+const TRAY = process.env.TRAY ? process.env.TRAY.split(',').filter(Boolean) : process.env.HOME_ONLY ? [] : SLUGS;
 mkdirSync(`${OUT}tray`, { recursive: true });
 const OG = new URL('../public/og/', import.meta.url).pathname;
 mkdirSync(OG, { recursive: true });
@@ -69,7 +80,7 @@ async function trayCapture(slug, w, h, dpr, mobile) {
   // the neighbours load when idle and fade in: capture the settled shelf, not a moment in its loading
   await page.waitForLoadState('networkidle');
   await page.waitForTimeout(2500);
-  await page.addStyleTag({ content: '.booth-poster,.panel,.masthead,.specchip,.cursorlabel,.booth-stage::after{visibility:hidden!important}' });
+  await page.addStyleTag({ content: HIDE_TRAY });
   await page.waitForTimeout(5000);
   const r = await page.locator('.booth-stage').boundingBox();
   const meta = await page.evaluate(() => ({
@@ -101,23 +112,21 @@ async function shareCard(imgBuf, title, line, out) {
   await page.close();
 }
 for (const slug of TRAY) {
-  const desk = await trayCapture(slug, 1568, 980, 1, false);
-  await flat(desk.png).webp({ quality: 80, effort: 6 }).toFile(`${OUT}tray/${slug}.webp`);
-  const phone = await trayCapture(slug, 390, 844, 2, true);
-  await flat(phone.png).webp({ quality: 78, effort: 6 }).toFile(`${OUT}tray/${slug}-phone.webp`);
+  // L6 (09B): one per shape (the header's proportions, and so the tray shot, differ)
+  let desk = null;
+  for (const t of TRAYS) {
+    const shot = await trayCapture(slug, ...t.render);
+    await flat(shot.png).webp({ quality: t.quality, effort: 6 }).toFile(`${OUT}tray/${slug}${t.suffix}.webp`);
+    if (t.suffix === '') desk = shot;
+  }
   await shareCard(desk.png, desk.meta.title, `${desk.meta.disciplines} · ${desk.meta.year}`, `${OG}${slug}.jpg`);
-  console.log('tray poster + share card', slug);
+  console.log('tray posters + share card', slug);
 }
-if (!process.env.DARK_ONLY && !process.env.TRAY_ONLY) {
+if (!process.env.DARK_ONLY && !process.env.TRAY_ONLY && !process.env.ONLY_HOME) {
   await shareCard(readFileSync(`${OUT}poster-cabinet-2400.webp`), 'Tested under every light.', 'Brand and digital design · India', `${OG}site.jpg`);
   console.log('share card site');
 }
-if (!process.env.TRAY_ONLY) {
-  const deskDark = await capture(1568, 980, 2, false, true);
-  for (const w of [1200, 2400]) await flat(deskDark).resize({ width: w }).webp({ quality: 80, effort: 6 }).toFile(`${OUT}poster-cabinet-dark-${w}.webp`);
-  const phoneDark = await capture(390, 844, 2, true, true);
-  await flat(phoneDark).webp({ quality: 80, effort: 6 }).toFile(`${OUT}poster-phone-dark.webp`);
-}
+if (!process.env.TRAY_ONLY) for (const e of homes) await home(e, true);
 await browser.close();
 const hash = posterHash();
 writeFileSync(`${OUT}posters.json`, JSON.stringify({ hash, files: posterFileHashes(), rendered: new Date().toISOString() }, null, 2) + '\n');
