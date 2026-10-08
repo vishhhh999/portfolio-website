@@ -483,7 +483,7 @@ export function LampRig() {
     let id = 0;
     const idle = (cb: () => void) => (window.requestIdleCallback ? window.requestIdleCallback(cb, { timeout: 4000 }) : window.setTimeout(cb, 500));
     const next = () => {
-      if (!revealed.value) {
+      if (!revealed.value || !modelsSettled() || !capturedEnvironment(useBooth.getState().lamp)) {
         id = idle(next) as number;
         return;
       }
@@ -508,12 +508,13 @@ export function LampRig() {
     if (!MOBILE_TIER && !perfOff('envcapture') && cabinet && modelsSettled() && !capturedEnvironment(lamp)) {
       applyRig(0, 1);
       scene.environment = captureEnvironment(gl, scene, lamp);
+      markDirty('environment captured', ['reflector'], 2);
       logEvent(`env capture ${lamp} (on screen)`);
     }
     // C4 (08): the other lamps are captured ahead, one per idle moment after the reveal, so a first
     // pick never captures mid-interaction (the rig is set to that lamp at full output for the capture,
     // then back to the visible lamp before this frame is drawn)
-    const ahead = cabinet ? precapture.current : null;
+    const ahead = cabinet && modelsSettled() && capturedEnvironment(lamp) ? precapture.current : null;
     if (ahead) {
       precapture.current = null;
       if (!capturedEnvironment(ahead)) {

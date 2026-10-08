@@ -2,7 +2,7 @@
 
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useRef } from 'react';
-import { MathUtils, Vector3, type PerspectiveCamera } from 'three';
+import { MathUtils, Vector2, Vector3, type PerspectiveCamera } from 'three';
 import { useBooth } from '@/lib/store';
 import { useReducedMotion } from '@/lib/useReducedMotion';
 import { frameRect, stageRect } from '@/lib/views';
@@ -23,6 +23,7 @@ const UP = new Vector3(0, 1, 0);
  */
 export function CameraRig() {
   const camera = useThree((s) => s.camera) as PerspectiveCamera;
+  const gl = useThree((s) => s.gl);
   const size = useThree((s) => s.size);
   const invalidate = useThree((s) => s.invalidate);
   const activeSlug = useBooth((s) => s.activeSlug);
@@ -35,6 +36,20 @@ export function CameraRig() {
   const goalPos = useRef(new Vector3());
   const tmp = useRef({ p: new Vector3(), right: new Vector3() });
   const layoutJump = useRef<string | null>(null);
+  const framing = useRef('');
+  const framingSlug = useRef(activeSlug);
+  const liveSize = useRef({ width: size.width, height: size.height });
+  const rendererSize = useRef(new Vector2());
+
+  useEffect(() => {
+    const measure = () => {
+      liveSize.current = { width: gl.domElement.clientWidth || size.width, height: gl.domElement.clientHeight || size.height };
+      invalidate();
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, [gl, size.width, size.height, invalidate]);
 
   useEffect(() => {
     camera.fov = FOV;
@@ -65,11 +80,16 @@ export function CameraRig() {
   useEffect(() => invalidate(), [activeSlug, focusSlug, size.width, size.height, invalidate]);
 
   useFrame((_, rawDt) => {
+    // R3F's measured size can commit after the DOM viewport changed. Use the live canvas
+    // dimensions for the projection and drawing buffer together, before any scene pass draws.
+    const viewSize = liveSize.current;
+    gl.getSize(rendererSize.current);
+    if (rendererSize.current.x !== viewSize.width || rendererSize.current.y !== viewSize.height) gl.setSize(viewSize.width, viewSize.height, false);
     // a non-monotonic or stalled clock never jumps or inverts the motion: 0 ≤ dt ≤ 100ms
     const dt = Math.min(0.1, Math.max(0, rawDt || 0));
     // The booth renders into the stage rect, so its aspect is the stage's, not the canvas's.
-    let r = stageRect() ?? { left: 0, top: 0, width: size.width, height: size.height };
-    let aspect = r.height > 0 ? r.width / r.height : size.width / size.height;
+    let r = stageRect() ?? { left: 0, top: 0, width: viewSize.width, height: viewSize.height };
+    let aspect = r.height > 0 ? r.width / r.height : viewSize.width / viewSize.height;
 
     let goal: { target: [number, number, number]; position: [number, number, number]; offset: [number, number] };
     const f = frameRect();
@@ -79,7 +99,7 @@ export function CameraRig() {
     const onShelf = L.kind === 'shelf' && !activeSlug && !!f && !!L.shelf;
     let full: [number, number] | null = null;
     if (onShelf) {
-      const sh = shelfShot(L.shelf!, f!, size, reduced, window.scrollY);
+      const sh = shelfShot(L.shelf!, f!, viewSize, reduced, window.scrollY);
       full = sh.full;
       r = { left: 0, top: 0, width: full[0], height: full[1] };
       aspect = full[0] / full[1];
@@ -88,13 +108,26 @@ export function CameraRig() {
     else if (f) {
       const fs = useBooth.getState().focusSlug;
       const st = fs ? STAGING[fs] : null;
-      goal = cabinetShot(r, { left: f.left - r.left, top: f.top - r.top, width: f.width, height: f.height }, st ? { x: st.x, z: st.z + st.object.d / 2 } : null);
+      // Keep the 09A reference lens (1568x980, a 620px-high frame). Fitting against the whole
+      // viewport changed camera distance as the headline took a different share of the screen,
+      // so one cabinet poster could not match desktops and tablet-wide windows. The canvas is
+      // now a window onto a frame-scaled virtual image, as it already is for the shelf.
+      full = [f.height * (1568 / 620), f.height * (980 / 620)];
+      aspect = full[0] / full[1];
+      const shot = cabinetShot({ width: full[0], height: full[1] }, { left: 0, top: 0, width: f.width, height: f.height }, st ? { x: st.x, z: st.z + st.object.d / 2 } : null);
+      goal = { ...shot, offset: [shot.offset[0] - f.left, shot.offset[1] - f.top] };
     } else goal = lineupShot(aspect);
     goalTarget.current.set(...goal.target);
     goalPos.current.set(...goal.position);
 
     // the dolly between the lineup and the tray: ~95% of the way in 0.7s, critically damped
-    const k = reduced || onShelf || !current.current || layoutJump.current !== L.key ? 1 : 1 - Math.exp(-dt * 4.3);
+    // A resized projection and its lens shift must change together. Easing the old shift into
+    // a new virtual image briefly points the cabinet outside its frame on same-layout resizes.
+    const frameKey = [viewSize.width, viewSize.height, full?.[0], full?.[1], f?.width, f?.height].join(':');
+    const framingChanged = framing.current !== frameKey && framingSlug.current === activeSlug;
+    framing.current = frameKey;
+    framingSlug.current = activeSlug;
+    const k = reduced || onShelf || framingChanged || !current.current || layoutJump.current !== L.key ? 1 : 1 - Math.exp(-dt * 4.3);
     // a new arrangement is a cut (the crossfade over the canvas covers it), never a dolly
     layoutJump.current = L.key;
     if (!current.current) current.current = { target: goalTarget.current.clone(), position: goalPos.current.clone(), ox: goal.offset[0], oy: goal.offset[1] };
@@ -123,8 +156,8 @@ export function CameraRig() {
     // share one mapping. Outside the stage the views pass scissors the booth away.
     camera.aspect = aspect;
     // the shelf: the screen is a window of a taller virtual image (its eye at a fixed screen height)
-    if (full) camera.setViewOffset(full[0], full[1], c.ox, c.oy, size.width, size.height);
-    else camera.setViewOffset(r.width, r.height, c.ox - r.left, c.oy - r.top, size.width, size.height);
+    if (full) camera.setViewOffset(full[0], full[1], c.ox, c.oy, viewSize.width, viewSize.height);
+    else camera.setViewOffset(r.width, r.height, c.ox - r.left, c.oy - r.top, viewSize.width, viewSize.height);
     camera.updateProjectionMatrix();
 
     const moving =

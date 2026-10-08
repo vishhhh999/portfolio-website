@@ -14,6 +14,16 @@
  */
 
 export type DocRect = { left: number; top: number; width: number; height: number };
+export type ViewSnapshot = { stage: DocRect | null; frame: DocRect | null; width: number; height: number };
+let snapshot: ViewSnapshot | null = null;
+
+/** Reproduce a prior rendered view for the resize cover without reading the new DOM layout. */
+export function withViewSnapshot(view: ViewSnapshot, draw: () => void) {
+  const previous = snapshot;
+  snapshot = view;
+  try { draw(); } finally { snapshot = previous; }
+}
+export const viewportSize = () => snapshot ? { width: snapshot.width, height: snapshot.height } : { width: window.innerWidth, height: window.innerHeight };
 
 export type PlaneSpec = {
   el: HTMLImageElement | HTMLVideoElement;
@@ -111,6 +121,7 @@ export function registerFrame(el: HTMLElement) {
 
 /** Cabinet frame box in viewport CSS px, or null (project pages frame the tray instead). */
 export function frameRect() {
+  if (snapshot) return snapshot.frame;
   return frame ? toViewport(frame.rect) : null;
 }
 
@@ -141,6 +152,7 @@ const toViewport = (r: DocRect) => ({ left: r.left - window.scrollX, top: r.top 
 
 /** Booth stage rect in viewport CSS px, or null when there is no stage. */
 export function stageRect() {
+  if (snapshot) return snapshot.stage;
   return stage ? toViewport(stage.rect) : null;
 }
 export const hasStage = () => stage !== null;

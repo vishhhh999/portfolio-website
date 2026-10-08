@@ -55,12 +55,12 @@ function worstValley(lums) {
 }
 function report(name, lums, extra = '', valley = false) {
   const { worst, at } = valley ? worstValley(lums) : worstDrop(lums);
-  const ok = lums.length > 5 && worst <= 0.05;
+  const ok = lums.length > 5 && lums.every((v) => v > 0) && worst <= 0.05;
   if (!ok) fails++;
   console.log(`${ok ? 'PASS' : 'FAIL'} ${name}: ${lums.length} frames, luminance ${Math.min(...lums).toFixed(1)}-${Math.max(...lums).toFixed(1)}, worst ${valley ? 'dip below both sides' : 'drop'} ${(worst * 100).toFixed(1)}%${at >= 0 ? ` at frame ${at}` : ''}${extra}`);
 }
-async function capture(p, action) {
-  await p.evaluate(() => (window.__boothCapture = { on: true, lums: [] }));
+async function capture(p, action, visibleContent = false) {
+  await p.evaluate((visibleContent) => (window.__boothCapture = { on: true, lums: [], visibleContent }), visibleContent);
   await action();
   return p.evaluate(() => {
     window.__boothCapture.on = false;
@@ -104,11 +104,25 @@ if (run('reveal')) {
   await p.close();
 }
 
+if (['hover', 'lamp', 'screen', 'spin', 'jsw'].some(run)) {
 const p = await b.newPage({ viewport: { width: W, height: H } });
+await p.addInitScript(() => {
+  // The diagnostic log retains only 40 lines. Remember warm-up messages as they arrive,
+  // so hover activity cannot evict them and turn a completed capture into a timeout.
+  window.__boothWarmEvents = { A: false, SCREEN: false };
+  new MutationObserver((mutations) => {
+    for (const m of mutations) for (const node of [...m.addedNodes, ...m.removedNodes]) {
+      const text = node.textContent ?? '';
+      if (text.includes('env capture A')) window.__boothWarmEvents.A = true;
+      if (text.includes('SCREEN shaders pre-warmed')) window.__boothWarmEvents.SCREEN = true;
+    }
+  }).observe(document, { childList: true, subtree: true });
+});
 await p.addInitScript(() => sessionStorage.setItem('vm:opened:v1', '1')); // J5: no opening strike in steady-state checks
 p.setDefaultTimeout(900000);
 await p.goto(BASE + '/?perf&events', { waitUntil: 'networkidle' });
 await p.waitForSelector('.booth-stage[data-ready="true"]', { timeout: 900000 });
+await p.waitForFunction(() => window.__boothSettled?.() === true);
 await p.addStyleTag({ content: '.sampletags,.boothhint,.cursorlabel{visibility:hidden!important}' });
 await p.waitForTimeout(2000);
 
@@ -139,7 +153,7 @@ if (run('lamp')) {
   await p.waitForTimeout(3500);
   // the lamps' interiors are captured while idle after the reveal (in software rendering that takes
   // minutes); wait for A's, so the switch measures the switch, then force a few steady frames on each side
-  await p.waitForFunction(() => document.body.innerText.includes('env capture A'), null, { timeout: 900000 }).catch(() => {});
+  await p.waitForFunction(() => window.__boothWarmEvents.A, null, { timeout: 900000 }).catch(() => {});
   const steady = () => p.evaluate(() => window.__boothBench?.(1)); // one presented frame, nothing changed
   const lums = await capture(p, async () => {
     for (const k of ['3', '1']) {
@@ -157,7 +171,7 @@ if (run('screen')) {
   await p.mouse.move(4, 4);
   await key(p, '1');
   await p.waitForTimeout(3500);
-  await p.waitForFunction(() => document.body.innerText.includes('SCREEN shaders pre-warmed'), null, { timeout: 1500000 }).catch(() => console.log('  (SCREEN pre-warm not seen in the event log)'));
+  await p.waitForFunction(() => window.__boothWarmEvents.SCREEN, null, { timeout: 1500000 }).catch(() => console.log('  (SCREEN pre-warm not seen in the event log)'));
   const steady = () => p.evaluate(() => window.__boothBench?.(1));
   // the switch's own cost: wall time from the key to the next presented frame, against D50 → A
   const switchMs = async (k) => p.evaluate(async (k) => {
@@ -205,22 +219,29 @@ if (run('jsw')) {
   const { boxes } = await p.evaluate(() => window.__boothBoxes());
   const j = boxes['jsw-sports'];
   const lums = await capture(p, async () => {
+    const steady = () => p.evaluate(() => window.__boothBench?.(1));
+    for (let i = 0; i < 3; i++) await steady();
     await p.mouse.click((j.x0 + j.x1) / 2, (j.y0 + j.y1) / 2);
     await p.waitForURL('**/work/jsw-sports');
-    await p.waitForTimeout(5000);
+    // Sample presented frames through the dolly, rather than a wall-clock pause that can
+    // expire before a software renderer presents even its second frame.
+    for (let i = 0; i < 12; i++) { await steady(); await p.waitForTimeout(100); }
   });
   report('JSW open (dolly, tray, open)', lums, '', true);
 }
+await p.close();
+}
 
 // ── L2 (09B): a window dragged across every shape and an iPad rotated, both ways ───────────
-// The canvas's own presented frames (the cover over it is CSS): a switch is a step from one
-// arrangement to the other, never a frame below both sides of it
+// Compare presented pixels through the CSS cover and page background. An alpha-weighted mean
+// falsely dips as two different silhouettes crossfade; empty or black renders still fail.
 if (run('resize')) {
   const q = await b.newPage({ viewport: { width: 2560, height: 1440 } });
   q.setDefaultTimeout(900000);
   await q.addInitScript(() => sessionStorage.setItem('vm:opened:v1', '1'));
   await q.goto(BASE + '/?perf', { waitUntil: 'networkidle' });
   await q.waitForSelector('.booth-stage[data-ready="true"]', { timeout: 900000 });
+  await q.waitForFunction(() => window.__boothSettled?.() === true);
   await q.addStyleTag({ content: '.sampletags,.boothhint,.cursorlabel{visibility:hidden!important}' });
   await q.waitForTimeout(2000);
   const settle = async (w, h) => {
@@ -235,8 +256,13 @@ if (run('resize')) {
   };
   for (const [name, seq] of Object.entries(seqs)) {
     const lums = await capture(q, async () => {
-      for (const [w, h] of seq) await settle(w, h);
-    });
+      for (const [w, h] of seq) {
+        const start = await q.evaluate(() => window.__boothCapture.lums.length);
+        await settle(w, h);
+        const samples = await q.evaluate((start) => window.__boothCapture.lums.slice(start), start);
+        console.log(`  resize ${w}x${h}: frames ${start}-${start + samples.length - 1}, luminance ${Math.min(...samples).toFixed(1)}-${Math.max(...samples).toFixed(1)}`);
+      }
+    }, true);
     report(`resize: ${name}`, lums, '', true);
   }
   await q.close();

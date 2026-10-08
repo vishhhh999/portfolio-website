@@ -12,7 +12,7 @@ import { isMobileTier } from '@/lib/perfTier';
 import { useBooth } from '@/lib/store';
 import { useReducedMotion } from '@/lib/useReducedMotion';
 import { baseFor, baseMaterial, ContactBlob } from './BoothRoom';
-import { loadModel } from './models';
+import { holdModels, loadModel } from './models';
 import { attachScreen } from './deviceScreen';
 import { activeLayout, PLINTH_GREY, RECEDE_DZ, STAGING, TRAY } from './staging';
 import { useLayoutKey } from './useLayout';
@@ -171,7 +171,7 @@ function ModelObject({ work, onReady }: { work: Work; onReady: () => void }) {
   const [wedge, setWedge] = useState<BufferGeometry | null>(null);
   const m = work.model!;
   const anim = useRef<{ mixer: AnimationMixer; action: AnimationAction; duration: number; p: number } | null>(null);
-  const fade = useRef<{ t: number; mats: { m: Material; transparent: boolean; opacity: number }[] } | null>(null);
+  const fade = useRef<{ t: number; release: () => void; mats: { m: Material; transparent: boolean; opacity: number }[] } | null>(null);
   useFrame((_, rawDt) => {
     const f = fade.current;
     if (!f) return;
@@ -184,6 +184,7 @@ function ModelObject({ work, onReady }: { work: Work; onReady: () => void }) {
         e.m.opacity = e.opacity;
       }
       fade.current = null;
+      f.release();
       logEvent(`model ${work.slug} faded in`);
     }
     markDirty('model fade', undefined, 1);
@@ -291,7 +292,9 @@ function ModelObject({ work, onReady }: { work: Work; onReady: () => void }) {
               m.opacity = 0;
             }
           });
-          fade.current = { t: 0, mats };
+          // A slow renderer may hit the safety reveal before its models arrive. Capture the
+          // environment only after these late models reach their opaque, settled appearance.
+          fade.current = { t: 0, mats, release: active === null || active === work.slug ? holdModels() : () => {} };
           logEvent(`model ${work.slug} fading in`);
         }
         setRoot(scene);
@@ -305,6 +308,8 @@ function ModelObject({ work, onReady }: { work: Work; onReady: () => void }) {
       live = false;
       detachScreen();
       anim.current = null;
+      fade.current?.release();
+      fade.current = null;
     };
   }, [gl, m, work, invalidate, onReady]);
 

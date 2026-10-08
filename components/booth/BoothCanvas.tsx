@@ -10,7 +10,7 @@ import { markDirty } from '@/lib/dirty';
 import { capturedEnvironment } from './environment';
 import { isMobileTier } from '@/lib/perfTier';
 import { revealed } from '@/lib/reveal';
-import { Euler, Matrix4, Quaternion, Vector3, type Intersection, type Mesh, type Object3D } from 'three';
+import { Box3, Euler, Matrix4, Quaternion, Vector3, type Intersection, type Mesh, type Object3D } from 'three';
 import { lineup } from '@/content/work';
 import { attachRenderer, requestFrames, setContinuous } from '@/lib/clock';
 import { lampById } from '@/lib/lampPresets';
@@ -26,14 +26,14 @@ import { PerfProbe } from './PerfProbe';
 import { perfInfo } from '@/lib/perfTier';
 import { modelsSettled } from './models';
 import { contextLost, contextRestored } from '@/lib/resilience';
-import { Post } from './Post';
+import { Post, postApi } from './Post';
 import { ModelRef } from './ModelRef';
 import { clearShotCaches, lineupShot, trayShot } from './shots';
 import { registerLayoutGate } from './layoutSwitch';
 import { useLayoutKey } from './useLayout';
 import { aoReady } from './BoothRoom';
 import { invalidateShadows } from './LampRig';
-import { onBeforeShapeChange } from '@/lib/shape';
+import { measureViewport, onBeforeShapeChange, useShape } from '@/lib/shape';
 import { logEvent } from '@/lib/eventLog';
 import { useReducedMotion } from '@/lib/useReducedMotion';
 import type { BoothLightmap } from './BoothRoom';
@@ -53,6 +53,9 @@ declare global {
     /** Staging + camera data for tools/export-camera.mjs (Blender scene). */
     __boothExport?: (aspect: number) => unknown;
     __boothPickAt?: (x: number, y: number) => { pick: string | null; seen: string | null };
+    __boothVisibility?: (slug: string) => { visible: number; total: number; fraction: number };
+    /** Capture readiness, including models arriving after the safety reveal. */
+    __boothSettled?: () => boolean;
     __boothProbePoints?: () => { wall: { x: number; y: number }; paper: { x: number; y: number } };
   }
 }
@@ -134,6 +137,47 @@ function pickable(o: Object3D | null) {
 function PickProbe() {
   const get = useThree((s) => s.get);
   useEffect(() => {
+    // Test-only CPU raycasts: compare the sample's projected silhouette with the opaque scene.
+    // Unlike a bounding-box check this detects shelf boards hiding the actual model.
+    window.__boothVisibility = (slug) => {
+      const state = get();
+      state.scene.updateMatrixWorld(true);
+      const visible = (o: Object3D | null) => {
+        for (; o; o = o.parent) if (!o.visible) return false;
+        return true;
+      };
+      const scene: Object3D[] = [], sample: Object3D[] = [];
+      const bounds = new Box3();
+      state.scene.traverse((o) => {
+        if (!(o as Mesh).isMesh || !visible(o) || !solid(o)) return;
+        scene.push(o);
+        if (slugOf(o) === slug && isPart(o)) {
+          sample.push(o);
+          bounds.expandByObject(o);
+        }
+      });
+      if (!sample.length) return { visible: 0, total: 0, fraction: 0 };
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      for (const x of [bounds.min.x, bounds.max.x])
+        for (const y of [bounds.min.y, bounds.max.y])
+          for (const z of [bounds.min.z, bounds.max.z]) {
+            const v = new Vector3(x, y, z).project(state.camera);
+            x0 = Math.min(x0, v.x); x1 = Math.max(x1, v.x);
+            y0 = Math.min(y0, v.y); y1 = Math.max(y1, v.y);
+          }
+      let total = 0, seen = 0;
+      for (let i = 0; i < 40; i++) for (let j = 0; j < 40; j++) {
+        state.pointer.set(x0 + (i + 0.5) / 40 * (x1 - x0), y0 + (j + 0.5) / 40 * (y1 - y0));
+        state.raycaster.setFromCamera(state.pointer, state.camera);
+        if (!state.raycaster.intersectObjects(sample, false).length) continue;
+        total++;
+        if (Math.abs(state.pointer.x) > 1 || Math.abs(state.pointer.y) > 1) continue;
+        const front = state.raycaster.intersectObjects(scene, false)[0];
+        if (front && slugOf(front.object) === slug) seen++;
+      }
+      state.pointer.set(9, 9);
+      return { visible: seen, total, fraction: total ? seen / total : 0 };
+    };
     window.__boothPickAt = (cx: number, cy: number) => {
       const state = get();
       const r = stageRect();
@@ -275,8 +319,8 @@ function LayoutGate() {
     const snapshot = () => {
       if (!revealed.value || covered.current) return;
       const src = canvas();
-      // the frame now on screen, drawn again (nothing has changed yet) and copied while it is current
-      advance(performance.now() / 1000, true, get());
+      // Reproduce the prior rendered framing, before resize updates can move its camera or masks.
+      if (!postApi.snapshot()) advance(performance.now() / 1000, true, get());
       let c = cover.current;
       if (!c) {
         c = document.createElement('canvas');
@@ -309,6 +353,19 @@ function LayoutGate() {
       const mode = (document.querySelector('.booth-stage') as HTMLElement | null)?.dataset.mode as 'full' | 'header' | undefined;
       if (layoutKeyFor(next.shape, next.columns, mode ?? 'off') !== activeLayout().key) snapshot();
     });
+    const resize = () => {
+      if (useBooth.getState().houseLights) return;
+      if ((document.querySelector('.booth-stage') as HTMLElement | null)?.dataset.mode !== 'full') return;
+      snapshot();
+      if (!covered.current) return;
+      // A second resize during the fade keeps the original cover until the latest view is ready.
+      const c = cover.current!;
+      c.style.transition = 'none'; c.style.opacity = '1'; c.hidden = false;
+      canvas().style.transition = 'none'; canvas().style.opacity = '0';
+      pending.current = { key: activeLayout().key, compiled: false, frames: 0, t0: performance.now() };
+      requestFrames(2);
+    };
+    window.addEventListener('resize', resize);
     const offGate = registerLayoutGate((k, why) => {
       if (!revealed.value) {
         setActiveLayout(k);
@@ -322,12 +379,15 @@ function LayoutGate() {
         // the canvas waits, hidden, and fades in on its first full frame
         canvas().style.transition = 'none';
         canvas().style.opacity = '0';
+        if (cover.current) cover.current.hidden = true;
+        covered.current = false;
       }
       apply(k);
     });
     return () => {
       offBefore();
       offGate();
+      window.removeEventListener('resize', resize);
       cover.current?.remove();
       cover.current = null;
     };
@@ -336,6 +396,11 @@ function LayoutGate() {
     const p = pending.current;
     if (!p) return;
     const { gl, scene, camera } = get();
+    const viewport = measureViewport(), shape = useShape.getState();
+    if (Math.abs(shape.w - viewport.w) / shape.w > 0.02 || Math.abs(shape.h - viewport.h) / shape.h > 0.02) {
+      requestFrames(1);
+      return;
+    }
     // the new tree has committed (this component re-rendered with the key), the AO map is in
     if (keyNow.current !== p.key || !aoReady(p.key)) {
       if (performance.now() - p.t0 < 4000) {
@@ -362,12 +427,18 @@ function LayoutGate() {
     if (c && covered.current) {
       c.style.transition = ms ? `opacity ${ms}ms linear` : 'none';
       c.style.opacity = '0';
-      window.setTimeout(() => {
-        if (!pending.current) {
-          c.hidden = true;
-          covered.current = false;
+      const finish = () => {
+        if (pending.current) return;
+        // A blocked main thread can run this timer before CSS presents the completed fade.
+        // Keep the old frame until the live canvas is actually opaque.
+        if (Number(getComputedStyle(src).opacity) < 0.999) {
+          window.requestAnimationFrame(finish);
+          return;
         }
-      }, ms + 50);
+        c.hidden = true;
+        covered.current = false;
+      };
+      window.setTimeout(finish, ms + 50);
     }
     logEvent(`layout ${p.key} drawn (${Math.round(performance.now() - p.t0)}ms)`);
   }, 1);
@@ -425,6 +496,10 @@ function ClockBridge({ onReady }: { onReady: () => void }) {
   const scene = useThree((s) => s.scene);
   const camera = useThree((s) => s.camera);
   const gl = useThree((s) => s.gl);
+  useEffect(() => {
+    window.__boothSettled = () => modelsSettled() && (isMobileTier() || perfOff('envcapture') || activeLayout().kind === 'shelf' || !!capturedEnvironment(useBooth.getState().lamp));
+    return () => { delete window.__boothSettled; };
+  }, []);
   useFrame(() => {
     frames.current++;
     if (done.current || frames.current < 3) return;

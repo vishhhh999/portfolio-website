@@ -153,7 +153,10 @@ export function shelfLayout(desktop: Record<string, Staging>, cols: 2 | 3 | 4) {
       if (!d) continue;
       const tug = !!d.plate;
       const base = tug ? { kind: 'plinth' as const, ...TUG_PLINTH } : { kind: 'none' as const, w: d.object.w * 1.04, d: d.object.d * 1.04, h: 0 };
-      const z = SHELF.frontZ - SHELF.inset - Math.max(d.object.d, base.d) / 2;
+      // Bring the tablet laptop's hinge forward of the divider's sightline. Its rear feet
+      // remain on the board; the keyboard projects slightly beyond the label rail.
+      const laptopForward = cols === 3 && s.slug === 'mitooshi' ? 0.055 : 0;
+      const z = SHELF.frontZ - SHELF.inset - Math.max(d.object.d, base.d) / 2 + laptopForward;
       staging[s.slug] = { object: d.object, base, x, y: floor, z, scale: d.scale, plate: d.plate, trayBox: d.trayBox };
     }
   });

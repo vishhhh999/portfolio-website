@@ -22,7 +22,7 @@ const ok = (c, m) => {
 };
 const HIDE = `html, body { background: #00ff00 !important; } body * { visibility: hidden !important; } .booth-canvas, .booth-canvas * { visibility: visible !important; }`;
 
-for (const [W, H] of [[390, 844], [725, 960], [1024, 768], [1568, 980], [1920, 1080], [2560, 1440]]) {
+for (const [W, H] of [[390, 844], [725, 960], [1024, 768], [1440, 900], [1568, 980], [1920, 1080], [2560, 1440]]) {
   const mobile = W < 600;
   const ctx = await b.newContext({ viewport: { width: W, height: H }, isMobile: mobile, hasTouch: mobile });
   const p = await ctx.newPage();
@@ -34,8 +34,18 @@ for (const [W, H] of [[390, 844], [725, 960], [1024, 768], [1568, 980], [1920, 1
     const r = document.querySelector('.booth-frame').getBoundingClientRect();
     const g = parseFloat(getComputedStyle(document.querySelector('.hero')).paddingLeft);
     const slot = document.getElementById('panel-slot')?.getBoundingClientRect();
-    return { left: r.left, right: r.right, top: r.top, bottom: r.bottom, width: r.width, height: r.height, gutter: g, cw: document.documentElement.clientWidth, vh: innerHeight, panelBottom: slot?.bottom ?? 0, panelH: slot?.height ?? 0 };
+    return { shape: document.documentElement.dataset.shape, layout: document.documentElement.dataset.layout, left: r.left, right: r.right, top: r.top, bottom: r.bottom, width: r.width, height: r.height, gutter: g, cw: document.documentElement.clientWidth, vh: innerHeight, panelBottom: slot?.bottom ?? 0, panelH: slot?.height ?? 0 };
   });
+  if (f.layout.startsWith('shelf')) {
+    // Phones and portrait tablets now get a shelf, not the 09A cabinet debug silhouette.
+    const boxes = await p.evaluate(() => window.__boothBoxes().boxes);
+    const outside = Object.entries(boxes).filter(([, r]) => r.x0 < f.left - 1 || r.x1 > f.right + 1 || r.y0 < f.top - 1 || r.y1 > f.bottom + 1);
+    ok(Math.abs((f.left + f.right) / 2 - f.cw / 2) <= 2, `${W}: shelf centred on the page`);
+    ok(Math.abs(f.width - (f.cw - 2 * f.gutter)) <= 2, `${W}: tall shelf fills the content width`);
+    ok(!outside.length, `${W}: all shelf samples within the scrollable frame (${outside.map(([k]) => k).join(', ')})`);
+    await ctx.close();
+    continue;
+  }
   const tag = await p.addStyleTag({ content: HIDE });
   await p.waitForTimeout(100);
   const { data, info } = await sharp(await p.screenshot()).removeAlpha().raw().toBuffer({ resolveWithObject: true });
@@ -60,9 +70,11 @@ for (const [W, H] of [[390, 844], [725, 960], [1024, 768], [1568, 980], [1920, 1
     const content = f.cw - 2 * f.gutter;
     const avail = f.vh - f.top - Math.max(56, f.panelH) - 14 - 18;
     const aspect = 1.57 / (0.8 + 0.045 + 0.055 + 0.02); // CABINET_FACE w / h (staging.ts)
-    const want = Math.max(280, Math.min(content, aspect * avail));
+    const fit = Math.max(280, Math.min(content, aspect * avail));
+    const tabletWide = f.shape === 'wide' && W / H < 1.5;
+    const want = tabletWide && (f.cw - fit) / 2 > 0.03 * f.cw ? Math.min(content, Math.max(fit, 0.94 * f.cw)) : fit;
     ok(Math.abs(f.width - want) <= 2 && Math.abs(f.width / f.height - aspect) < 0.01, `${W}: stage = min(content ${content.toFixed(0)}, ${aspect.toFixed(3)} × ${avail.toFixed(0)}) = ${want.toFixed(0)} (is ${f.width.toFixed(0)}×${f.height.toFixed(0)})`);
-    ok(f.panelBottom <= f.vh + 1, `${W}: booth and panel in the first screen (panel ends at ${f.panelBottom.toFixed(0)} of ${f.vh})`);
+    if (!tabletWide) ok(f.bottom <= f.vh + 1 && f.panelBottom <= f.vh + 1, `${W}: booth and panel in the first screen (panel ends at ${f.panelBottom.toFixed(0)} of ${f.vh})`);
   }
   await ctx.close();
 }

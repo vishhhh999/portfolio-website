@@ -763,7 +763,8 @@ html[data-shape='tall'] .sampletags, html[data-layout^='shelf'] .sampletags { di
 /* the frame takes the touches over the shelf: vertical pans scroll the page, a sideways drag turns a sample */
 html[data-shape='tall'] .booth-frame { pointer-events: auto; }
 /* the first-visit hint sits above the shelf's top, never over a label */
-html[data-shape='tall'] .boothhint { top: 8px; bottom: auto; }
+html[data-shape='tall'] .boothhint { top: auto; bottom: calc(100% + 6px); margin: 0; }
+html[data-shape='tall'][data-columns='2'] .booth-frame-wrap { padding-top: 40px; }
 /* the hint never runs wider than the screen (a window narrowed to a phone keeps its desktop wording) */
 .boothhint { max-width: calc(100% - 16px); white-space: normal !important; text-align: center; width: max-content; }
 /* SQUARE: the four-column shelf, whole under the headline (BoothFrame sets its size) */
@@ -785,9 +786,10 @@ html[data-shape='phone-landscape'] .panel[data-place='inline'] { width: auto; ma
 html[data-shape='phone-landscape'] .panel[data-place='inline'] .switches { order: 0; flex: 1 1 auto; }
 html[data-shape='phone-landscape'] .panel[data-place='inline'] .switch { padding: 4px 2px; row-gap: 2px; }
 html[data-shape='phone-landscape'] .panel[data-place='inline'] .panel__active { display: none; }
-/* WIDE: the cabinet runs the content width (no side band over 3% of the window); while the lamp panel's
-   place under it is below the first screen, the panel waits docked at the bottom of the window */
+/* Tablet-wide aspects use the band rule and dock the panel until its place scrolls in.
+   From aspect 1.5 the cabinet and panel fit the first screen, with the panel in normal flow. */
 html[data-shape='wide'] .panel-slot { position: sticky; bottom: 10px; z-index: 3; }
+@media (min-aspect-ratio: 3/2) { html[data-shape='wide'] .panel-slot { position: static; } }
 /* the folded pill on a phone is one row: the lamp's name and the BOOTH / FLAT switch (it wrapped into
    a two-row block over the tray) */
 @media (max-width: 760px) {

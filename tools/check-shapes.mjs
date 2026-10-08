@@ -34,8 +34,10 @@ for (const [w, h, want] of MATRIX) {
   p.setDefaultTimeout(900000);
   await p.goto(BASE + '/', { waitUntil: 'networkidle' });
   await p.waitForSelector('.booth-stage[data-ready="true"]');
+  await p.waitForFunction(() => window.__boothSettled?.() === true);
   await p.waitForTimeout(1500);
   const bad = [];
+  let laptopVisibility = null;
   const s = await p.evaluate(() => ({ shape: document.documentElement.dataset.shape, layout: document.documentElement.dataset.layout, sw: document.documentElement.scrollWidth, iw: innerWidth }));
   if (s.shape !== want) bad.push(`shape ${s.shape} (want ${want})`);
   if (s.layout !== LAYOUT(want, w)) bad.push(`layout ${s.layout} (want ${LAYOUT(want, w)})`);
@@ -47,6 +49,24 @@ for (const [w, h, want] of MATRIX) {
   const smallest = Object.entries(sizes).sort((a, c) => a[1] - c[1])[0];
   const { boxes } = await p.evaluate(() => window.__boothBoxes());
   const f = await p.evaluate(() => JSON.parse(JSON.stringify(document.querySelector('.booth-frame').getBoundingClientRect())));
+  if (want === 'wide' && w / h >= 1.5) {
+    const panel = await p.locator('#panel-slot').boundingBox();
+    if (f.bottom > h + 1 || !panel || panel.y + panel.height > h + 1) bad.push('desktop cabinet and lamp panel do not fit the first screen');
+  }
+  if (w === 1032 && h === 1230) {
+    laptopVisibility = await p.evaluate(() => window.__boothVisibility('mitooshi'));
+    if (laptopVisibility.total < 100 || laptopVisibility.fraction < 0.8) bad.push(`Mitooshi silhouette visible ${(100 * laptopVisibility.fraction).toFixed(1)}% (minimum 80%)`);
+  }
+  if (s.layout === 'shelf2') {
+    // Force the short-lived first-visit hint on without changing its layout or waiting out its timer.
+    const hint = await p.evaluate(() => {
+      const el = document.querySelector('.boothhint');
+      el.setAttribute('data-on', 'true');
+      const r = el.getBoundingClientRect();
+      return { top: r.top, bottom: r.bottom, left: r.left, right: r.right };
+    });
+    if (hint.bottom > f.top || hint.top < 0 || hint.left < 0 || hint.right > w) bad.push('first-visit hint overlaps the shelf or leaves the phone viewport');
+  }
   // the cabinet's samples: inside the frame; the shelf's: inside its frame (the page scrolls down it)
   const outside = Object.entries(boxes).filter(([, r]) => r.x0 < f.left - 1 || r.x1 > f.right + 1 || r.y0 < f.top - 1 || r.y1 > f.bottom + 1).map(([k]) => k);
   if (outside.length) bad.push(`outside the frame: ${outside.join(', ')}`);
@@ -108,7 +128,7 @@ for (const [w, h, want] of MATRIX) {
   const shelves = s.layout === 'shelf2' ? 5 : s.layout === 'shelf3' ? 4 : s.layout === 'shelf4' ? 3 : '-';
   rows.push(`| ${w}x${h} | ${s.shape} | ${s.layout} | ${cols} | ${shelves} | ${smallest[0]} ${smallest[1]}% |`);
   fails += bad.length;
-  console.log(`${bad.length ? '✗' : '✓'} ${w}x${h} ${s.shape} → ${s.layout}: smallest ${smallest[0]} ${smallest[1]}% (floor ${floors[smallest[0]]}%), ${steps + 1} scroll steps, ${pick.n} picks ok${bad.length ? '\n    ' + bad.join('\n    ') : ''}`);
+  console.log(`${bad.length ? '✗' : '✓'} ${w}x${h} ${s.shape} → ${s.layout}: smallest ${smallest[0]} ${smallest[1]}% (floor ${floors[smallest[0]]}%), ${steps + 1} scroll steps, ${pick.n} picks ok${laptopVisibility ? `, Mitooshi ${(100 * laptopVisibility.fraction).toFixed(1)}% visible` : ''}${bad.length ? '\n    ' + bad.join('\n    ') : ''}`);
   await ctx.close();
 }
 await b.close();

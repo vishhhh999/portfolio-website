@@ -5,7 +5,7 @@ import { registerFrame } from '@/lib/views';
 import { activeLayout, CABINET_FACE } from './staging';
 import { shelfDef } from './shelf';
 import { useLayoutKey } from './useLayout';
-import { useShape } from '@/lib/shape';
+import { measureViewport, useShape } from '@/lib/shape';
 import { BoothFocus } from './BoothFocus';
 import { SampleTags } from './SampleTags';
 import { BoothHint } from '@/components/ui/BoothHint';
@@ -27,8 +27,8 @@ const POSTER_BOOT = `(function(){try{var d=document.documentElement,s=d.getAttri
 
 /**
  * A box in the page layout: the booth camera frames the arrangement into it.
- *   wide     the whole cabinet, as wide as the content (side bands ≤ 3% of the window), its height
- *            the cabinet's at that width
+ *   wide     the whole cabinet and panel in one screen from aspect 1.5; below that, tablet
+ *            side bands ≤ 3% of the window, with the panel following under the cabinet
  *   square   the four-column shelf, three tiers, whole under the headline
  *   tall     the shelf, full content width, taller than the screen: the page scrolls down it
  *   phone-landscape  the cabinet in the full height under the masthead
@@ -61,7 +61,9 @@ export function BoothFrame({ samples: given }: { samples: FrameSample[] }) {
         return;
       }
       const vw = document.documentElement.clientWidth;
-      const svh = useShape.getState().h;
+      // Shape changes are debounced; fitting the new width against the old height briefly
+      // shrinks the cabinet during a resize. Both fit dimensions must come from this viewport.
+      const svh = measureViewport().h;
       const slot = document.getElementById('panel-slot');
       // phone-landscape: the panel is a rail fixed along the bottom (≈ 52px with its margin)
       const panelH = s === 'phone-landscape' ? 58 : slot ? Math.max(56, slot.getBoundingClientRect().height) + 14 : 0;
@@ -78,9 +80,9 @@ export function BoothFrame({ samples: given }: { samples: FrameSample[] }) {
       // A4 (08): the box takes the cabinet's own aspect
       const aspect = CABINET_FACE.w / CABINET_FACE.h;
       let w = Math.max(280, Math.min(wrap.clientWidth, aspect * avail));
-      // L3 (09B): no side band wider than 3% of the window: the cabinet grows to the content width and
-      // the page scrolls a little further (the lamp panel follows under it)
-      if (s === 'wide' && (vw - w) / 2 > 0.03 * vw) w = Math.min(wrap.clientWidth, Math.max(w, 0.94 * vw));
+      // Tablet-wide aspects keep the band rule. Desktop aspects restore the 09A contain fit,
+      // leaving room for both the cabinet and its lamp panel on the first screen.
+      if (s === 'wide' && vw / svh < 1.5 && (vw - w) / 2 > 0.03 * vw) w = Math.min(wrap.clientWidth, Math.max(w, 0.94 * vw));
       el.style.width = `${Math.round(w)}px`;
       el.style.height = `${Math.round(w / aspect)}px`;
       stageH();

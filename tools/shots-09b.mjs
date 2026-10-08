@@ -12,7 +12,7 @@ const pw = require(process.env.PLAYWRIGHT || 'playwright');
 const BASE = process.env.BASE || 'http://localhost:3100';
 const OUT = new URL('./lamp-review/09b/shots/', import.meta.url).pathname;
 mkdirSync(OUT, { recursive: true });
-const MATRIX = [[390, 664], [393, 659], [393, 852], [430, 932], [750, 393], [932, 430], [768, 1024], [820, 1180], [1032, 1230], [1032, 1260], [1376, 940], [1376, 980], [1180, 820], [1024, 1366], [1440, 900], [1568, 980], [1920, 1080], [2560, 1440], [1180, 1000]];
+const MATRIX = [[390, 664], [393, 659], [393, 852], [430, 932], [750, 393], [932, 430], [768, 1024], [820, 1180], [1032, 1230], [1032, 1260], [1376, 940], [1376, 980], [1180, 820], [1024, 1366], [1440, 900], [1568, 980], [1920, 1080], [2560, 1440], [1180, 1000], [1024, 1000]];
 const PAGES = [[390, 664], [1032, 1230], [1376, 940], [1568, 980]];
 const only = process.env.ONLY?.split(',');
 const b = await pw.chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
@@ -26,7 +26,10 @@ async function shot(w, h, path, name, scrollMid = false) {
   const p = await ctx.newPage();
   p.setDefaultTimeout(900000);
   await p.goto(BASE + path, { waitUntil: 'networkidle' });
-  if (await p.locator('.booth-stage').count()) await p.waitForSelector('.booth-stage[data-ready="true"]').catch(() => {});
+  if (await p.locator('.booth-stage').count()) {
+    await p.waitForSelector('.booth-stage[data-ready="true"]');
+    await p.waitForFunction(() => window.__boothSettled?.() === true);
+  }
   await p.waitForTimeout(3000);
   const save = async (suffix) => sharp(await p.screenshot()).jpeg({ quality: 86 }).toFile(`${OUT}${name}${suffix}.jpg`);
   await save('');

@@ -35,6 +35,7 @@ async function capture(w, h, dpr, mobile, dark = false) {
   else await page.addInitScript(() => sessionStorage.setItem('vm:opened:v1', '1'));
   await page.goto(BASE + '/?gpu=high', { waitUntil: 'networkidle' });
   await page.waitForSelector('.booth-stage[data-ready="true"]');
+  await page.waitForFunction(() => window.__boothSettled?.() === true);
   await page.addStyleTag({ content: HIDE_HOME });
   await page.waitForTimeout(4000);
   const r = await page.locator('.booth-frame').boundingBox();
@@ -98,6 +99,7 @@ async function trayCapture(slug, w, h, dpr, mobile) {
   });
   await page.goto(`${BASE}/work/${slug}?gpu=high`, { waitUntil: 'networkidle' });
   await page.waitForSelector('.booth-stage[data-ready="true"]');
+  await page.waitForFunction(() => window.__boothSettled?.() === true);
   // the neighbours load when idle and fade in: capture the settled shelf, not a moment in its loading
   await page.waitForLoadState('networkidle');
   await page.waitForTimeout(2500);

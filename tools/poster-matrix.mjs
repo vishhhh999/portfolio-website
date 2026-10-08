@@ -16,7 +16,7 @@
  * rendered in a window tall enough to show the whole shelf: they cover it on every screen.
  */
 export const HOME = [
-  { name: 'cabinet', render: [1568, 980, 2, false], files: ['poster-cabinet-1200.webp', 'poster-cabinet-2400.webp', 'poster-cabinet-1200.jpg'], dark: ['poster-cabinet-dark-1200.webp', 'poster-cabinet-dark-2400.webp'], check: [[1568, 980, 1, false], [1376, 940, 1, false]] },
+  { name: 'cabinet', render: [1568, 980, 2, false], files: ['poster-cabinet-1200.webp', 'poster-cabinet-2400.webp', 'poster-cabinet-1200.jpg'], dark: ['poster-cabinet-dark-1200.webp', 'poster-cabinet-dark-2400.webp'], check: [[1440, 900, 1, false], [1568, 980, 1, false], [1920, 1080, 1, false], [2560, 1440, 1, false], [1376, 940, 1, false]] },
   { name: 'shelf4', render: [1180, 1000, 2, false], files: ['poster-shelf4-1x.webp', 'poster-shelf4-2x.webp'], dark: ['poster-shelf4-dark-1x.webp', 'poster-shelf4-dark-2x.webp'], check: [[1180, 1000, 1, false]] },
   { name: 'shelf2', render: [393, 1400, 2, true], files: ['poster-shelf2-1x.webp', 'poster-shelf2-2x.webp'], dark: ['poster-shelf2-dark-1x.webp', 'poster-shelf2-dark-2x.webp'], check: [[393, 659, 2, true], [390, 664, 2, true]] },
   { name: 'shelf3', render: [1032, 1700, 2, true], files: ['poster-shelf3-1x.webp', 'poster-shelf3-2x.webp'], dark: ['poster-shelf3-dark-1x.webp', 'poster-shelf3-dark-2x.webp'], check: [[1032, 1230, 1, true], [820, 1180, 1, true]] },
