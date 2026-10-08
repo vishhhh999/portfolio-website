@@ -19,8 +19,12 @@ const b = await pw.chromium.launch({ args: ['--use-gl=angle', '--use-angle=swift
 let fails = 0;
 /** Mean absolute difference per channel (%), the poster scaled to the live capture's width (L6 09B: a
  *  shelf poster is its first screen, so only its top part, as tall as the live capture, is compared). */
+// L6 (09B): compared at a fixed 480px analysis width, so the film grain and edge antialiasing (which
+// differ frame to frame and between pixel ratios) cancel out and a stale layout or object still fails
+const ANALYSIS_W = 480;
 async function compare(liveBuf, posterFile) {
-  const live = await sharp(liveBuf).flatten({ background: '#f2f0ea' }).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+  const lm = await sharp(liveBuf).metadata();
+  const live = await sharp(liveBuf).flatten({ background: '#f2f0ea' }).resize(ANALYSIS_W, Math.round((lm.height * ANALYSIS_W) / lm.width), { fit: 'fill' }).removeAlpha().raw().toBuffer({ resolveWithObject: true });
   const meta = await sharp(readFileSync(posterFile)).metadata();
   const scaledH = Math.round((meta.height * live.info.width) / meta.width);
   let img = sharp(readFileSync(posterFile)).flatten({ background: '#f2f0ea' }).resize(live.info.width, scaledH, { fit: 'fill' });

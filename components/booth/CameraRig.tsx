@@ -79,7 +79,7 @@ export function CameraRig() {
     const onShelf = L.kind === 'shelf' && !activeSlug && !!f && !!L.shelf;
     let full: [number, number] | null = null;
     if (onShelf) {
-      const sh = shelfShot(L.shelf!, f!, size, reduced);
+      const sh = shelfShot(L.shelf!, f!, size, reduced, window.scrollY);
       full = sh.full;
       r = { left: 0, top: 0, width: full[0], height: full[1] };
       aspect = full[0] / full[1];

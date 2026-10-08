@@ -235,9 +235,9 @@ export function trayHidden(slug: string, aspect: number): Set<string> {
 /**
  * L3 (09B): the shelf's scroll-linked dolly. The camera looks straight at the unit (no pitch), its
  * front edges spanning the frame's width (`s` px per metre on the front plane), from a fixed distance
- * (2.6 unit widths). Its eye is a fixed `EYE_PX` from the top of the screen, a height that depends on
- * the frame's width only: so a toolbar showing or hiding (the screen's height) changes nothing in the
- * picture, and the first screen is the same on every phone of that width (the poster is). The lens is
+ * (2.6 unit widths). Its eye is a fixed height on the screen, set by the page's layout only (the frame's
+ * top on the page plus 0.42 of its width): so a toolbar showing or hiding (the screen's height) changes
+ * nothing in the picture, and the first screen is the same at every size, only scaled (the poster is). The lens is
  * shifted (an off-centre projection) so that eye point sits there. As the page scrolls the eye stays
  * on the screen and the shelf's front plane moves with the page exactly; what stands deeper on the
  * boards moves a little less: the camera travels down the shelf. Nothing is eased or hijacked.
@@ -245,12 +245,14 @@ export function trayHidden(slug: string, aspect: number): Set<string> {
  * scroll as a plain shift of the lens (no perspective change while scrolling).
  * Returns the shot and the full (virtual) image the screen is a window of: setViewOffset(full…).
  */
-export const shelfEyePx = (frameWidth: number) => Math.min(600, frameWidth * 0.9);
-export function shelfShot(def: ShelfDef, frame: { left: number; top: number; width: number }, view: { width: number; height: number }, reduced: boolean): FramedShot & { full: [number, number] } {
+export const SHELF_EYE = 0.42;
+export function shelfShot(def: ShelfDef, frame: { left: number; top: number; width: number }, view: { width: number; height: number }, reduced: boolean, scrollY = 0): FramedShot & { full: [number, number] } {
   const s = frame.width / def.width; // px per metre on the front plane
   const dist = 2.6 * def.width;
   const fullH = 2 * s * dist * tanV; // the image height this lens covers at 35°
-  const eye = shelfEyePx(frame.width);
+  // the eye's screen height: where the frame's top sits on the page plus 0.42 of its width, so at the
+  // top of the page every screen sees the same picture of the shelf, only scaled
+  const eye = frame.top + scrollY + SHELF_EYE * frame.width;
   const x = -(frame.left + frame.width / 2 - view.width / 2) / s;
   const yc = def.height - (eye - frame.top) / s; // the world height now under the eye point
   let y = yc;
