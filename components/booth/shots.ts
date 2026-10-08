@@ -112,17 +112,72 @@ export function lineupShot(aspect: number): FramedShot {
 
 /** Tray shot: the active sample alone on the tray, the same lens and pitch, owning the frame. */
 export function trayShot(slug: string, aspect: number): Shot {
-  const { object, trayW, trayX = 0 } = STAGING[slug];
+  const { object, trayBox } = STAGING[slug];
   const { h } = object;
-  const w = trayW ?? object.w;
+  if (trayBox) return boxShot(trayBox, h, aspect);
+  const w = object.w;
   const tanH = tanV * aspect;
   const fitH = Math.max(h * 1.7, 0.26);
   const fitW = Math.max(w * 1.6, 0.36);
   const dist = Math.max(fitH / 2 / tanV, fitW / 2 / tanH);
   const cy = TRAY.top + h * 0.5;
   // stand back along the pitched axis from the sample's centre
-  const position: [number, number, number] = [trayX, cy - Math.sin(PITCH) * dist, TRAY.z + Math.cos(PITCH) * dist];
-  return { target: [trayX, cy, TRAY.z], position, dist };
+  const position: [number, number, number] = [0, cy - Math.sin(PITCH) * dist, TRAY.z + Math.cos(PITCH) * dist];
+  return { target: [0, cy, TRAY.z], position, dist };
+}
+
+/**
+ * A7 (09): a sample whose tray footprint is a 3D box (the open JSW book: the front cover swings out
+ * to the left and toward the camera) is framed on that box's projected outline, not on its width: the
+ * camera backs off until all eight corners fit the same share of the frame as every other sample
+ * (1 / 1.6 of the width, 1 / 1.7 of the height), then shifts so the outline is centred. The open book
+ * is centred and whole at every aspect, its near lower corner included.
+ */
+const boxCache = new Map<string, Shot>();
+function boxShot(b: { x0: number; x1: number; z0: number; z1: number }, h: number, aspect: number): Shot {
+  const key = `${b.x0},${b.x1},${b.z0},${b.z1},${h},${aspect.toFixed(3)}`;
+  const hit = boxCache.get(key);
+  if (hit) return hit;
+  const corners: [number, number, number][] = [];
+  for (const x of [b.x0, b.x1]) for (const y of [TRAY.top, TRAY.top + h]) for (const z of [TRAY.z + b.z0, TRAY.z + b.z1]) corners.push([x, y, z]);
+  cam.aspect = aspect;
+  cam.clearViewOffset();
+  cam.updateProjectionMatrix();
+  const at = (t: [number, number, number], dist: number) => {
+    cam.position.set(t[0], t[1] - Math.sin(PITCH) * dist, t[2] + Math.cos(PITCH) * dist);
+    cam.lookAt(...t);
+    cam.updateMatrixWorld();
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const c of corners) {
+      v.set(...c).project(cam);
+      x0 = Math.min(x0, v.x); x1 = Math.max(x1, v.x); y0 = Math.min(y0, v.y); y1 = Math.max(y1, v.y);
+    }
+    return { x0, y0, x1, y1 };
+  };
+  const target: [number, number, number] = [(b.x0 + b.x1) / 2, TRAY.top + h / 2, TRAY.z + (b.z0 + b.z1) / 2];
+  let dist = 1;
+  for (let pass = 0; pass < 4; pass++) {
+    let lo = 0.2, hi = 20;
+    for (let i = 0; i < 40; i++) {
+      const mid = (lo + hi) / 2;
+      const r = at(target, mid);
+      if (r.x1 - r.x0 <= 2 / 1.6 && r.y1 - r.y0 <= 2 / 1.7) hi = mid;
+      else lo = mid;
+    }
+    dist = hi;
+    // centre the projected outline: move the aim point across the image plane by the outline's offset
+    const r = at(target, dist);
+    const cx = (r.x0 + r.x1) / 2, cy = (r.y0 + r.y1) / 2;
+    const halfH = Math.tan(MathUtils.degToRad(FOV / 2)) * dist, halfW = halfH * aspect;
+    const right = new Vector3(1, 0, 0), up = new Vector3(0, Math.cos(PITCH), -Math.sin(PITCH));
+    target[0] += right.x * cx * halfW;
+    target[1] += up.y * cy * halfH;
+    target[2] += up.z * cy * halfH;
+  }
+  const shot: Shot = { target, position: [target[0], target[1] - Math.sin(PITCH) * dist, target[2] + Math.cos(PITCH) * dist], dist };
+  if (boxCache.size > 64) boxCache.clear();
+  boxCache.set(key, shot);
+  return shot;
 }
 
 /**
@@ -153,8 +208,8 @@ export function trayHidden(slug: string, aspect: number): Set<string> {
     return { x0: a, y0: b, x1: c, y1: d };
   };
   const st = STAGING[slug];
-  const tw = st.trayW ?? st.object.w, tx = st.trayX ?? 0;
-  const tray = project(tx - tw / 2, tx + tw / 2, TRAY.top, TRAY.top + st.object.h, TRAY.z - st.object.d / 2, TRAY.z + st.object.d / 2);
+  const tb = st.trayBox ?? { x0: -st.object.w / 2, x1: st.object.w / 2, z0: -st.object.d / 2, z1: st.object.d / 2 };
+  const tray = project(tb.x0, tb.x1, TRAY.top, TRAY.top + st.object.h, TRAY.z + tb.z0, TRAY.z + tb.z1);
   const pad = 0.04; // NDC: 2% of the frame
   const out = new Set<string>();
   for (const [k, o] of Object.entries(STAGING)) {

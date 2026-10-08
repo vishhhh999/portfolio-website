@@ -87,8 +87,8 @@ for (const W of [1568, 2560]) {
         nav: document.querySelector('.sitenav')?.getBoundingClientRect().right,
         footer: contentRight(document.querySelector('.footer')),
         footerLast: document.querySelector('.footer')?.lastElementChild?.getBoundingClientRect().right,
-        nextRow: contentRight(document.querySelector('.worknav')),
-        next: document.querySelector('.worknav__next')?.getBoundingClientRect().right ?? null,
+        nextRow: contentRight(document.querySelector('.workend')),
+        next: document.querySelector('.workend__card--next')?.getBoundingClientRect().right ?? null,
       };
     });
     for (const k of ['nav', 'footer', 'footerLast', 'nextRow', 'next']) {

@@ -1,4 +1,22 @@
-# HANDOVER: The Booth (visheshmahendru.com), end of the batch 08 session
+# HANDOVER: The Booth (visheshmahendru.com)
+
+## 09A update (8 Oct 2026, read this first)
+
+Batch 09A is PR #7 (`claude/quirky-knuth-70j1df`), squash-merged to `main`; every check in DELIVERY-09A §1 passes (software rendering). Full report: `DELIVERY-09A.md`. The three half-integrated commits from 08's wrap-up (covers 82eb8e1, repaired models e3dea76, lightmap 8cbbcc1) are now fully integrated. **Next: 09B, the responsive shelf system.**
+
+What changed that the next agent must know:
+- **Lightmap:** served as `public/booth/lightmap.ktx2` (desktop) and `lightmap-phone.webp` (phones); sources in `assets-src/booth/`. Re-encode with `node tools/encode-lightmap.mjs`. Per-lamp `bake` levels in `lib/lampPresets.ts`. On room surfaces the bake replaces the ceiling panel and the hemisphere (shader patch in `BoothRoom.applyLightmap`, which throws if three's chunks change shape). The 08 tint patch had never applied.
+- **Room:** interior normals face inward (FrontSide). Still FROZEN; `tools/booth-room.lock` line 1 is the hash, the rest are history notes (bake-booth keeps them). Positions and UV1 are byte-identical to aa0e153.
+- **Models:** `tools/optimize-models.mjs` now does WebP artwork on desktop, drops extra scenes, turns backward `screen` planes, and applies `NUDGE` (sub-millimetre part separations). Re-run it after any new Blender delivery, then `check-coplanar` and `check-sizes`.
+- **Posters:** the build also hashes the lightmap and the 18 tray posters (`public/booth/tray/`). `make-posters.mjs` renders home, first-visit, tray posters and the share cards (`public/og/`) in one run (about 60 to 80 min in software). `TRAY=slug` / `TRAY_ONLY=1` narrow it.
+- **The opening strike plays on `/` only** now; a deep link into a project shows the lit tray (its poster) at once.
+- **New checks:** `check-coplanar`, `mesh-clearance` (in check-sizes), `check-pill`, `check-targets`, `check-axe`, `check-about`, `type-sheet`. check-flicker gained `screen`.
+- **Contact:** `contactMailto()` in `lib/site.ts` is the only way to build a contact link (check-07 enforces it).
+- **Open for Vishesh:** the RTX frame numbers (DELIVERY-09A §9), the type pick (`?type=a|b|c`), the greyscale portrait, Blender clean-ups listed by `check-coplanar`, the Too Yumm front art resolution, DNS cutover (`LAUNCH.md`).
+
+---
+
+# (Earlier) end of the batch 08 session
 
 This is the wrap-up of one long Claude Code session (4–7 Oct 2026). It covers the original A–I batch, then batches 06, 07, 08 and the 08 follow-up. It is written for the next coding agent, who will receive **prompt 09** next.
 

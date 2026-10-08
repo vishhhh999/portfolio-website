@@ -11,7 +11,9 @@ const GeistSans = localFont({ src: './fonts/geist-sans-subset.woff2', variable: 
 const GeistMono = localFont({ src: './fonts/geist-mono-subset.woff2', variable: '--font-geist-mono', weight: '100 900', display: 'swap', preload: true, adjustFontFallback: false, fallback: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'] });
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://www.visheshmahendru.com'),
+  // M1 (09): on a Vercel preview, OG and canonical URLs resolve on that preview (so the share cards can be
+  // checked there); production always uses the real domain
+  metadataBase: new URL(process.env.VERCEL_ENV === 'preview' && process.env.VERCEL_BRANCH_URL ? `https://${process.env.VERCEL_BRANCH_URL}` : 'https://www.visheshmahendru.com'),
   title: { default: 'Vishesh Mahendru · Tested under every light', template: '%s · Vishesh Mahendru' },
   description: 'Brand and digital design by Vishesh Mahendru. India, working worldwide.',
   applicationName: 'Vishesh Mahendru',
@@ -41,8 +43,9 @@ export const viewport: Viewport = { themeColor: '#A8A8A6' };
  * anything renders, and a visitor who chose house lights gets every page's flat version from the first paint (B: a
  * mode, never a redirect).
  * Same keys as lib/store.ts. Only the visitor's own choices ever set them.
+ * M4 (09): `?type=a|b|c` swaps the home headline's face for the type test (data-type on <html>).
  */
-const HOUSE_LIGHTS_BOOT = `(function(){try{var l=sessionStorage.getItem('vm:lamp:v1');if(l)document.documentElement.setAttribute('data-lamp',l);}catch(e){}try{if(localStorage.getItem('vm:houseLights:v2')==='1'||sessionStorage.getItem('vm:autoHouseLights:v1')==='1')document.documentElement.setAttribute('data-house-lights','');}catch(e){}try{var d=document.documentElement;if(!sessionStorage.getItem('vm:opened:v1')&&!d.hasAttribute('data-house-lights')&&(!l||l==='D50')&&!matchMedia('(prefers-reduced-motion: reduce)').matches)d.setAttribute('data-opening','');}catch(e){}})();`;
+const HOUSE_LIGHTS_BOOT = `(function(){try{var l=sessionStorage.getItem('vm:lamp:v1');if(l)document.documentElement.setAttribute('data-lamp',l);}catch(e){}try{if(localStorage.getItem('vm:houseLights:v2')==='1'||sessionStorage.getItem('vm:autoHouseLights:v1')==='1')document.documentElement.setAttribute('data-house-lights','');}catch(e){}try{var t=new URLSearchParams(location.search).get('type');if(t==='a'||t==='b'||t==='c')document.documentElement.setAttribute('data-type',t);}catch(e){}try{var d=document.documentElement;if(location.pathname==='/'&&!sessionStorage.getItem('vm:opened:v1')&&!d.hasAttribute('data-house-lights')&&(!l||l==='D50')&&!matchMedia('(prefers-reduced-motion: reduce)').matches)d.setAttribute('data-opening','');}catch(e){}})();`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

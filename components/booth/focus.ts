@@ -19,3 +19,16 @@ export function onFocusRects(cb: () => void) {
 
 /** J4: the sample under the pointer (home lineup), the depth of field's focus while there is no tray object. */
 export const hoverFocus = { slug: null as string | null };
+
+/**
+ * M2 (09): what the cursor label says over the booth (fine pointers only): "Open <Project>" over a
+ * sample, "Drag to turn" while one is pressed, "About" over the certificate. Set by ObjectSlot and
+ * Certificate; read by components/ui/CursorLabel.tsx.
+ */
+export const cursorTarget = { label: null as string | null, pressed: false, version: 0 };
+export function setCursorTarget(label: string | null, pressed = cursorTarget.pressed) {
+  if (label === cursorTarget.label && pressed === cursorTarget.pressed) return;
+  cursorTarget.label = label;
+  cursorTarget.pressed = pressed;
+  cursorTarget.version++;
+}

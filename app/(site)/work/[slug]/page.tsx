@@ -10,6 +10,8 @@ import { SlugLine } from '@/components/ui/SlugLine';
 import { SpecPlate } from '@/components/ui/SpecPlate';
 import { UvCaption } from '@/components/ui/UvCaption';
 import { TrayTurn } from '@/components/ui/TrayTurn';
+import { LiveLink } from '@/components/ui/LiveLink';
+import { Cover } from '@/components/ui/Cover';
 import { JsonLd, workLd } from '@/lib/jsonld';
 
 type Props = { params: Promise<{ slug: string }> };
@@ -85,13 +87,13 @@ export default async function WorkPage({ params }: Props) {
 
         {/* D3: the story. P1 centred; M2 and M3 side by side; P2 and P3 side by side; then the rest */}
         {work.description?.length ? (
-          <div className="work__p1 work__copy">
+          <div className="work__p1 work__copy" data-reveal="">
             {work.description.map((p) => <p key={p.slice(0, 32)}>{p}</p>)}
           </div>
         ) : null}
         <ProofStrip deliverables={work.deliverables} serialBase={serial} items={[1, 2]} layout="pair" label="Deliverables 2 and 3" />
         {sections.length > 0 && (
-          <div className="work__pp work__copy" data-count={Math.min(2, sections.length)}>
+          <div className="work__pp work__copy" data-count={Math.min(2, sections.length)} data-reveal="">
             {sections.map((sec) => (
               <section key={sec.heading} className="work__section">
                 <h2>{sec.heading}</h2>
@@ -113,17 +115,30 @@ export default async function WorkPage({ params }: Props) {
         )}
       </div>
 
-      {/* D5: full width, wrapping round the lineup */}
-      <nav className="worknav rail" aria-label="Projects">
-        <NextLink href={`/work/${prev.slug}`} className="worknav__prev">
-          <span className="mono">← Previous project</span>
-          <span className="worknav__title">{prev.title}</span>
-        </NextLink>
-        <NextLink href={`/work/${next.slug}`} className="worknav__next">
-          <span className="mono">Next on the tray →</span>
-          <span className="worknav__title">{next.title}</span>
-        </NextLink>
-      </nav>
+      {/* P7 (09): the ending. The live link again (G), then the previous and next projects as two large
+          cover cards (wrapping round the lineup); the closing "Book a viewing" block (M3) is the footer */}
+      <section className="workend rail" aria-label="More work" data-reveal="">
+        {work.links?.length ? (
+          <div className="workend__live">
+            <LiveLink work={work} where="end" />
+          </div>
+        ) : null}
+        <nav className="workend__nav" aria-label="Projects">
+          {[
+            { w: prev, dir: '← Previous project', cls: 'workend__card--prev' },
+            { w: next, dir: 'Next on the tray →', cls: 'workend__card--next' },
+          ].map(({ w, dir, cls }) => (
+            <NextLink key={cls} href={`/work/${w.slug}`} className={`workend__card ${cls}`}>
+              <Cover slug={w.slug} className="workend__cover" sizes="(max-width: 760px) 92vw, min(46vw, 900px)" />
+              <span className="workend__text">
+                <span className="mono workend__dir">{dir}</span>
+                <span className="workend__title">{w.title}</span>
+                <span className="workend__tags">{w.disciplines.join(' · ')}</span>
+              </span>
+            </NextLink>
+          ))}
+        </nav>
+      </section>
     </article>
   );
 }

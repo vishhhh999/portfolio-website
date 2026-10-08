@@ -5,15 +5,22 @@
  * front (E 08: one display scale; staging.ts sizeFloor). F1 (desktop
  * sizes): projected boxes of two samples may overlap by at most 3% of the smaller box, and the
  * clear 3D gap between any two samples is at least 8cm.
+ * H3 (09): first, offline, the mesh-level clearance inside multi-piece samples (tools/mesh-clearance.mjs).
  *   node tools/check-sizes.mjs   (against a running build)
  */
 import { createRequire } from 'module';
+import { meshClearance } from './mesh-clearance.mjs';
 const require = createRequire(import.meta.url);
 const pw = require(process.env.PLAYWRIGHT || 'playwright');
 const BASE = process.env.BASE || 'http://localhost:3100';
 const b = await pw.chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 let ok = true;
 const MIN = 11;
+// H3 (09): inside a multi-piece sample (SHUNYA) no two pieces intersect or come within 2mm
+{
+  const r = await meshClearance((l) => console.log('  ' + l));
+  if (!r.ok) ok = false;
+}
 for (const [w, h] of [[1440, 900], [1568, 980], [2560, 1271], [1920, 1080], [1366, 768], [725, 960], [390, 844], [430, 932]]) {
   const p = await b.newPage({ viewport: { width: w, height: h }, reducedMotion: 'reduce' });
   await p.goto(BASE + '/', { waitUntil: 'networkidle' });

@@ -36,6 +36,11 @@ export function attachScreen(root: Object3D, slug: string, aspect: number, mobil
     clearcoatRoughness: 0.6,
     clearcoatRoughnessMap: smudgeMap(),
     envMapIntensity: 0.35,
+    // A4 (09): the display sits 1mm in front of its glass in every rebuilt GLB; polygon offset is the
+    // second guard against depth flicker at booth scale
+    polygonOffset: true,
+    polygonOffsetFactor: -1,
+    polygonOffsetUnits: -4,
   });
   applyUV(material, { inkProj: ink ?? null });
   // F2 (08): no hot spot. The glass keeps its environment sheen (envMapIntensity, roughness ~0.12),
@@ -55,9 +60,11 @@ export function attachScreen(root: Object3D, slug: string, aspect: number, mobil
     }
   });
   let light: RectAreaLight | null = null;
-  // B2 (08): one combined screen light for all devices (the rig's spill light), on desktop too;
-  // `?perf&no=screencombine` restores 07's one area light per screen for an A/B
-  if (mesh && !mobile && perfOff('screencombine') && !perfOff('screenlights')) {
+  // E (09): on desktop each display has its own area light again (the laptop's blue, the tablet's
+  // indigo, the phone's orange pool on its neighbours and plinths), present only under SCREEN: the
+  // rig shows it there and hides it under every other lamp (`visible`, so it costs nothing then; the
+  // SCREEN shader variant is pre-warmed while idle). Phones keep the rig's one combined light.
+  if (mesh && !mobile && !perfOff('screenlights')) {
     // the display's size and facing, from its own geometry (in the model's space)
     root.updateMatrixWorld(true);
     const m = mesh as Mesh;
@@ -73,6 +80,7 @@ export function attachScreen(root: Object3D, slug: string, aspect: number, mobil
     // width runs along the light's local x (horizontal after lookAt): a portrait display is narrow
     light = aspect >= 1 ? new RectAreaLight('#ffffff', 0, dims[0], dims[1]) : new RectAreaLight('#ffffff', 0, dims[1], dims[0]);
     light.position.copy(centre).addScaledVector(n, 0.001);
+    light.visible = false;
     root.add(light);
     light.lookAt(centre.clone().addScaledVector(n, 1));
   }

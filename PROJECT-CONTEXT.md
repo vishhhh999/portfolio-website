@@ -1,6 +1,6 @@
 # visheshmahendru.com: The Booth. Full project context
 
-This document holds everything needed to pick the project up cold, by you or by a new Claude session. It is current as of 7 Oct 2026, after batch 08 and its follow-up (PR #5). `HANDOVER.md` has the session wrap-up, including Vishesh's three later commits on `main` (covers, repaired source models, the lightmap) that still need integrating.
+This document holds everything needed to pick the project up cold, by you or by a new Claude session. It is current as of 8 Oct 2026, after batch 09A (PR #7: the repaired models, the lightmap, the covers and the experience pass are integrated). `HANDOVER.md` has the session wrap-up; `DELIVERY-09A.md` the batch report. 09B (the responsive shelf system) is next.
 
 Paste it (or point to it) at the start of any new session, together with `BRIEF.md` from the repo.
 
@@ -75,18 +75,18 @@ The full original concept, phases and locked rules are in `BRIEF.md` in the repo
 | Route | What |
 |---|---|
 | `/` | One centred column: the headline "Tested under every light.", the subtext, the booth (nine samples plus the About certificate on the shelf), the lamp panel in the flow under it. Stage width = min(content width, 1.6 × the height left), so booth and panel fit one screen. Phones (< 600px) have their own portrait shot (the cabinet's height fills a 4:5 box), swiped sample to sample. The nav's first item swaps the home view in place (URL unchanged): **Index** (a clean list: number, project, discipline, year, image preview on hover) ⇄ **3D viewport**. In house lights mode: the flat house-lights index, same URL. |
-| `/work/[slug]` | The booth header (≥ 62svh desktop, ≥ 48svh phone, starting under the masthead) with that sample on the tray; drag (or ← → on the focused header) turns it. Below, the story: title block on the calibration label (left) beside M1 (right, tops aligned); P1 centred (~62ch); M2 + M3 side by side; P2 + P3 side by side; then the rest in a grid. The live link ("Live site ↗" / "Full case study ↗") is a row inside the calibration label (Mitooshi, Sonde, House of Hex, Indo Thai only). Footer: "← Previous project" / "Next on the tray →", full width, wrapping round the lineup. Images are the plain files under every lamp (torch only under AFTER DARK). In house lights mode: no booth header, same content. |
+| `/work/[slug]` | 09A: until the booth is live, the header shows that sample's own tray poster (`public/booth/tray/<slug>[-phone].webp`, P2). The title block and calibration label are sticky from 1100px (P6). The outbound link is a filled button ("View live site ↗" / "Read full case study on Behance ↗", G) inside the label and again at the end; the ending is two cover cards (previous / next, P7). Sections reveal by opacity once (P9). The booth header (≥ 62svh desktop, ≥ 48svh phone, starting under the masthead) with that sample on the tray; drag (or ← → on the focused header) turns it. Below, the story: title block on the calibration label (left) beside M1 (right, tops aligned); P1 centred (~62ch); M2 + M3 side by side; P2 + P3 side by side; then the rest in a grid. The live link ("Live site ↗" / "Full case study ↗") is a row inside the calibration label (Mitooshi, Sonde, House of Hex, Indo Thai only). Ending: the outbound link again, then the previous and next projects as cover cards, wrapping round the lineup (P7). Images are the plain files under every lamp (torch only under AFTER DARK). In house lights mode: no booth header, same content. |
 | `/house-lights` | A shareable direct link to the flat index (no WebGL). No UI link points here. House lights is only the rocker / I; the nav's Index is a separate home view. |
 | `/about` | "Certificate of Calibration", full width: two columns from 1100px (name, discipline, location, what I do, portrait · experience, education, awards, tool stack, clients), one column below. LOCATION reads "India" plus a live IST clock (24h, ticks each minute, client-only). No "checked under" / PASS strip. CV PDF (`/Vishesh-Mahendru-CV.pdf`) and socials. No CTA and no email block on the certificate (the email lives in the footer). |
-| `/archive` | Contact sheet of 49 pieces (45 stills + 4 AMG GTR clips that loop muted only on screen), titled by Vish's A-number list (`content/archive.ts` `TITLES`), numbered A01–A49 with no gaps. One row of chips (All · Music cover art · 3D explorations · Posters · Other), kept in `?series=`. |
+| `/archive` | 09A P11: every tile has its dominant colour and a 16px blur-up until the image lands (`content/archive-lqip.json`, `tools/archive-lqip.mjs`), and opens a viewer (arrows, swipe, Esc, focus trapped, `#A07` hashes shareable). Contact sheet of 49 pieces (45 stills + 4 AMG GTR clips that loop muted only on screen), titled by Vish's A-number list (`content/archive.ts` `TITLES`), numbered A01–A49 with no gaps. One row of chips (All · Music cover art · 3D explorations · Posters · Other), kept in `?series=`. |
 | 404 | `app/not-found.tsx`: a pure-CSS UV booth. |
 | `/projects/*` | 301 redirects to `/work/*` (legacy Framer URLs; `next.config.ts` `LEGACY_PROJECTS`). |
 
 **Never name a route segment `index`.** Vercel serves `/index` from the root page. `tools/check-routes.mjs` guards this and runs before every build.
 
-**Contact:** work@visheshmahendru.com ("Book a viewing" mailto plus a copy-email button), in the site footer only.
+**Contact:** work@visheshmahendru.com. Every "Book a viewing" link (masthead button, footer closing block, 404) is the one helper `contactMailto()` in `lib/site.ts`: a standard `mailto:` with the agreed subject ("Saw your portfolio, let's connect") and body, CRLF-encoded; `check-07` asserts every mailto on the site matches it. The footer ends every page with the closing block (M3, 09A): the email set large, a copy button, the time in India, the three socials. The masthead carries Index/Home, About, CV and a filled "Book a viewing" button (P4).
 
-**Lamp panel:** on `/` it sits in the flow, centred under the booth (portalled into `#panel-slot`). On project pages it is a small centred pill (dot + lamp name) that opens on hover or click. While the booth header is on screen it rides the header's bottom edge; below that it slides away while scrolling down and returns on scroll up or after 1.2s still, never over a proof (08 H3, `SwitchPanel.tsx`). Pages keep `--panel-clear` of space under their last content. No panel on `/about`, `/archive`, `/house-lights`.
+**Lamp panel:** on `/` it sits in the flow, centred under the booth (portalled into `#panel-slot`). On project pages it is a small centred pill (dot + lamp name, crossfading 150ms on a change) plus an always-present house-lights switch ("I · BOOTH/FLAT", 09A F1/P3) that opens on hover or click. Lamp changes are announced in an aria-live region (P8). While the booth header is on screen it rides the header's bottom edge; below that it slides away while scrolling down and returns on scroll up or after 1.2s still, never over a proof (08 H3, `SwitchPanel.tsx`). Pages keep `--panel-clear` of space under their last content. No panel on `/about`, `/archive`, `/house-lights`.
 
 **Socials** (in `lib/site.ts`):
 - Instagram vishafterdark
@@ -206,10 +206,11 @@ The data shape is in `lib/types.ts`. Key fields:
 - **Lamp presets** (`lib/lampPresets.ts`): position, colour (Kelvin via `lib/kelvin.ts`), intensity, exposure, strike channels and durations, and screen gains for each lamp. B5 (07): D50 exposure 0.635 under PBR Neutral puts the back wall at L* ~80 and white paper at L* ~90 (`tools/measure-brightness.mjs`); TL84 and A scaled by the same factor.
 - **Opening moment:** first visit per session the booth comes up dark and the D50 tubes strike (two flickers, ~1.2s; `prepareOpening` / `runOpening` in `lib/lampController.ts`). Skipped on repeat visits, reduced motion and house lights.
 - **Shadows:** VSM (08; softness baked into the map, re-rendered only on change; `no=vsm` restores PCF + PCSS); cached contact shadows per object; SSAO at half resolution on desktop; baked AO texture (`public/booth/ao.png`, phones `ao-phone.png`) everywhere.
-- **SCREEN lamp:** one combined screen light on desktop (08; `no=screencombine` restores one per screen). Pouch / book / SOOK read 18–23 L*.
+- **SCREEN lamp (09A E):** desktop gives each display its own area light (laptop blue, tablet indigo, phone orange pools), in the scene only under SCREEN (hidden, not at 0, under every other lamp); the SCREEN shader variant is compiled while idle after its environment capture. Phones keep one combined light. Pouch / book / SOOK read 24.4 / 23.3 / 21.3 L*. `?perf&no=screenlights` falls back to the combined light.
 - **Screens:** glass coat at roughness ~0.12, env 0.35, no direct specular from the lamps (no hot spot).
 - **Area-light tables:** the LTC tables for RectAreaLight live in `public/booth/ltc.bin` (`lib/ltc.ts`). They were moved out of the JS bundle to fit the budget.
-- **Lightmap path:** if `public/booth/lightmap.ktx2` (or `.png`) exists, the booth uses it automatically (resolved at build time in the site layout). It doesn't exist yet: bake from `tools/booth-room.glb` (the room only; plinths, riser and shelf keep their own AO in code) plus `tools/camera.json`.
+- **Lightmap (09A C):** Vishesh's Cycles bake (diffuser, direct + bounce, neutral white; source `assets-src/booth/lightmap.exr` + its 16-bit PNG twin) ships as `public/booth/lightmap.ktx2` (2048, UASTC with sRGB transfer, 818KB, desktop) and `lightmap-phone.webp` (1024, 11KB, phones); `tools/encode-lightmap.mjs` makes both. Each lamp's `bake` level in `lampPresets` tints and scales it (the diffuser colour for D50/TL84, the key colour for A/FLOOD, near zero for UV, zero for SCREEN and AFTER DARK), struck with the opening like every other light. On room surfaces the bake replaces the realtime ceiling panel and the hemisphere bounce (shader patch in `BoothRoom.applyLightmap`); objects keep every realtime light. The reveal waits for it (`holdModels`). Loupe: D50 wall L* 79.2, paper 90.0.
+- **Room normals (09A C4):** the `interior` faces into the booth now (FrontSide); positions and both UV sets are byte-identical to aa0e153 (`tools/booth-room.lock` notes it). The hood is drawn 2.2% wider so its ends hide in the coved corners (C5).
 
 ### Interaction and UI (`components/ui/`, `lib/`)
 
@@ -277,7 +278,8 @@ An inline script runs before paint. It applies the stored lamp and sets `<html d
 | `vm:houseLights:v2` | local | Visitor chose house lights |
 | `vm:autoHouseLights:v1` | session | Slow GPU fell back automatically |
 | `vm:sound:v1` | local | Sound on/off |
-| `vm:opened:v1` | session | The opening strike has played |
+| `vm:opened:v1` | session | The opening strike has played (09A: the opening plays on `/` only; a deep link into a project shows the lit tray at once) |
+| `vm:hint:v1` | session | The first-visit wayfinding line has been shown (P5) |
 
 ### URL flags (debugging)
 
@@ -293,6 +295,8 @@ An inline script runs before paint. It applies the stored lamp and sets `<html d
 | `?nobloom`, `?drift` | Disable bloom; proof drift measurement |
 | `?modelref=<slug>` | One GLB on grey, matching its Blender reference render |
 | `?notice=` | Show a notice |
+| `?type=a\|b\|c` | 09A M4: the home headline in Antonio / Instrument Serif / Archivo Expanded (default Geist) |
+| `?modelref=<slug>&yaw=&elev=` | 09A: orbit the model-reference camera (a 3/4 view, or the back with yaw 180) |
 
 ---
 
@@ -323,7 +327,7 @@ An inline script runs before paint. It applies the stored lamp and sets `<html d
 - Mitooshi 04 and 06 need no master: they are two-colour dot-pattern squares that the indexed palette does not harm.
 - 44 archive masters are indexed.
 
-**Models status:** all nine samples are real GLBs (desktop 8.8MB / mobile 2.2MB, loaded in view priority). Desktop uses KTX2, except JSW, which is WebP at 2048 from the lossless PNG (08). Mobile uses WebP, so phones never load the Basis transcoder. All model artwork gets 8× anisotropic filtering. The JSW inner pages carry an authored layout grid in the texture. No procedural objects remain.
+**Models status (09A):** all nine are real GLBs, desktop 5.27MB / mobile 1.86MB. Desktop artwork is WebP (3 to 5x smaller than UASTC at the same look), ORM and normal maps KTX2 ETC1S; phones WebP throughout. `optimize-models.mjs` also drops extra Blender scenes, turns a backward `screen` plane to the front (Mitooshi), and nudges parts 0.3 to 0.5mm apart where two sat within 0.5mm (`NUDGE`). SHUNYA is capped (1536/1024 desktop, 768/256 phone) and decimated (17k / 6.7k triangles). Mobile uses WebP, so phones never load the Basis transcoder. All model artwork gets 8× anisotropic filtering. The JSW inner pages carry an authored layout grid in the texture. No procedural objects remain.
 
 ---
 
@@ -364,7 +368,7 @@ PLAYWRIGHT=<path to playwright> node tools/<check>.mjs
 | `check-views.mjs` | Booth/canvas alignment at 1280–2560 wide, resizes, scrollbars |
 | `check-sizes.mjs` | Each sample's long side ≥ 11% of the cabinet width (9% raised, nothing taller in front); boxes overlap ≤ 3%; 3D gaps ≥ 8cm. Phones (390x844, 430x932): ≥ 14% of the box width, all in frame, gaps ≥ 5cm |
 | `stage-plan.mjs` | Offline staging planner, no browser (`PHONE=1` for the phone arrangement) |
-| `check-poster.mjs` | C1: the poster matches the live booth (≤ 2.5% mean difference) |
+| `check-poster.mjs` | C1: the poster matches the live booth (≤ 2.5% mean difference); 09A adds every project's tray poster (desktop and phone) |
 | `check-picking.mjs` | B4: on every booth route, a grid of points: what a click opens is what is seen there |
 | `check-07.mjs` | Nav labels and the home view switch, IST clock, no Mitooshi 04–07 leftovers, archive titles and numbering, chips |
 | `measure-brightness.mjs` | B5 loupe readings (wall and paper L*) per lamp |
@@ -374,6 +378,13 @@ PLAYWRIGHT=<path to playwright> node tools/<check>.mjs
 | `check-redirects.mjs` | `/projects/*` → `/work/*` 301s |
 | `check-sound.mjs` | Sound beds and events |
 | `check-smear.mjs` | A1: no stale booth pixels outside the current views (scrolling, opening projects), and each route registers only its own views |
+| `check-coplanar.mjs` (09A B1) | No two separate parts within 0.5mm, facing the same way, where a booth or tray camera sees them (`node --experimental-strip-types`); fails the 08 House of Hex. Overlaps inside one part are listed for Blender |
+| `mesh-clearance.mjs` (09A H3) | SHUNYA's pieces ≥ 2mm apart (runs inside `check-sizes`) |
+| `check-pill.mjs` (09A F3/P4) | The pill never over the label, a proof, a link button or end card while scrolling every project page; the masthead never collides with itself at 390–2560 |
+| `check-targets.mjs` (09A P1) | Targets ≥ 24px (mouse) / 44px (touch), type ≥ 11px desktop / 12px phones |
+| `check-axe.mjs` (09A P8) | axe-core WCAG A/AA on every route at 1568 and 390: no serious or critical |
+| `check-about.mjs` (09A J) | The About record column ends level with the portrait caption at 1440–2560; client columns 4/3/2 |
+| `type-sheet.mjs` (09A M4) | Contact sheet of the headline in Geist and `?type=a|b|c` |
 | `check-flicker.mjs` | A2/C7: no presented frame drops > 5% below its neighbours: reveal (poster vs live ≤ 4%; fails 07's stale poster at 44%), hover on/off every sample (D50, A), lamp change, turntable spin + release, JSW open (`ONLY=` to pick) |
 | `shots-08.mjs`, `tray-zoom.mjs`, `jsw-compare.mjs` | Batch screenshots, the first-visit reveal sheet (poster → crossfade → strike, held with `__boothStrikeHold`), every model at tray zoom, JSW vs the Blender reference |
 | `check-houselights.mjs` | B: house lights toggles in place, URL unchanged; stored choice loads flat; no panel on /about, /archive |
@@ -406,6 +417,7 @@ Gotchas when testing in the cloud container:
 | `e3d6ada` | Merge of PR #1 into `main` (4 Oct 2026) |
 | `c8c4b85` | Batch 07 (PR #3): all ten objects, centred layout, project story, interaction, realism, speed |
 | `aa0e153` | Batch 08 A: the room FROZEN (`tools/booth-room.lock`) |
+| PR #7 | Batch 09A: integration (repaired models, lightmap, covers), screen flicker guard, lightmap on, SCREEN pools, booth tweaks, the experience pass (P1–P12), polish (M1–M5), LAUNCH.md. See `DELIVERY-09A.md` |
 | PR #4 | Batch 08: frame budget (re-render on change), no flicker (live posters, gated reveal, flicker-free lamp changes), masked hover focus, true relative scale, tray framing, phone arrangement, polish. See `DELIVERY-08.md` |
 
 **The A–I batch:**

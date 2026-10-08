@@ -37,6 +37,38 @@ function SoundMeter({ on }: { on: boolean }) {
   );
 }
 
+/** P8 (09): what a screen reader hears when the lamp changes (polite, focus never moves). */
+const SPOKEN: Record<string, string> = {
+  D50: 'D50, daylight',
+  TL84: 'TL84, store fluorescent',
+  A: 'A, home tungsten',
+  UV: 'UV, blacklight',
+  FLOOD: 'Flood, stadium floodlight',
+  SCREEN: 'Screen, lit by the device screens only',
+  AFTERDARK: 'After Dark, hand lamp',
+  house: 'house lights on, the flat page',
+};
+/** P3 (09): the house-lights control names what it does, not "off" (which read as darkness). */
+const HOUSE_TITLE = 'Switch this page to its flat, no-3D version';
+
+/** P8 (09): announces lamp changes in an aria-live region (never the first lamp on load). */
+function LampAnnouncer({ lamp }: { lamp: string }) {
+  const first = useRef(true);
+  const [text, setText] = useState('');
+  useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    setText(`Lamp: ${SPOKEN[lamp] ?? lamp}`);
+  }, [lamp]);
+  return (
+    <span className="sr-only" aria-live="polite" aria-atomic="true">
+      {text}
+    </span>
+  );
+}
+
 /**
  * Hardware-style lamp switches. Real buttons, aria-pressed, keys 1–7, I for house lights.
  * Only on pages with a booth (B4): /about, /archive, /house-lights and archive-only projects have
@@ -153,14 +185,15 @@ export function SwitchPanel() {
       const r = el.getBoundingClientRect();
       return { onHeader, top: bottom - h, bottom, left: r.left, right: r.right };
     };
+    // F3 (09): the pill never sits on the calibration label, a proof or a link button
     const coversProof = (at: ReturnType<typeof place>) =>
-      [...document.querySelectorAll('.proof__image')].some((el) => {
+      [...document.querySelectorAll('.proof__image, .calib, .livelink, .workend__card')].some((el) => {
         const p = el.getBoundingClientRect();
         return p.top < at.bottom && p.bottom > at.top && p.left < at.right && p.right > at.left;
       });
     const settle = () => {
       const at = place();
-      setAway(!at.onHeader && coversProof(at));
+      setAway(coversProof(at));
     };
     // the page scrolls smoothly (Lenis eases it for a while after each input), so the pill decides
     // every frame while the page moves, against the positions actually on screen
@@ -170,8 +203,9 @@ export function SwitchPanel() {
       const dir = y - last;
       last = y;
       const at = place();
-      if (at.onHeader) setAway(false);
-      else if (coversProof(at) || dir > 1) setAway(true);
+      if (coversProof(at)) setAway(true);
+      else if (at.onHeader) setAway(false);
+      else if (dir > 1) setAway(true);
       else if (dir < -1) setAway(false);
       raf = now < movingUntil ? requestAnimationFrame(frame) : 0;
     };
@@ -212,31 +246,38 @@ export function SwitchPanel() {
       }}
     >
       {folded ? (
-        <button
-          type="button"
-          className="panel__pill"
-          onClick={() => {
-            pinned.current = true;
-            setOpen(true);
-          }}
-          aria-expanded="false"
-          aria-label={`Lamps: ${onIndex ? 'house lights on' : active.ariaLabel}. Show the lamp panel`}
-        >
-          <span className="panel__status-led" style={{ ['--lamp' as string]: onIndex ? '#f2f0ea' : active.indicator }} aria-hidden="true" />
-          <span>{onIndex ? 'House lights' : active.label}</span>
-        </button>
+        <>
+          <button
+            type="button"
+            className="panel__pill"
+            onClick={() => {
+              pinned.current = true;
+              setOpen(true);
+            }}
+            aria-expanded="false"
+            aria-label={`${onIndex ? 'House lights' : active.label}: show the lamp panel`}
+          >
+            <span className="panel__status-led" style={{ ['--lamp' as string]: onIndex ? '#f2f0ea' : active.indicator }} aria-hidden="true" />
+            {/* P9 (09): the label crossfades (150ms) when the lamp changes */}
+            <span key={onIndex ? 'house' : lamp} className="panel__pilllabel">{onIndex ? 'House lights' : active.label}</span>
+          </button>
+          {/* F1 (09): house lights is always one press away, also from the folded pill */}
+          <button type="button" className="rocker rocker--pill" aria-pressed={onIndex} onClick={toggleHouseLights} aria-keyshortcuts="I" title={HOUSE_TITLE}>
+            <kbd>I</kbd> <span className="rocker__state">{onIndex ? 'Flat' : 'Booth'}</span>
+            <span className="sr-only">: house lights. {HOUSE_TITLE}</span>
+          </button>
+        </>
       ) : (
         <>
-          <button type="button" className="rocker" aria-pressed={onIndex} onClick={toggleHouseLights} aria-keyshortcuts="I">
-            <span className="rocker__state" aria-hidden="true">{onIndex ? 'On' : 'Off'}</span>
-            <span>House lights</span>
-            <kbd aria-hidden="true">I</kbd>
+          <button type="button" className="rocker" aria-pressed={onIndex} onClick={toggleHouseLights} aria-keyshortcuts="I" title={HOUSE_TITLE}>
+            <span>House lights</span> <span className="rocker__state">{onIndex ? 'Flat' : 'Booth'}</span> <kbd>I</kbd>
+            <span className="sr-only">: {HOUSE_TITLE}</span>
           </button>
 
           {/* House lights on: the booth is off, so the lamp bank folds away. */}
           {!onIndex && (
             <>
-              <p className="panel__active mono" aria-live="polite">
+              <p className="panel__active mono">
                 <span className="panel__status-led" style={{ ['--lamp' as string]: active.indicator }} aria-hidden="true" />
                 {active.label}
               </p>
@@ -247,15 +288,15 @@ export function SwitchPanel() {
                       type="button"
                       className="switch"
                       aria-pressed={lamp === l.id}
-                      aria-label={l.ariaLabel}
                       aria-keyshortcuts={l.key}
                       title={l.spec}
                       onClick={(e) => flip(l.id, e.clientX)}
                       style={{ ['--lamp' as string]: l.indicator }}
                     >
                       <span className="switch__led" aria-hidden="true" />
-                      <span className="switch__label" aria-hidden="true">{l.id === 'AFTERDARK' ? 'Dark' : l.id}</span>
-                      <span className="switch__readout" aria-hidden="true">{l.readout}</span>
+                      <span className="switch__label">{l.id === 'AFTERDARK' ? 'Dark' : l.id}</span>{' '}
+                      <span className="switch__readout">{l.readout}</span>
+                      <span className="sr-only">: {l.ariaLabel}</span>
                     </button>
                   </li>
                 ))}
@@ -282,6 +323,7 @@ export function SwitchPanel() {
           )}
         </>
       )}
+      <LampAnnouncer lamp={onIndex ? 'house' : lamp} />
     </nav>
   );
   return home ? createPortal(panel, slot!) : panel;

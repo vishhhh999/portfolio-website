@@ -54,7 +54,7 @@ async function measure(name, act, target) {
   void t0;
 }
 
-await measure('next on the tray (→ /work/jsw-sports)', () => p.evaluate(() => document.querySelector('a.worknav__next')?.click()), '/work/jsw-sports');
+await measure('next on the tray (→ /work/jsw-sports)', () => p.evaluate(() => document.querySelector('a.workend__card--next')?.click()), '/work/jsw-sports');
 await p.waitForTimeout(1500);
 // a sample in the header, clicked on the canvas where it is drawn (the raised back samples stay
 // visible, dimmed, behind the tray): scan its projected box with the pointer until the booth offers

@@ -78,6 +78,18 @@ function pump() {
   }
 }
 
+/** C1 (09): something else the first frame needs (the room lightmap) holds the reveal like a model; call the returned release once. */
+export function holdModels(): () => void {
+  pendingNeeded++;
+  let done = false;
+  return () => {
+    if (done) return;
+    done = true;
+    pendingNeeded--;
+    pump();
+  };
+}
+
 /** No model the current view needs is still loading (the booth is revealed only once they are in). */
 export const modelsSettled = () => pendingNeeded === 0;
 

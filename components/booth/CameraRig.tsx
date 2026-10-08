@@ -37,7 +37,11 @@ export function CameraRig() {
 
   useEffect(() => {
     camera.fov = FOV;
-    camera.near = 0.05;
+    // B2 (09): the nearest the camera ever gets to anything is ~0.3m (the tray's front edge in the
+    // closest tray shot), so the near plane sits at 0.15m, not 0.05: three times the depth precision.
+    // A 24-bit depth step at the device screens from the home view (~3m) is 0.004mm (0.012mm before),
+    // against the 1mm screen-to-glass gap of the rebuilt GLBs. No logarithmic depth is needed.
+    camera.near = 0.15;
     camera.far = 12;
     camera.updateProjectionMatrix();
   }, [camera]);

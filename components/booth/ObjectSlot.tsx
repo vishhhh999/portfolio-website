@@ -18,7 +18,7 @@ import { PLINTH_GREY, RECEDE_DZ, STAGING, TRAY } from './staging';
 import { trayHidden } from './shots';
 import { stageRect } from '@/lib/views';
 import { applyUV, blankInk, createProofInk } from './uvMaterial';
-import { hoverFocus, setFocusRect } from './focus';
+import { cursorTarget, hoverFocus, setCursorTarget, setFocusRect } from './focus';
 import { playEvent } from '@/lib/sound';
 import { track } from '@/lib/analytics';
 import { openProject, warmProject } from '@/lib/navigate';
@@ -213,6 +213,13 @@ function ModelObject({ work, onReady }: { work: Work; onReady: () => void }) {
             node.position.z += lz - c.z;
           }
         }
+        // A5 (09): a model whose origin is not under its middle is centred on its footprint
+        if (m.center) {
+          scene.updateMatrixWorld(true);
+          const c = new Box3().setFromObject(scene).getCenter(new Vector3());
+          scene.position.x -= c.x;
+          scene.position.z -= c.z;
+        }
         const st = STAGING[work.slug];
         const real = { w: st.object.w / (st.scale ?? 1), h: st.object.h / (st.scale ?? 1) };
         const ink = objectInk(work, real.w, real.h);
@@ -352,6 +359,7 @@ export function ObjectSlot({ work, lineup }: { work: Work; lineup: string[] }) {
   const [shadowKeys, setShadowKeys] = useState<number[]>([0]);
   const shadowRefs = useRef(new Map<number, Group>());
   const shadowFade = useRef(0);
+  const bakeSeq = useRef(0);
   const router = useRouter();
   const invalidate = useThree((s) => s.invalidate);
   const activeSlug = useBooth((s) => s.activeSlug);
@@ -475,10 +483,16 @@ export function ObjectSlot({ work, lineup }: { work: Work; lineup: string[] }) {
       spinning = true;
     }
 
-    // the contact shadow is baked once: re-bake it when a turn comes to rest
-    if (wasSpinning.current && !spinning && spinDragging() !== work.slug) {
+    // D (09): while the object turns (dragged or coasting) its contact shadow renders every frame (a
+    // live instance, -1); at rest the cached bake returns: a fresh bake crossfades in over 200ms
+    const turning = spinning || spinDragging() === work.slug;
+    if (turning && !wasSpinning.current) {
+      setShadowKeys(() => [-1]);
+      logEvent(`contact shadow ${work.slug} live (turning)`);
+    }
+    if (wasSpinning.current && !turning) {
       shadowFade.current = 0;
-      setShadowKeys((k) => [k[k.length - 1], k[k.length - 1] + 1]);
+      setShadowKeys(() => [-1, ++bakeSeq.current]);
       logEvent(`contact shadow ${work.slug} re-bake (crossfade)`);
     }
     if (shadowKeys.length === 2) {
@@ -493,7 +507,7 @@ export function ObjectSlot({ work, lineup }: { work: Work; lineup: string[] }) {
       invalidate();
       if (t >= 1) setShadowKeys((k) => (k.length === 2 ? [k[1]] : k));
     }
-    wasSpinning.current = spinning || spinDragging() === work.slug;
+    wasSpinning.current = turning;
 
     const moving =
       spinning ||
@@ -547,6 +561,7 @@ export function ObjectSlot({ work, lineup }: { work: Work; lineup: string[] }) {
         // I: press and drag turns the object (phones: only the one on the project tray)
         if (!work.model || (mobile && !active) || e.button !== 0) return;
         e.stopPropagation();
+        setCursorTarget(cursorTarget.label, true);
         const sp = spinOf(work.slug);
         let last = e.nativeEvent.clientX, travel = 0, t = performance.now();
         sp.target = null;
@@ -566,6 +581,7 @@ export function ObjectSlot({ work, lineup }: { work: Work; lineup: string[] }) {
           invalidate();
         };
         const up = () => {
+          setCursorTarget(hoverFocus.slug === work.slug && !active ? `Open ${work.title}` : null, false);
           window.removeEventListener('pointermove', move);
           window.removeEventListener('pointerup', up);
           window.removeEventListener('pointercancel', up);
@@ -594,11 +610,13 @@ export function ObjectSlot({ work, lineup }: { work: Work; lineup: string[] }) {
         if (!active) warmProject(router, work.slug);
         setHovered(true);
         hoverFocus.slug = work.slug;
+        if (!cursorTarget.pressed) setCursorTarget(active ? null : `Open ${work.title}`);
         document.body.style.cursor = active ? '' : 'pointer';
       }}
       onPointerOut={() => {
         setHovered(false);
         if (hoverFocus.slug === work.slug) hoverFocus.slug = null;
+        if (!cursorTarget.pressed) setCursorTarget(null);
         document.body.style.cursor = '';
       }}
     >
@@ -616,7 +634,7 @@ export function ObjectSlot({ work, lineup }: { work: Work; lineup: string[] }) {
             if (g) shadowRefs.current.set(sk, g);
             else shadowRefs.current.delete(sk);
           }}
-          frames={3}
+          frames={sk < 0 ? Infinity : 3}
           position={[0, 0.001, 0]}
           scale={[object.w * 1.5, object.d * 1.6]}
           resolution={mobile ? 256 : 512}

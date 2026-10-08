@@ -3,35 +3,17 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { works } from '@/content/work';
-import { sizedFile } from '@/lib/responsive';
 import { track } from '@/lib/analytics';
-import type { Work } from '@/lib/types';
-
-/** A project's first still (a video's poster), at the smallest generated width ≥ 640px. */
-function still(w: Work) {
-  const d = w.deliverables[0];
-  if (!d) return null;
-  const src = d.type === 'video' ? d.poster : d.src;
-  return src ? sizedFile(src, 640) : null;
-}
-
-/** H4 (08): the still's own aspect (width / height), so the preview box never letterboxes it. */
-function aspect(w: Work) {
-  const d = w.deliverables[0];
-  return d?.width && d?.height ? d.width / d.height : 4 / 3;
-}
+import { Cover, COVER_ASPECT } from './Cover';
 
 /**
  * C5: the home page's Index view: number, project, discipline, year. Hovering (or focusing) a row
- * shows that project's first image beside the list. Plain DOM, no WebGL.
+ * shows that project's cover beside the list (I 09: the 18:25 covers, AVIF / WebP in srcset, in a box
+ * of the cover's own aspect). Plain DOM, no WebGL.
  */
 export function HomeIndex() {
   const [hover, setHover] = useState<string | null>(null);
   const shown = works.find((w) => w.slug === hover) ?? null;
-  // the box keeps the last shown still's aspect while it fades out
-  const [last, setLast] = useState<Work | null>(null);
-  if (shown && shown !== last) setLast(shown);
-  const a = aspect(shown ?? last ?? works[0]);
   return (
     <section className="homeindex" aria-label="Index">
       <ol className="homeindex__list">
@@ -53,11 +35,10 @@ export function HomeIndex() {
           </li>
         ))}
       </ol>
-      <div className="homeindex__preview" aria-hidden="true" style={{ aspectRatio: `${a}`, width: `min(100%, calc(70svh * ${a.toFixed(4)}))` }}>
-        {works.map((w) => {
-          const src = still(w);
-          return src ? <img key={w.slug} src={src} alt="" loading="lazy" decoding="async" data-on={shown?.slug === w.slug} /> : null;
-        })}
+      <div className="homeindex__preview" aria-hidden="true" style={{ aspectRatio: `${COVER_ASPECT}`, width: `min(100%, calc(70svh * ${COVER_ASPECT.toFixed(4)}))` }}>
+        {works.map((w) => (
+          <Cover key={w.slug} slug={w.slug} sizes="(max-width: 760px) 0px, min(40vw, 50svh)" on={shown?.slug === w.slug} />
+        ))}
       </div>
     </section>
   );

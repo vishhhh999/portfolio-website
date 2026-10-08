@@ -1,13 +1,31 @@
 {
-  "hash": "d85a3aff62870e5c6020f6d8094fb2447ee0c64419c091df786308a4ed5191b0",
+  "hash": "96e9666c400919c02c47da4c9fc84b2380e72d85286608107e9d23f874bcb68d",
   "files": {
-    "poster-cabinet-1200.webp": "f06f3156cdaa3132b18f3e14d7430252d33c05143bbdabaae3ce49766621e1fc",
-    "poster-cabinet-2400.webp": "2bbea720c20175260a049af88a839286fc127c2a5c326329f1cef5ae2c65ac20",
-    "poster-cabinet-1200.jpg": "83885931dad5f4ec81434101befd5db434b35050f4c565b89c96cf112ad86dbb",
-    "poster-phone.webp": "46f1d850b7c92cba9550aba00e24722709a257ec0766c05004049ed0fabdab9e",
-    "poster-cabinet-dark-1200.webp": "bd2ddc34e525251800152f95699db978261b7ca91462c8a1d2f0db3419af9cae",
-    "poster-cabinet-dark-2400.webp": "2986792e1ec196558d9c53169a3d84500ede98617447b993ef3ee094db242a94",
-    "poster-phone-dark.webp": "a87d1c26f0433f5da7db26dd4ae4d499df2ab5b6b8ff74daa50fd4cdadd79ab1"
+    "poster-cabinet-1200.webp": "f8df63b7799006d5f855f7dc5868ab1c539898d051587eedfc8b1bb3c383ef04",
+    "poster-cabinet-2400.webp": "620f7f5ca83b0e7937e829b1d9ec20d3a7bd9fb52f6e87b0b0b2fad56d3e4ba2",
+    "poster-cabinet-1200.jpg": "7e6a8b0250bb206362ba0d0f925df04eaf72646b9390d2ce4c26d21bb017d28a",
+    "poster-phone.webp": "0d4d704f6a054e0c6dcab5ba3e05fcfbdb01896ebfa3be216b903c8c235b1d3d",
+    "poster-cabinet-dark-1200.webp": "102fe9fe84db35b5da6d8907260c1e52c3f8942278dcb4be6d90282856bba499",
+    "poster-cabinet-dark-2400.webp": "caa4a942d34dd85d7d557d2ab43696ca478a163daec4b48d65bdbe82c225758f",
+    "poster-phone-dark.webp": "1a455be6af34ac2342e8dcebcc8240c26d8de9ab4657c11b138e4441d32da559",
+    "tray/too-yumm.webp": "b5c3809be4d49c92ff3fb12d749bbd625b3026f05526c4e00c7a5f3bff95b124",
+    "tray/too-yumm-phone.webp": "dbc1aefde6bab85efec472aad4fe95101af0fabb6765ac315db856ac1d48b0ce",
+    "tray/jsw-sports.webp": "c807371208990f2bfbaa98a2b8060ef0511c6770f093d8a90f2929ab8acfa3b1",
+    "tray/jsw-sports-phone.webp": "ccdb2a860041a9e403729a6440ef5eed0fa6a0f51ead0f2b2ff503e33330f34d",
+    "tray/mitooshi.webp": "2d6f46bbc9d3b6d2425b9e4ca1785b85adfc8d06b7a52f992172d3293e8ba8b2",
+    "tray/mitooshi-phone.webp": "1942033d9fb20a9bd1788807c4166695da9a6e266f3dcc11b12a0efcfba3d75c",
+    "tray/sonde.webp": "321427cb3666f35edbcba4f37530ca761996154bc979226e94920423545ba667",
+    "tray/sonde-phone.webp": "22ff8def58f48545ce455f45fb030161ee67d45db7ca2e06668b3a739579d88d",
+    "tray/house-of-hex.webp": "90da3fd89f1744b8c86555504540132cf6b11f3b5b34357d4851b8a0af808bf5",
+    "tray/house-of-hex-phone.webp": "d20b9973ed3876511bd060fab7458412c9d401cc4a4625edb4a54ca82a85881b",
+    "tray/bengal-t20.webp": "be53deb82c9d2b783d6d2611295f1cda4037ebff35a653a457bca14dc2c927a4",
+    "tray/bengal-t20-phone.webp": "70107356e9ded5cb27a1c32b9f724b5f95bb150f929ac5b4505256a56947cd31",
+    "tray/sook.webp": "8613f62211ab984ad654463d17cf416e62ad3c45c950274bf56a41e8e9e74748",
+    "tray/sook-phone.webp": "aa380d64f4827a56be447849ad60b9ebd3ec5a327698d97589772d8f71ccd773",
+    "tray/shunya.webp": "c805932b2614521a7b47b1edddcb28bca72d114f4e4171ed15dc682d8d60e10c",
+    "tray/shunya-phone.webp": "4d9c409f9ede2d3f7235739e612d1b92b596c35d6060ca232c240fa328f79964",
+    "tray/indo-thai.webp": "9d27bb480c2c4af9af839b45c36357169647feb76e6b480b982dc0c9c5cc53c6",
+    "tray/indo-thai-phone.webp": "05f074df1f94c8c33d27271003287c5c08f06e1996b59ff2d1ac7a53ef9e1e02"
   },
-  "rendered": "2026-10-07T09:43:08.631Z"
+  "rendered": "2026-10-07T21:16:40.204Z"
 }

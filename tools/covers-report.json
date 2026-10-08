@@ -1,0 +1,137 @@
+{
+  "bengal-t20": {
+    "480": {
+      "avifKB": 36,
+      "webpKB": 58
+    },
+    "960": {
+      "avifKB": 86,
+      "webpKB": 139
+    },
+    "1440": {
+      "avifKB": 180,
+      "webpKB": 349
+    },
+    "source": "1440x2000"
+  },
+  "house-of-hex": {
+    "480": {
+      "avifKB": 12,
+      "webpKB": 19
+    },
+    "960": {
+      "avifKB": 41,
+      "webpKB": 71
+    },
+    "1440": {
+      "avifKB": 305,
+      "webpKB": 376
+    },
+    "source": "1440x2000"
+  },
+  "indo-thai": {
+    "480": {
+      "avifKB": 13,
+      "webpKB": 21
+    },
+    "960": {
+      "avifKB": 32,
+      "webpKB": 48
+    },
+    "1440": {
+      "avifKB": 105,
+      "webpKB": 151
+    },
+    "source": "1440x2000"
+  },
+  "jsw-sports": {
+    "480": {
+      "avifKB": 17,
+      "webpKB": 29
+    },
+    "960": {
+      "avifKB": 46,
+      "webpKB": 77
+    },
+    "1440": {
+      "avifKB": 197,
+      "webpKB": 276
+    },
+    "source": "1440x2000"
+  },
+  "mitooshi": {
+    "480": {
+      "avifKB": 7,
+      "webpKB": 10
+    },
+    "960": {
+      "avifKB": 23,
+      "webpKB": 39
+    },
+    "1440": {
+      "avifKB": 257,
+      "webpKB": 275
+    },
+    "source": "1440x2000"
+  },
+  "shunya": {
+    "480": {
+      "avifKB": 11,
+      "webpKB": 16
+    },
+    "960": {
+      "avifKB": 28,
+      "webpKB": 38
+    },
+    "1440": {
+      "avifKB": 56,
+      "webpKB": 113
+    },
+    "source": "1440x2000"
+  },
+  "sonde": {
+    "480": {
+      "avifKB": 23,
+      "webpKB": 37
+    },
+    "960": {
+      "avifKB": 53,
+      "webpKB": 84
+    },
+    "1440": {
+      "avifKB": 150,
+      "webpKB": 230
+    },
+    "source": "1440x2000"
+  },
+  "sook": {
+    "480": {
+      "avifKB": 11,
+      "webpKB": 15
+    },
+    "960": {
+      "avifKB": 28,
+      "webpKB": 40
+    },
+    "1440": {
+      "avifKB": 76,
+      "webpKB": 123
+    },
+    "source": "1440x2000"
+  },
+  "too-yumm": {
+    "480": {
+      "avifKB": 34,
+      "webpKB": 53
+    },
+    "960": {
+      "avifKB": 107,
+      "webpKB": 162
+    },
+    "1440": {
+      "avifKB": 254,
+      "webpKB": 412
+    },
+    "source": "1440x2000"
+  }
+}

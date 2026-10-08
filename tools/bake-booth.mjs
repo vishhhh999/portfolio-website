@@ -95,7 +95,7 @@ for (const part of parts) {
   const g = part.geometry;
   const pos = g.getAttribute('position'), nor = g.getAttribute('normal'), uv1 = g.getAttribute('uv1');
   q.setFromEuler(e.set(...(part.rotation ?? [0, 0, 0])));
-  const flip = part.role === 'interior' ? -1 : 1; // the interior is seen from inside
+  const flip = 1; // C4 (09): the interior's normals already face into the booth
   const index = g.index;
   const tri = index ? index.count / 3 : pos.count / 3;
   const P = new Vector3(), Nn = new Vector3();
@@ -180,7 +180,7 @@ const doc = new Document();
 const buffer = doc.createBuffer();
 const scene = doc.createScene('booth-room');
 const mats = {};
-const mat = (role) => (mats[role] ??= doc.createMaterial(role).setRoughnessFactor(0.9).setMetallicFactor(0).setDoubleSided(role === 'interior'));
+const mat = (role) => (mats[role] ??= doc.createMaterial(role).setRoughnessFactor(0.9).setMetallicFactor(0).setDoubleSided(false)); // C4 (09): the interior faces inward, so nothing needs two sides
 for (const part of parts.filter((p) => ROOM.has(p.role))) {
   const g = part.geometry.index ? part.geometry : part.geometry;
   const acc = (name, attr, type) => doc.createAccessor(`${part.name}-${name}`).setType(type).setArray(new Float32Array(attr.array)).setBuffer(buffer);
@@ -205,12 +205,14 @@ const io = new NodeIO();
   const hash = createHash('sha256').update(bytes).digest('hex');
   const lock = join(ROOT, 'tools/booth-room.lock');
   const { existsSync, readFileSync } = await import('fs');
-  const locked = existsSync(lock) ? readFileSync(lock, 'utf8').trim() : null;
+  // first line: the hash; the lines after it are the room's history notes (kept on a rewrite)
+  const lockText = existsSync(lock) ? readFileSync(lock, 'utf8') : '';
+  const locked = lockText ? lockText.split('\n')[0].trim() : null;
   if (locked && locked !== hash && process.env.ROOM_UNFREEZE !== '1') {
     console.error(`booth-room.glb would change (${hash.slice(0, 12)} ≠ frozen ${locked.slice(0, 12)}): the room is frozen. Set ROOM_UNFREEZE=1 only if the lightmap will be re-baked.`);
     process.exit(1);
   }
-  if (!locked || process.env.ROOM_UNFREEZE === '1') writeFileSync(lock, hash + '\n');
+  if (!locked || process.env.ROOM_UNFREEZE === '1') writeFileSync(lock, [hash, ...lockText.split('\n').slice(1)].join('\n').replace(/\n*$/, '\n'));
 }
 await io.write(join(ROOT, 'tools/booth-room.glb'), doc);
 console.log(`booth-room.glb: ${parts.filter((p) => ROOM.has(p.role)).length} parts`);

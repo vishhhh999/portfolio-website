@@ -8,6 +8,7 @@
  *               must match the live booth (mean difference ≤ 4%: a stale poster fails here)
  *   hover       the pointer across the page and every sample (on and off), under D50 and A
  *   lamp        D50 → A → D50 (a lamp change: the env capture, shadows and the strike)
+ *   screen      D50 → SCREEN → D50 (E 09: the per-screen lights enter and leave; shaders pre-warmed)
  *   spin        a turntable drag on a sample and its release (the coast, the contact-shadow re-bake)
  *   jsw         the JSW book opened from the lineup (the dolly, the tray, the open animation)
  *
@@ -75,7 +76,8 @@ if (run('reveal')) {
   await p.goto(BASE + '/?perf', { waitUntil: 'domcontentloaded' });
   await p.waitForSelector('.booth-frame');
   await p.waitForFunction(() => document.querySelector('.booth-poster img')?.complete);
-  await p.addStyleTag({ content: '.specchip,.booth-focus{visibility:hidden!important}' });
+  // DOM over the booth (spec chips, the keyboard layer, 09's sample tags, hint and cursor label) is not the booth
+  await p.addStyleTag({ content: '.specchip,.booth-focus,.sampletags,.boothhint,.cursorlabel{visibility:hidden!important}' });
   const r = await p.locator('.booth-frame').boundingBox();
   const clip = { x: r.x, y: r.y, width: r.width, height: r.height };
   const frames = [];
@@ -106,6 +108,7 @@ await p.addInitScript(() => sessionStorage.setItem('vm:opened:v1', '1')); // J5:
 p.setDefaultTimeout(900000);
 await p.goto(BASE + '/?perf&events', { waitUntil: 'networkidle' });
 await p.waitForSelector('.booth-stage[data-ready="true"]', { timeout: 900000 });
+await p.addStyleTag({ content: '.sampletags,.boothhint,.cursorlabel{visibility:hidden!important}' });
 await p.waitForTimeout(2000);
 
 // ── hover: across the page and on/off every sample, under D50 and A ─────────────────────────
@@ -146,6 +149,38 @@ if (run('lamp')) {
     for (let i = 0; i < 3; i++) (await steady(), await p.waitForTimeout(300));
   });
   report('lamp change D50 → A → D50', lums, '', true);
+}
+
+// ── E (09): D50 → SCREEN → D50: the per-screen lights enter and leave the scene ─────────────
+if (run('screen')) {
+  await p.mouse.move(4, 4);
+  await key(p, '1');
+  await p.waitForTimeout(3500);
+  await p.waitForFunction(() => document.body.innerText.includes('SCREEN shaders pre-warmed'), null, { timeout: 1500000 }).catch(() => console.log('  (SCREEN pre-warm not seen in the event log)'));
+  const steady = () => p.evaluate(() => window.__boothBench?.(1));
+  // the switch's own cost: wall time from the key to the next presented frame, against D50 → A
+  const switchMs = async (k) => p.evaluate(async (k) => {
+    const t0 = performance.now();
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: k }));
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    return performance.now() - t0;
+  }, k);
+  const lums = await capture(p, async () => {
+    for (const k of ['6', '1']) {
+      for (let i = 0; i < 3; i++) (await steady(), await p.waitForTimeout(300));
+      await key(p, k);
+      await p.waitForTimeout(5000);
+    }
+    for (let i = 0; i < 3; i++) (await steady(), await p.waitForTimeout(300));
+  });
+  const tScreen = await switchMs('6');
+  await p.waitForTimeout(4000);
+  const tBack = await switchMs('1');
+  await p.waitForTimeout(4000);
+  const tA = await switchMs('3');
+  await p.waitForTimeout(4000);
+  await key(p, '1');
+  report('lamp change D50 → SCREEN → D50', lums, ` · key-to-frame: SCREEN ${tScreen.toFixed(0)}ms, back to D50 ${tBack.toFixed(0)}ms, D50 → A ${tA.toFixed(0)}ms (software)`, true);
 }
 
 // ── turntable: drag a sample, release, let it coast and re-bake its contact shadow ──────────

@@ -16,15 +16,18 @@ mkdirSync(OUT, { recursive: true });
 const b = await pw.chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 const LIST = process.argv[2] ? process.argv[2].split(',') : ['too-yumm', 'sook', 'jsw-sports', 'jsw-sports:open', 'shunya', 'mitooshi', 'house-of-hex', 'sonde', 'indo-thai', 'bengal-t20'];
 for (const item of LIST) {
-  const [slug, variant] = item.split(':');
+  // A6 (09): slug[:variant][@yaw/elev] orbits the camera (degrees): a 3/4 view to match a reference, or the back
+  const [main, angles] = item.split('@');
+  const [slug, variant] = main.split(':');
+  const [yaw, elev] = (angles ?? '').split('/');
   const p = await b.newPage({ viewport: { width: 800, height: 800 }, reducedMotion: 'reduce' });
   p.setDefaultTimeout(600000);
-  await p.goto(`${BASE}/?modelref=${slug}&gpu=high&tone=agx${variant ? '&open' : ''}`, { waitUntil: 'networkidle' });
+  await p.goto(`${BASE}/?modelref=${slug}&gpu=high&tone=agx${variant ? '&open' : ''}${angles ? `&yaw=${yaw}&elev=${elev}` : ''}`, { waitUntil: 'networkidle' });
   await p.waitForFunction(() => document.documentElement.dataset.modelref === 'ready');
   await p.waitForTimeout(4000);
   await p.addStyleTag({ content: '.masthead,.hero,.panel,.footer,.booth-poster,.booth-focus{visibility:hidden!important}' });
   await p.waitForTimeout(500);
-  const tag = variant ? `${slug}-${variant}` : slug;
+  const tag = (variant ? `${slug}-${variant}` : slug) + (angles ? `-y${yaw}e${elev}` : '');
   const ref = variant ? `${slug}.ref-${variant}.png` : `${slug}.ref.png`;
   const site = `${OUT}${tag}-site.png`;
   await p.screenshot({ path: site });

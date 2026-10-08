@@ -35,7 +35,7 @@ for (const slug of SLUGS) {
   await p.waitForTimeout(300);
   check('after pressing 4', await active(p), 'UV');
   // a DOM click on "Next on the tray" (the floating lamp bar may sit over it at this viewport)
-  await p.evaluate(() => document.querySelector('a.worknav__next')?.click());
+  await p.evaluate(() => document.querySelector('a.workend__card--next')?.click());
   await p.waitForURL((u) => !u.pathname.endsWith('/too-yumm'), { timeout: 120000 });
   await p.waitForTimeout(1500);
   check(`client nav to ${new URL(p.url()).pathname}`, await active(p), 'UV');

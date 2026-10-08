@@ -1,74 +1,74 @@
 {
   "sook/desktop": {
     "file": "public/models/sook/sook.glb",
-    "sourceMB": 1.87,
-    "MB": 0.56,
-    "triangles": 3180,
-    "sourceTriangles": 3180,
+    "sourceMB": 3.66,
+    "MB": 0.32,
+    "triangles": 3240,
+    "sourceTriangles": 3240,
     "art": 1024,
     "data": 512,
     "textures": [
       {
-        "name": "orm",
+        "name": "sook_box_orm",
         "mime": "image/ktx2",
-        "kb": 9
+        "kb": 25
       },
       {
-        "name": "basecolor_berry-bloom",
-        "mime": "image/ktx2",
-        "kb": 149
+        "name": "sook_box_aqua_basecolor",
+        "mime": "image/webp",
+        "kb": 82
       },
       {
-        "name": "basecolor_garden-fresh",
-        "mime": "image/ktx2",
-        "kb": 197
+        "name": "sook_box_red_basecolor",
+        "mime": "image/webp",
+        "kb": 96
       },
       {
-        "name": "basecolor_summer-sun",
-        "mime": "image/ktx2",
-        "kb": 196
+        "name": "sook_box_white_basecolor",
+        "mime": "image/webp",
+        "kb": 95
       }
     ]
   },
   "sook/mobile": {
     "file": "public/models/sook/sook.mobile.glb",
-    "sourceMB": 1.87,
-    "MB": 0.09,
-    "triangles": 3180,
-    "sourceTriangles": 3180,
+    "sourceMB": 1.32,
+    "MB": 0.1,
+    "triangles": 1620,
+    "sourceTriangles": 1620,
     "art": 512,
     "data": 256,
     "textures": [
       {
-        "name": "orm",
+        "name": "sook_box_orm_1024",
         "mime": "image/webp",
-        "kb": 4
+        "kb": 12
       },
       {
-        "name": "basecolor_berry-bloom",
+        "name": "sook_box_aqua_basecolor_1024",
         "mime": "image/webp",
-        "kb": 15
+        "kb": 22
       },
       {
-        "name": "basecolor_garden-fresh",
+        "name": "sook_box_red_basecolor_1024",
         "mime": "image/webp",
-        "kb": 18
+        "kb": 26
       },
       {
-        "name": "basecolor_summer-sun",
+        "name": "sook_box_white_basecolor_1024",
         "mime": "image/webp",
-        "kb": 19
+        "kb": 25
       }
     ]
   },
   "totals": {
-    "desktopMB": 8.77,
-    "mobileMB": 2.22
+    "desktopMB": 5.27,
+    "mobileMB": 1.86
   },
   "too-yumm/desktop": {
     "file": "public/models/too-yumm/too-yumm.glb",
-    "sourceMB": 5.06,
-    "MB": 1,
+    "sourceMB": 5.55,
+    "MB": 0.51,
     "triangles": 29479,
     "sourceTriangles": 29479,
     "art": 1024,
@@ -86,41 +86,41 @@
       },
       {
         "name": "basecolor",
-        "mime": "image/ktx2",
-        "kb": 577
+        "mime": "image/webp",
+        "kb": 118
       }
     ]
   },
   "too-yumm/mobile": {
     "file": "public/models/too-yumm/too-yumm.mobile.glb",
-    "sourceMB": 4.3,
-    "MB": 0.19,
+    "sourceMB": 1.76,
+    "MB": 0.18,
     "triangles": 7899,
     "sourceTriangles": 7899,
     "art": 512,
     "data": 512,
     "textures": [
       {
-        "name": "normal",
+        "name": "normal_1024",
         "mime": "image/webp",
-        "kb": 7
+        "kb": 8
       },
       {
-        "name": "orm",
+        "name": "orm_1024",
         "mime": "image/webp",
         "kb": 6
       },
       {
-        "name": "basecolor",
+        "name": "basecolor_1024",
         "mime": "image/webp",
-        "kb": 30
+        "kb": 31
       }
     ]
   },
   "jsw-sports/desktop": {
     "file": "public/models/jsw-sports/jsw-sports.glb",
-    "sourceMB": 1.04,
-    "MB": 0.64,
+    "sourceMB": 5.37,
+    "MB": 0.78,
     "triangles": 1948,
     "sourceTriangles": 1948,
     "art": 2048,
@@ -129,49 +129,49 @@
       {
         "name": "jsw-sports_orm",
         "mime": "image/webp",
-        "kb": 19
+        "kb": 154
       },
       {
         "name": "jsw-sports_basecolor",
         "mime": "image/webp",
-        "kb": 587
+        "kb": 610
       }
     ]
   },
   "jsw-sports/mobile": {
     "file": "public/models/jsw-sports/jsw-sports.mobile.glb",
-    "sourceMB": 0.32,
-    "MB": 0.1,
-    "triangles": 1036,
-    "sourceTriangles": 1036,
+    "sourceMB": 1.65,
+    "MB": 0.11,
+    "triangles": 974,
+    "sourceTriangles": 974,
     "art": 768,
     "data": 256,
     "textures": [
       {
         "name": "jsw-sports.mobile_orm",
         "mime": "image/webp",
-        "kb": 4
+        "kb": 10
       },
       {
         "name": "jsw-sports.mobile_basecolor",
         "mime": "image/webp",
-        "kb": 65
+        "kb": 73
       }
     ]
   },
   "shunya/desktop": {
     "file": "public/models/shunya/shunya.glb",
     "sourceMB": 30.58,
-    "MB": 2.09,
-    "triangles": 41190,
+    "MB": 1.18,
+    "triangles": 17162,
     "sourceTriangles": 41190,
-    "art": 1024,
+    "art": 1536,
     "data": 512,
     "textures": [
       {
         "name": "normal_air-tin",
         "mime": "image/ktx2",
-        "kb": 5
+        "kb": 34
       },
       {
         "name": "orm_air-tin",
@@ -180,13 +180,13 @@
       },
       {
         "name": "basecolor_air-tin",
-        "mime": "image/ktx2",
-        "kb": 279
+        "mime": "image/webp",
+        "kb": 161
       },
       {
         "name": "normal_bhimseni-jar",
         "mime": "image/ktx2",
-        "kb": 23
+        "kb": 86
       },
       {
         "name": "orm_bhimseni-jar",
@@ -195,13 +195,13 @@
       },
       {
         "name": "basecolor_bhimseni-jar",
-        "mime": "image/ktx2",
-        "kb": 389
+        "mime": "image/webp",
+        "kb": 124
       },
       {
         "name": "normal_pooja-carton",
         "mime": "image/ktx2",
-        "kb": 48
+        "kb": 139
       },
       {
         "name": "orm_pooja-carton",
@@ -210,13 +210,13 @@
       },
       {
         "name": "basecolor_pooja-carton",
-        "mime": "image/ktx2",
-        "kb": 333
+        "mime": "image/webp",
+        "kb": 52
       },
       {
         "name": "normal_ritual-set",
         "mime": "image/ktx2",
-        "kb": 28
+        "kb": 136
       },
       {
         "name": "orm_ritual-set",
@@ -225,18 +225,18 @@
       },
       {
         "name": "basecolor_ritual-set",
-        "mime": "image/ktx2",
-        "kb": 350
+        "mime": "image/webp",
+        "kb": 40
       }
     ]
   },
   "shunya/mobile": {
     "file": "public/models/shunya/shunya.mobile.glb",
     "sourceMB": 29.12,
-    "MB": 0.54,
-    "triangles": 11228,
+    "MB": 0.42,
+    "triangles": 6728,
     "sourceTriangles": 11228,
-    "art": 512,
+    "art": 768,
     "data": 256,
     "textures": [
       {
@@ -252,7 +252,7 @@
       {
         "name": "basecolor_air-tin",
         "mime": "image/webp",
-        "kb": 53
+        "kb": 90
       },
       {
         "name": "normal_bhimseni-jar",
@@ -267,7 +267,7 @@
       {
         "name": "basecolor_bhimseni-jar",
         "mime": "image/webp",
-        "kb": 23
+        "kb": 44
       },
       {
         "name": "normal_pooja-carton",
@@ -282,7 +282,7 @@
       {
         "name": "basecolor_pooja-carton",
         "mime": "image/webp",
-        "kb": 14
+        "kb": 24
       },
       {
         "name": "normal_ritual-set",
@@ -297,68 +297,68 @@
       {
         "name": "basecolor_ritual-set",
         "mime": "image/webp",
-        "kb": 13
+        "kb": 20
       }
     ]
   },
   "mitooshi/desktop": {
     "file": "public/models/mitooshi/mitooshi.glb",
-    "sourceMB": 5.48,
-    "MB": 0.95,
-    "triangles": 32884,
-    "sourceTriangles": 32884,
+    "sourceMB": 4.12,
+    "MB": 0.72,
+    "triangles": 25605,
+    "sourceTriangles": 25605,
     "art": 1024,
     "data": 1024,
     "textures": [
       {
-        "name": "mitooshi_normal",
+        "name": "bead_blast_n",
         "mime": "image/ktx2",
-        "kb": 102
+        "kb": 238
       },
       {
-        "name": "mitooshi_orm",
-        "mime": "image/ktx2",
-        "kb": 109
+        "name": "keyboard_basecolor",
+        "mime": "image/webp",
+        "kb": 28
       },
       {
-        "name": "mitooshi_basecolor",
-        "mime": "image/ktx2",
-        "kb": 101
+        "name": "logo",
+        "mime": "image/webp",
+        "kb": 26
       }
     ]
   },
   "mitooshi/mobile": {
     "file": "public/models/mitooshi/mitooshi.mobile.glb",
-    "sourceMB": 1.96,
-    "MB": 0.33,
-    "triangles": 9273,
-    "sourceTriangles": 9273,
+    "sourceMB": 1.28,
+    "MB": 0.25,
+    "triangles": 5505,
+    "sourceTriangles": 5505,
     "art": 512,
     "data": 512,
     "textures": [
       {
-        "name": "mitooshi.mobile_normal",
+        "name": "bead_blast_n",
         "mime": "image/webp",
-        "kb": 35
+        "kb": 132
       },
       {
-        "name": "mitooshi.mobile_orm",
+        "name": "keyboard_basecolor_1024",
         "mime": "image/webp",
-        "kb": 45
+        "kb": 9
       },
       {
-        "name": "mitooshi.mobile_basecolor",
+        "name": "logo",
         "mime": "image/webp",
-        "kb": 8
+        "kb": 11
       }
     ]
   },
   "house-of-hex/desktop": {
     "file": "public/models/house-of-hex/house-of-hex.glb",
-    "sourceMB": 3.22,
-    "MB": 0.74,
-    "triangles": 22975,
-    "sourceTriangles": 22975,
+    "sourceMB": 3.21,
+    "MB": 0.54,
+    "triangles": 22671,
+    "sourceTriangles": 22671,
     "art": 1024,
     "data": 512,
     "textures": [
@@ -369,8 +369,8 @@
       },
       {
         "name": "house-of-hex_phone_basecolor",
-        "mime": "image/ktx2",
-        "kb": 253
+        "mime": "image/webp",
+        "kb": 65
       },
       {
         "name": "house-of-hex_stand_orm",
@@ -379,17 +379,17 @@
       },
       {
         "name": "house-of-hex_stand_basecolor",
-        "mime": "image/ktx2",
-        "kb": 22
+        "mime": "image/webp",
+        "kb": 6
       }
     ]
   },
   "house-of-hex/mobile": {
     "file": "public/models/house-of-hex/house-of-hex.mobile.glb",
-    "sourceMB": 1.22,
+    "sourceMB": 1.21,
     "MB": 0.25,
-    "triangles": 7196,
-    "sourceTriangles": 7196,
+    "triangles": 7084,
+    "sourceTriangles": 7084,
     "art": 512,
     "data": 256,
     "textures": [
@@ -417,10 +417,10 @@
   },
   "sonde/desktop": {
     "file": "public/models/sonde/sonde.glb",
-    "sourceMB": 3.27,
-    "MB": 0.61,
-    "triangles": 18643,
-    "sourceTriangles": 18643,
+    "sourceMB": 1.06,
+    "MB": 0.12,
+    "triangles": 1756,
+    "sourceTriangles": 1756,
     "art": 1024,
     "data": 512,
     "textures": [
@@ -431,27 +431,22 @@
       },
       {
         "name": "sonde_easel_basecolor",
-        "mime": "image/ktx2",
-        "kb": 41
+        "mime": "image/webp",
+        "kb": 12
       },
       {
-        "name": "sonde_tablet_orm",
+        "name": "brushed_n",
         "mime": "image/ktx2",
-        "kb": 44
-      },
-      {
-        "name": "sonde_tablet_basecolor",
-        "mime": "image/ktx2",
-        "kb": 191
+        "kb": 32
       }
     ]
   },
   "sonde/mobile": {
     "file": "public/models/sonde/sonde.mobile.glb",
-    "sourceMB": 1.29,
-    "MB": 0.23,
-    "triangles": 7311,
-    "sourceTriangles": 7311,
+    "sourceMB": 0.77,
+    "MB": 0.06,
+    "triangles": 1410,
+    "sourceTriangles": 1410,
     "art": 512,
     "data": 256,
     "textures": [
@@ -466,21 +461,16 @@
         "kb": 4
       },
       {
-        "name": "sonde_tablet.mobile_orm",
+        "name": "brushed_n",
         "mime": "image/webp",
-        "kb": 23
-      },
-      {
-        "name": "sonde_tablet.mobile_basecolor",
-        "mime": "image/webp",
-        "kb": 20
+        "kb": 9
       }
     ]
   },
   "indo-thai/desktop": {
     "file": "public/models/indo-thai/indo-thai.glb",
     "sourceMB": 5.41,
-    "MB": 0.71,
+    "MB": 0.59,
     "triangles": 20276,
     "sourceTriangles": 20276,
     "art": 1024,
@@ -493,8 +483,8 @@
       },
       {
         "name": "indo-thai_towbar_basecolor",
-        "mime": "image/ktx2",
-        "kb": 36
+        "mime": "image/webp",
+        "kb": 17
       },
       {
         "name": "indo-thai_tug_orm",
@@ -503,8 +493,8 @@
       },
       {
         "name": "indo-thai_tug_basecolor",
-        "mime": "image/ktx2",
-        "kb": 146
+        "mime": "image/webp",
+        "kb": 49
       },
       {
         "name": "indo-thai_wheels_normal",
@@ -518,8 +508,8 @@
       },
       {
         "name": "indo-thai_wheels_basecolor",
-        "mime": "image/ktx2",
-        "kb": 146
+        "mime": "image/webp",
+        "kb": 35
       }
     ]
   },
@@ -572,7 +562,7 @@
   "bengal-t20/desktop": {
     "file": "public/models/bengal-t20/bengal-t20.glb",
     "sourceMB": 17.76,
-    "MB": 1.47,
+    "MB": 0.51,
     "triangles": 13468,
     "sourceTriangles": 13468,
     "art": 1024,
@@ -585,8 +575,8 @@
       },
       {
         "name": "flag_basecolor",
-        "mime": "image/ktx2",
-        "kb": 524
+        "mime": "image/webp",
+        "kb": 134
       },
       {
         "name": "jersey_normal",
@@ -600,8 +590,8 @@
       },
       {
         "name": "jersey_basecolor",
-        "mime": "image/ktx2",
-        "kb": 696
+        "mime": "image/webp",
+        "kb": 114
       },
       {
         "name": "ticket_orm",
@@ -610,8 +600,8 @@
       },
       {
         "name": "ticket_basecolor",
-        "mime": "image/ktx2",
-        "kb": 95
+        "mime": "image/webp",
+        "kb": 28
       }
     ]
   },

@@ -16,7 +16,8 @@ export type AnalyticsEvent =
   | 'Sound toggled'
   | 'CV downloaded'
   | 'Email copied'
-  | 'Outbound link';
+  | 'Outbound link'
+  | 'Book a viewing';
 
 export function track(event: AnalyticsEvent, props?: Record<string, string | number | boolean>) {
   try {

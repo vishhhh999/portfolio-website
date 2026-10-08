@@ -29,6 +29,7 @@ import { contextLost, contextRestored } from '@/lib/resilience';
 import { Post } from './Post';
 import { ModelRef } from './ModelRef';
 import { lineupShot, trayShot } from './shots';
+import type { BoothLightmap } from './BoothRoom';
 import { BOOTH, CABINET_FACE, CERTIFICATE, FACE_Z, FOCAL_MM, FOV, PLINTH_CHAMFER, PROPS, SENSOR_HEIGHT_MM, STAGING, TRAY, lineupLayout, sizeFloor, PHONE_LAYOUT } from './staging';
 
 declare global {
@@ -323,7 +324,7 @@ function ClockBridge({ onReady }: { onReady: () => void }) {
  * never remounted. It draws the booth into the stage rect and the proof-strip
  * planes into their image rects, on demand, from the page's single clock.
  */
-export default function BoothCanvas({ onReady, lightmap = null }: { onReady: () => void; lightmap?: string | null }) {
+export default function BoothCanvas({ onReady, lightmap = null }: { onReady: () => void; lightmap?: BoothLightmap | null }) {
   useEffect(() => {
     window.__boothMounts = (window.__boothMounts ?? 0) + 1;
     window.__boothExport = (aspect: number) => ({
