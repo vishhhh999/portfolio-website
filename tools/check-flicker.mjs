@@ -60,7 +60,36 @@ function report(name, lums, extra = '', valley = false) {
   console.log(`${ok ? 'PASS' : 'FAIL'} ${name}: ${lums.length} frames, luminance ${Math.min(...lums).toFixed(1)}-${Math.max(...lums).toFixed(1)}, worst ${valley ? 'dip below both sides' : 'drop'} ${(worst * 100).toFixed(1)}%${at >= 0 ? ` at frame ${at}` : ''}${extra}`);
 }
 async function capture(p, action, visibleContent = false) {
-  await p.evaluate((visibleContent) => (window.__boothCapture = { on: true, lums: [], visibleContent }), visibleContent);
+  await p.evaluate((visibleContent) => {
+    const lums = [];
+    if (visibleContent) lums.push = function (lum) {
+      const live = document.querySelector('.booth-canvas canvas:not(.booth-cover)');
+      const cover = document.querySelector('.booth-cover');
+      // An opaque cover is the entire presented image. The hidden WebGL canvas can still
+      // have the old CSS height, so its readback includes pixels below the new viewport.
+      // Measure the cover in visible CSS coordinates, independent of that hidden buffer.
+      if (cover && !cover.hidden && Number(getComputedStyle(cover).opacity) === 1 && Number(getComputedStyle(live).opacity) === 0) {
+        const stage = window.__boothStageRect(), rect = cover.getBoundingClientRect();
+        const left = Math.max(0, stage.left), right = Math.min(innerWidth, stage.right);
+        const top = Math.max(0, stage.top), bottom = Math.min(innerHeight, stage.bottom);
+        const data = cover.getContext('2d').getImageData(0, 0, cover.width, cover.height).data;
+        const paper = getComputedStyle(document.documentElement).backgroundColor.match(/[\d.]+/g).map(Number);
+        const paperLum = 0.2126 * paper[0] + 0.7152 * paper[1] + 0.0722 * paper[2];
+        let sum = 0, ink = 0, alpha = 0;
+        for (let y = 0; y < 100; y++) for (let x = 0; x < 100; x++) {
+          const cx = Math.floor((left + (x + 0.5) / 100 * (right - left) - rect.left) * cover.width / rect.width);
+          const cy = Math.floor((top + (y + 0.5) / 100 * (bottom - top) - rect.top) * cover.height / rect.height);
+          const i = (cy * cover.width + cx) * 4;
+          const a = cx >= 0 && cy >= 0 && cx < cover.width && cy < cover.height ? data[i + 3] / 255 : 0;
+          const color = a ? (0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2]) * a : 0;
+          sum += color + paperLum * (1 - a); ink += color; alpha += a;
+        }
+        lum = right > left && bottom > top && ink > 0 && alpha > 0 ? +(sum / 10000).toFixed(2) : 0;
+      }
+      return Array.prototype.push.call(this, lum);
+    };
+    window.__boothCapture = { on: true, lums, visibleContent };
+  }, visibleContent);
   await action();
   return p.evaluate(() => {
     window.__boothCapture.on = false;
