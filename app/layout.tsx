@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import localFont from 'next/font/local';
 import { Analytics } from '@vercel/analytics/next';
 import './globals.css';
+import { shapeBootScript } from '@/lib/shape';
 
 /**
  * Geist + Geist Mono, subset to the characters the site uses (tools/subset-fonts.sh: 141 KB → 50 KB),
@@ -52,6 +53,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable}`} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: HOUSE_LIGHTS_BOOT }} />
+        {/* L1 (09B): the page's shape (wide / square / tall / phone-landscape) before first paint, so the first poster is the right one */}
+        <script dangerouslySetInnerHTML={{ __html: shapeBootScript() }} />
         <link rel="manifest" href="/manifest.webmanifest" crossOrigin="use-credentials" />
       </head>
       <body>

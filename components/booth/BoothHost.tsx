@@ -13,6 +13,10 @@ import { playEvent } from '@/lib/sound';
 import { logEvent } from '@/lib/eventLog';
 import { onViewsChanged, registerStage, viewCount } from '@/lib/views';
 import type { BoothLightmap } from './BoothRoom';
+import { startShape } from '@/lib/shape';
+
+// L1 (09B): the shape classifier runs from the first client render (the boot script already set <html data-shape>)
+if (typeof window !== 'undefined') startShape();
 
 const BoothCanvas = dynamic(() => import('./BoothCanvas'), { ssr: false });
 
