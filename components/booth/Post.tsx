@@ -42,7 +42,7 @@ import {
   type Texture,
   type WebGLRenderer,
 } from 'three';
-import { stageRect } from '@/lib/views';
+import { frameRect, stageRect } from '@/lib/views';
 import { isMobileTier } from '@/lib/perfTier';
 import { loupeState } from '@/lib/loupe';
 import { useBooth } from '@/lib/store';
@@ -50,7 +50,7 @@ import { isDirty, markDirty, takeDirty } from '@/lib/dirty';
 import { useReducedMotion } from '@/lib/useReducedMotion';
 import { hoverFocus } from './focus';
 import { roomLightmap } from './BoothRoom';
-import { STAGING } from './staging';
+import { activeLayout, STAGING } from './staging';
 import { logEvent } from '@/lib/eventLog';
 
 declare global {
@@ -304,6 +304,7 @@ class BoothToneEffect extends Effect {
       uniform float exposure;
       uniform float neutral;
       uniform vec4 box;
+      uniform vec4 vbox;
       const mat3 SRGB_TO_2020 = mat3(vec3(0.6274, 0.0691, 0.0164), vec3(0.3293, 0.9195, 0.0880), vec3(0.0433, 0.0113, 0.8956));
       const mat3 REC2020_TO_SRGB = mat3(vec3(1.6605, -0.1246, -0.0182), vec3(-0.5876, 1.1329, -0.1006), vec3(-0.0728, -0.0083, 1.1187));
       const mat3 INSET = mat3(vec3(0.856627153315983, 0.137318972929847, 0.11189821299995), vec3(0.0951212405381588, 0.761241990602591, 0.0767994186031903), vec3(0.0482516061458583, 0.101439036467562, 0.811302368396859));
@@ -338,7 +339,7 @@ class BoothToneEffect extends Effect {
         vec3 c = inside ? (neutral > 0.5 ? clamp(pbrNeutral(e), 0.0, 1.0) : agx(e)) : clamp(inputColor.rgb, 0.0, 1.0);
         // J4: a gentle vignette inside the stage (the corners ~10% down), never on the page
         if (inside) {
-          vec2 q = (uv - box.xy) / max(box.zw - box.xy, vec2(1e-4)) - 0.5;
+          vec2 q = (uv - vbox.xy) / max(vbox.zw - vbox.xy, vec2(1e-4)) - 0.5;
           c *= 1.0 - 0.1 * smoothstep(0.3, 0.72, length(q * vec2(1.0, 0.86)));
         }
         outputColor = vec4(c, inputColor.a);
@@ -348,6 +349,7 @@ class BoothToneEffect extends Effect {
           ['exposure', new Uniform(1)],
           ['neutral', new Uniform(1)],
           ['box', new Uniform(new Vector4(0, 0, 0, 0))],
+          ['vbox', new Uniform(new Vector4(0, 0, 0, 0))],
         ]),
       },
     );
@@ -356,6 +358,7 @@ class BoothToneEffect extends Effect {
     (this.uniforms.get('exposure') as Uniform<number>).value = postState.exposure * EXPOSURE_OVERRIDE;
     (this.uniforms.get('neutral') as Uniform<number>).value = TONE_OVERRIDE ?? (postState.neutral ? 1 : 0);
     setStageBox(this.uniforms.get('box')!.value as Vector4);
+    setVignetteBox(this.uniforms.get('vbox')!.value as Vector4);
   }
 }
 
@@ -422,6 +425,16 @@ class BoothFocusEffect extends Effect {
 }
 
 /** The booth stage in uv space (x0, y0, x1, y1); empty when there is no stage. */
+/**
+ * L6 (09B): the vignette's box: the cabinet's own frame on home (so the picture is the same at every
+ * window size, whatever the stage's proportions), the stage everywhere else.
+ */
+function setVignetteBox(box: Vector4) {
+  const f = activeLayout().kind === 'cabinet' && !useBooth.getState().activeSlug ? frameRect() : null;
+  if (!f) return setStageBox(box);
+  const W = window.innerWidth, H = window.innerHeight;
+  return box.set(f.left / W, 1 - (f.top + f.height) / H, (f.left + f.width) / W, 1 - f.top / H);
+}
 function setStageBox(box: Vector4) {
   const r = stageRect();
   if (!r) return box.set(0, 0, 0, 0);
