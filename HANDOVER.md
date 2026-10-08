@@ -1,5 +1,11 @@
 # HANDOVER: The Booth (visheshmahendru.com)
 
+## 09B status (8 Oct 2026, read this first): handed over mid-verification
+
+Batch 09B (the layout by screen shape, the shelf) is on branch `claude/quirky-knuth-70j1df`, draft PR #8. The code is done; posters, the regression suite, screenshots and the merge are left. **Read `CODEX-HANDOFF.md`**: it has the full state, the verified results (the 20-viewport L7 matrix passes), the decisions Vish should know (the square shape gets a 4-column shelf; the wide band rule; the shelf not locked yet), and the exact steps to finish.
+
+---
+
 ## 09A update (8 Oct 2026, read this first)
 
 Batch 09A is PR #7 (`claude/quirky-knuth-70j1df`), squash-merged to `main`; every check in DELIVERY-09A §1 passes (software rendering). Full report: `DELIVERY-09A.md`. The three half-integrated commits from 08's wrap-up (covers 82eb8e1, repaired models e3dea76, lightmap 8cbbcc1) are now fully integrated. **Next: 09B, the responsive shelf system.**
