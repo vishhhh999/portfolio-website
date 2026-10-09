@@ -1,5 +1,6 @@
 'use client';
 
+import { useShape } from '@/lib/shape';
 import { advance, useFrame, useThree } from '@react-three/fiber';
 import { postApi } from './Post';
 import { invalidateShadows } from './LampRig';
@@ -24,6 +25,7 @@ declare global {
       lowPower: boolean;
       cores: number;
       renderer: string;
+      shape: { shape: string; w: number; h: number; aspect: number; columns: number; forced: boolean };
     };
   }
 }
@@ -74,6 +76,7 @@ export function PerfProbe({ readout }: { readout: boolean }) {
         lowPower: perfState.lowPower,
         cores: info.cores,
         renderer: info.renderer,
+        shape: useShape.getState(),
       };
     };
     if (!readout) return;
@@ -90,6 +93,8 @@ export function PerfProbe({ readout }: { readout: boolean }) {
       div.textContent =
         (idle ? 'idle (on-demand: no frames in the last 4s)\n' : `${r.fps} fps   p50 ${r.p50Ms}ms   p95 ${r.p95Ms}ms\n`) +
         `DPR ${r.dpr}${perfState.steps ? ` (−${perfState.steps})` : ''}   tier ${r.tier}   lamp ${r.lamp}\n` +
+        // L1 (09B): the classified shape, its aspect (width / svh height) and the shelf's columns
+        `shape ${r.shape.shape}${r.shape.forced ? ' (forced)' : ''}   ${r.shape.w}x${r.shape.h}   aspect ${r.shape.aspect}   cols ${r.shape.columns}\n` +
         `${r.cores} cores · ${r.renderer.slice(0, 38)}\n` +
         // B1 (08): which side renders ran on the last frame, and how often since load
         `dirty  reflector ${dirtyLast.reflector ? '●' : '○'} ${dirtyCount.reflector}   shadow ${dirtyLast.shadow ? '●' : '○'} ${dirtyCount.shadow}   normals ${dirtyLast.normals ? '●' : '○'} ${dirtyCount.normals}` +

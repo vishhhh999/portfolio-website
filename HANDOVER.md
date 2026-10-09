@@ -1,5 +1,13 @@
 # HANDOVER: The Booth (visheshmahendru.com)
 
+## 09B verification (read this before the historical notes)
+
+The owner's current instructions supersede the branch and squash workflow below: finish the three corrections and the complete poster run on `claude/quirky-knuth-70j1df`, pass the local build and the full suite, then merge into `main` with both parents preserved. Close PR #8 after pushing that merge. Subsequent work goes directly to `main`, with a passing build and checks before every push. Changes to the first frame require a full poster re-render in the same commit.
+
+The About caption is **Specimen · black and white**; the photo is unchanged. The tablet band rule ends at aspect 1.5, restoring the 09A desktop fit. At 1032x1230 the targeted laptop check measures 97.8% visibility and enforces an 80% minimum. The phone hint sits above the first shelf row. All 53 booth posters and 10 share cards were rendered together, and the build and all 56 poster comparisons passed. See `DELIVERY-09B.md` for the final suite results and limits of software rendering.
+
+---
+
 ## 09A update (8 Oct 2026, read this first)
 
 Batch 09A is PR #7 (`claude/quirky-knuth-70j1df`), squash-merged to `main`; every check in DELIVERY-09A §1 passes (software rendering). Full report: `DELIVERY-09A.md`. The three half-integrated commits from 08's wrap-up (covers 82eb8e1, repaired models e3dea76, lightmap 8cbbcc1) are now fully integrated. **Next: 09B, the responsive shelf system.**

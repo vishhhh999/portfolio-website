@@ -11,7 +11,7 @@ export default function Home() {
       <section className="hero">
         <div className="hero__copy">
           <h1>
-            Tested under
+            Tested under{' '}
             <br />
             every light.
           </h1>

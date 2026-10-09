@@ -11,6 +11,7 @@
  *   screen      D50 → SCREEN → D50 (E 09: the per-screen lights enter and leave; shaders pre-warmed)
  *   spin        a turntable drag on a sample and its release (the coast, the contact-shadow re-bake)
  *   jsw         the JSW book opened from the lineup (the dolly, the tray, the open animation)
+ *   resize      L2 (09B): a window dragged across every shape and back, an iPad rotated both ways
  *
  *   node tools/check-flicker.mjs [width=1280]   (against a running build)
  */
@@ -54,12 +55,41 @@ function worstValley(lums) {
 }
 function report(name, lums, extra = '', valley = false) {
   const { worst, at } = valley ? worstValley(lums) : worstDrop(lums);
-  const ok = lums.length > 5 && worst <= 0.05;
+  const ok = lums.length > 5 && lums.every((v) => v > 0) && worst <= 0.05;
   if (!ok) fails++;
   console.log(`${ok ? 'PASS' : 'FAIL'} ${name}: ${lums.length} frames, luminance ${Math.min(...lums).toFixed(1)}-${Math.max(...lums).toFixed(1)}, worst ${valley ? 'dip below both sides' : 'drop'} ${(worst * 100).toFixed(1)}%${at >= 0 ? ` at frame ${at}` : ''}${extra}`);
 }
-async function capture(p, action) {
-  await p.evaluate(() => (window.__boothCapture = { on: true, lums: [] }));
+async function capture(p, action, visibleContent = false) {
+  await p.evaluate((visibleContent) => {
+    const lums = [];
+    if (visibleContent) lums.push = function (lum) {
+      const live = document.querySelector('.booth-canvas canvas:not(.booth-cover)');
+      const cover = document.querySelector('.booth-cover');
+      // An opaque cover is the entire presented image. The hidden WebGL canvas can still
+      // have the old CSS height, so its readback includes pixels below the new viewport.
+      // Measure the cover in visible CSS coordinates, independent of that hidden buffer.
+      if (cover && !cover.hidden && Number(getComputedStyle(cover).opacity) === 1 && Number(getComputedStyle(live).opacity) === 0) {
+        const stage = window.__boothStageRect(), rect = cover.getBoundingClientRect();
+        const left = Math.max(0, stage.left), right = Math.min(innerWidth, stage.right);
+        const top = Math.max(0, stage.top), bottom = Math.min(innerHeight, stage.bottom);
+        const data = cover.getContext('2d').getImageData(0, 0, cover.width, cover.height).data;
+        const paper = getComputedStyle(document.documentElement).backgroundColor.match(/[\d.]+/g).map(Number);
+        const paperLum = 0.2126 * paper[0] + 0.7152 * paper[1] + 0.0722 * paper[2];
+        let sum = 0, ink = 0, alpha = 0;
+        for (let y = 0; y < 100; y++) for (let x = 0; x < 100; x++) {
+          const cx = Math.floor((left + (x + 0.5) / 100 * (right - left) - rect.left) * cover.width / rect.width);
+          const cy = Math.floor((top + (y + 0.5) / 100 * (bottom - top) - rect.top) * cover.height / rect.height);
+          const i = (cy * cover.width + cx) * 4;
+          const a = cx >= 0 && cy >= 0 && cx < cover.width && cy < cover.height ? data[i + 3] / 255 : 0;
+          const color = a ? (0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2]) * a : 0;
+          sum += color + paperLum * (1 - a); ink += color; alpha += a;
+        }
+        lum = right > left && bottom > top && ink > 0 && alpha > 0 ? +(sum / 10000).toFixed(2) : 0;
+      }
+      return Array.prototype.push.call(this, lum);
+    };
+    window.__boothCapture = { on: true, lums, visibleContent };
+  }, visibleContent);
   await action();
   return p.evaluate(() => {
     window.__boothCapture.on = false;
@@ -103,11 +133,25 @@ if (run('reveal')) {
   await p.close();
 }
 
+if (['hover', 'lamp', 'screen', 'spin', 'jsw'].some(run)) {
 const p = await b.newPage({ viewport: { width: W, height: H } });
+await p.addInitScript(() => {
+  // The diagnostic log retains only 40 lines. Remember warm-up messages as they arrive,
+  // so hover activity cannot evict them and turn a completed capture into a timeout.
+  window.__boothWarmEvents = { A: false, SCREEN: false };
+  new MutationObserver((mutations) => {
+    for (const m of mutations) for (const node of [...m.addedNodes, ...m.removedNodes]) {
+      const text = node.textContent ?? '';
+      if (text.includes('env capture A')) window.__boothWarmEvents.A = true;
+      if (text.includes('SCREEN shaders pre-warmed')) window.__boothWarmEvents.SCREEN = true;
+    }
+  }).observe(document, { childList: true, subtree: true });
+});
 await p.addInitScript(() => sessionStorage.setItem('vm:opened:v1', '1')); // J5: no opening strike in steady-state checks
 p.setDefaultTimeout(900000);
 await p.goto(BASE + '/?perf&events', { waitUntil: 'networkidle' });
 await p.waitForSelector('.booth-stage[data-ready="true"]', { timeout: 900000 });
+await p.waitForFunction(() => window.__boothSettled?.() === true);
 await p.addStyleTag({ content: '.sampletags,.boothhint,.cursorlabel{visibility:hidden!important}' });
 await p.waitForTimeout(2000);
 
@@ -138,7 +182,7 @@ if (run('lamp')) {
   await p.waitForTimeout(3500);
   // the lamps' interiors are captured while idle after the reveal (in software rendering that takes
   // minutes); wait for A's, so the switch measures the switch, then force a few steady frames on each side
-  await p.waitForFunction(() => document.body.innerText.includes('env capture A'), null, { timeout: 900000 }).catch(() => {});
+  await p.waitForFunction(() => window.__boothWarmEvents.A, null, { timeout: 900000 }).catch(() => {});
   const steady = () => p.evaluate(() => window.__boothBench?.(1)); // one presented frame, nothing changed
   const lums = await capture(p, async () => {
     for (const k of ['3', '1']) {
@@ -156,7 +200,7 @@ if (run('screen')) {
   await p.mouse.move(4, 4);
   await key(p, '1');
   await p.waitForTimeout(3500);
-  await p.waitForFunction(() => document.body.innerText.includes('SCREEN shaders pre-warmed'), null, { timeout: 1500000 }).catch(() => console.log('  (SCREEN pre-warm not seen in the event log)'));
+  await p.waitForFunction(() => window.__boothWarmEvents.SCREEN, null, { timeout: 1500000 }).catch(() => console.log('  (SCREEN pre-warm not seen in the event log)'));
   const steady = () => p.evaluate(() => window.__boothBench?.(1));
   // the switch's own cost: wall time from the key to the next presented frame, against D50 → A
   const switchMs = async (k) => p.evaluate(async (k) => {
@@ -204,11 +248,53 @@ if (run('jsw')) {
   const { boxes } = await p.evaluate(() => window.__boothBoxes());
   const j = boxes['jsw-sports'];
   const lums = await capture(p, async () => {
+    const steady = () => p.evaluate(() => window.__boothBench?.(1));
+    for (let i = 0; i < 3; i++) await steady();
     await p.mouse.click((j.x0 + j.x1) / 2, (j.y0 + j.y1) / 2);
     await p.waitForURL('**/work/jsw-sports');
-    await p.waitForTimeout(5000);
+    // Sample presented frames through the dolly, rather than a wall-clock pause that can
+    // expire before a software renderer presents even its second frame.
+    for (let i = 0; i < 12; i++) { await steady(); await p.waitForTimeout(100); }
   });
   report('JSW open (dolly, tray, open)', lums, '', true);
+}
+await p.close();
+}
+
+// ── L2 (09B): a window dragged across every shape and an iPad rotated, both ways ───────────
+// Compare presented pixels through the CSS cover and page background. An alpha-weighted mean
+// falsely dips as two different silhouettes crossfade; empty or black renders still fail.
+if (run('resize')) {
+  const q = await b.newPage({ viewport: { width: 2560, height: 1440 } });
+  q.setDefaultTimeout(900000);
+  await q.addInitScript(() => sessionStorage.setItem('vm:opened:v1', '1'));
+  await q.goto(BASE + '/?perf', { waitUntil: 'networkidle' });
+  await q.waitForSelector('.booth-stage[data-ready="true"]', { timeout: 900000 });
+  await q.waitForFunction(() => window.__boothSettled?.() === true);
+  await q.addStyleTag({ content: '.sampletags,.boothhint,.cursorlabel{visibility:hidden!important}' });
+  await q.waitForTimeout(2000);
+  const settle = async (w, h) => {
+    await q.setViewportSize({ width: w, height: h });
+    await q.waitForFunction(([w, h]) => { const s = window.__boothShape?.(); return s && s.w === w && Math.abs(s.h - h) < 2; }, [w, h], { timeout: 300000, polling: 500 });
+    await q.waitForFunction(() => !document.querySelector('.booth-cover') || document.querySelector('.booth-cover').hidden, null, { timeout: 300000, polling: 500 });
+    for (let i = 0; i < 3; i++) (await q.evaluate(() => window.__boothBench?.(1)), await q.waitForTimeout(200));
+  };
+  const seqs = {
+    'window drag 2560x1440 → 1376x940 → 1032x1230 → 393x659 → back': [[1376, 940], [1032, 1230], [393, 659], [1032, 1230], [1376, 940], [2560, 1440]],
+    'iPad Pro 13 rotation 1032x1230 ↔ 1376x980': [[1032, 1230], [1376, 980], [1032, 1230], [1376, 980]],
+  };
+  for (const [name, seq] of Object.entries(seqs)) {
+    const lums = await capture(q, async () => {
+      for (const [w, h] of seq) {
+        const start = await q.evaluate(() => window.__boothCapture.lums.length);
+        await settle(w, h);
+        const samples = await q.evaluate((start) => window.__boothCapture.lums.slice(start), start);
+        console.log(`  resize ${w}x${h}: frames ${start}-${start + samples.length - 1}, luminance ${Math.min(...samples).toFixed(1)}-${Math.max(...samples).toFixed(1)}`);
+      }
+    }, true);
+    report(`resize: ${name}`, lums, '', true);
+  }
+  await q.close();
 }
 
 await b.close();

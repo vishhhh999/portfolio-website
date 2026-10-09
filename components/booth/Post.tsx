@@ -16,7 +16,7 @@ import {
   SMAAEffect,
   SSAOEffect,
 } from 'postprocessing';
-import { useEffect, useLayoutEffect, useMemo } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import {
   AdditiveBlending,
   DataTexture,
@@ -42,7 +42,7 @@ import {
   type Texture,
   type WebGLRenderer,
 } from 'three';
-import { stageRect } from '@/lib/views';
+import { frameRect, stageRect, viewportSize, withViewSnapshot, type ViewSnapshot } from '@/lib/views';
 import { isMobileTier } from '@/lib/perfTier';
 import { loupeState } from '@/lib/loupe';
 import { useBooth } from '@/lib/store';
@@ -50,13 +50,13 @@ import { isDirty, markDirty, takeDirty } from '@/lib/dirty';
 import { useReducedMotion } from '@/lib/useReducedMotion';
 import { hoverFocus } from './focus';
 import { roomLightmap } from './BoothRoom';
-import { STAGING } from './staging';
+import { activeLayout, STAGING } from './staging';
 import { logEvent } from '@/lib/eventLog';
 
 declare global {
   interface Window {
     /** tools/check-flicker.mjs: when on, every presented frame's mean stage luminance is recorded. */
-    __boothCapture?: { on: boolean; lums: number[] };
+    __boothCapture?: { on: boolean; lums: number[]; visibleContent?: boolean };
   }
 }
 
@@ -126,7 +126,7 @@ const resolveState = { key: '', fullLeft: 2 };
 const boothScissor = new Vector4();
 
 /** Lets the perf probe resize the composer in the same task as a DPR step. */
-export const postApi = { resize: () => {}, samples: 0 };
+export const postApi = { resize: () => {}, snapshot: () => false, samples: 0 };
 
 
 /**
@@ -304,6 +304,7 @@ class BoothToneEffect extends Effect {
       uniform float exposure;
       uniform float neutral;
       uniform vec4 box;
+      uniform vec4 vbox;
       const mat3 SRGB_TO_2020 = mat3(vec3(0.6274, 0.0691, 0.0164), vec3(0.3293, 0.9195, 0.0880), vec3(0.0433, 0.0113, 0.8956));
       const mat3 REC2020_TO_SRGB = mat3(vec3(1.6605, -0.1246, -0.0182), vec3(-0.5876, 1.1329, -0.1006), vec3(-0.0728, -0.0083, 1.1187));
       const mat3 INSET = mat3(vec3(0.856627153315983, 0.137318972929847, 0.11189821299995), vec3(0.0951212405381588, 0.761241990602591, 0.0767994186031903), vec3(0.0482516061458583, 0.101439036467562, 0.811302368396859));
@@ -338,7 +339,7 @@ class BoothToneEffect extends Effect {
         vec3 c = inside ? (neutral > 0.5 ? clamp(pbrNeutral(e), 0.0, 1.0) : agx(e)) : clamp(inputColor.rgb, 0.0, 1.0);
         // J4: a gentle vignette inside the stage (the corners ~10% down), never on the page
         if (inside) {
-          vec2 q = (uv - box.xy) / max(box.zw - box.xy, vec2(1e-4)) - 0.5;
+          vec2 q = (uv - vbox.xy) / max(vbox.zw - vbox.xy, vec2(1e-4)) - 0.5;
           c *= 1.0 - 0.1 * smoothstep(0.3, 0.72, length(q * vec2(1.0, 0.86)));
         }
         outputColor = vec4(c, inputColor.a);
@@ -348,6 +349,7 @@ class BoothToneEffect extends Effect {
           ['exposure', new Uniform(1)],
           ['neutral', new Uniform(1)],
           ['box', new Uniform(new Vector4(0, 0, 0, 0))],
+          ['vbox', new Uniform(new Vector4(0, 0, 0, 0))],
         ]),
       },
     );
@@ -356,6 +358,7 @@ class BoothToneEffect extends Effect {
     (this.uniforms.get('exposure') as Uniform<number>).value = postState.exposure * EXPOSURE_OVERRIDE;
     (this.uniforms.get('neutral') as Uniform<number>).value = TONE_OVERRIDE ?? (postState.neutral ? 1 : 0);
     setStageBox(this.uniforms.get('box')!.value as Vector4);
+    setVignetteBox(this.uniforms.get('vbox')!.value as Vector4);
   }
 }
 
@@ -422,10 +425,20 @@ class BoothFocusEffect extends Effect {
 }
 
 /** The booth stage in uv space (x0, y0, x1, y1); empty when there is no stage. */
+/**
+ * L6 (09B): the vignette's box: the cabinet's own frame on home (so the picture is the same at every
+ * window size, whatever the stage's proportions), the stage everywhere else.
+ */
+function setVignetteBox(box: Vector4) {
+  const f = activeLayout().kind === 'cabinet' && !useBooth.getState().activeSlug ? frameRect() : null;
+  if (!f) return setStageBox(box);
+  const { width: W, height: H } = viewportSize();
+  return box.set(f.left / W, 1 - (f.top + f.height) / H, (f.left + f.width) / W, 1 - f.top / H);
+}
 function setStageBox(box: Vector4) {
   const r = stageRect();
   if (!r) return box.set(0, 0, 0, 0);
-  const W = window.innerWidth, H = window.innerHeight;
+  const { width: W, height: H } = viewportSize();
   return box.set(r.left / W, 1 - (r.top + r.height) / H, (r.left + r.width) / W, 1 - r.top / H);
 }
 
@@ -577,6 +590,9 @@ export function Post() {
   const camera = useThree((s) => s.camera);
   const size = useThree((s) => s.size);
   const dpr = useThree((s) => s.viewport.dpr);
+  const rendererSize = useMemo(() => new Vector2(), [gl]);
+  const fitted = useRef('');
+  const lastFrame = useRef<{ view: ViewSnapshot; width: number; height: number } | null>(null);
 
   // mobile tier: 2× MSAA and half-resolution bloom
   const mobile = isMobileTier();
@@ -702,17 +718,35 @@ export function Post() {
   // so no frame is ever drawn into a stale-sized buffer.
   useLayoutEffect(() => {
     const fit = () => {
-      composer.setSize(size.width, size.height);
+      gl.getSize(rendererSize);
+      composer.setSize(rendererSize.x, rendererSize.y);
       const pr = gl.getPixelRatio();
-      fx.focusMask.setSize(Math.max(1, Math.round((size.width * pr) / 2)), Math.max(1, Math.round((size.height * pr) / 2)));
-      fx.focus?.setScale(size.height * pr);
+      fx.focusMask.setSize(Math.max(1, Math.round((rendererSize.x * pr) / 2)), Math.max(1, Math.round((rendererSize.y * pr) / 2)));
+      fx.focus?.setScale(rendererSize.y * pr);
+      fitted.current = `${rendererSize.x}:${rendererSize.y}:${pr}`;
     };
     fit();
     postApi.resize = fit;
-  }, [composer, size.width, size.height, dpr, fx, gl]);
+    const snapshot = () => {
+      const last = lastFrame.current;
+      if (!last) return false;
+      gl.getSize(rendererSize);
+      if (rendererSize.x !== last.width || rendererSize.y !== last.height) gl.setSize(last.width, last.height, false);
+      fit();
+      // Draw the last camera and scene through their prior masks. No useFrame update, model
+      // movement or new viewport fitting occurs before this image is copied to the cover.
+      markDirty('resize snapshot', ['normals'], 1);
+      withViewSnapshot(last.view, () => composer.render(0));
+      return true;
+    };
+    postApi.snapshot = snapshot;
+    return () => { if (postApi.snapshot === snapshot) postApi.snapshot = () => false; };
+  }, [composer, size.width, size.height, dpr, fx, gl, rendererSize]);
   useEffect(() => () => composer.dispose(), [composer]);
 
   useFrame((_, dt) => {
+    gl.getSize(rendererSize);
+    if (fitted.current !== `${rendererSize.x}:${rendererSize.y}:${gl.getPixelRatio()}`) postApi.resize();
     // B1 (08): the camera moved (parallax, a scroll moving the stage, a resize, a dolly): every
     // side render that depends on the view is dirty for this frame
     camera.updateMatrixWorld();
@@ -763,6 +797,7 @@ export function Post() {
     gl.setClearColor(0x000000, 0);
     gl.clear(true, true, false);
     composer.render(dt);
+    lastFrame.current = { view: { stage: stageRect(), frame: frameRect(), ...viewportSize() }, width: rendererSize.x, height: rendererSize.y };
     // A2 test hook: the mean luminance of the stage as presented, one entry per frame. A GPU
     // readback, so it exists only with ?perf (H1): production never reads pixels back.
     const cap = PERF ? window.__boothCapture : undefined;
@@ -771,18 +806,52 @@ export function Post() {
       const ctx = gl.getContext();
       const k = gl.getPixelRatio();
       if (r) {
-        const x0 = Math.max(0, Math.floor(r.left * k)), x1 = Math.min(ctx.drawingBufferWidth, Math.floor((r.left + r.width) * k));
-        const yTop = Math.max(0, r.top * k), yBot = Math.min(ctx.drawingBufferHeight, (r.top + r.height) * k);
+        // During resize the previous drawing buffer can still be stretched over the new CSS
+        // viewport. Map CSS coordinates to that actual buffer instead of assuming its DPR.
+        const rect = cap.visibleContent ? gl.domElement.getBoundingClientRect() : null;
+        const kx = rect ? ctx.drawingBufferWidth / rect.width : k;
+        const ky = rect ? ctx.drawingBufferHeight / rect.height : k;
+        const left = rect?.left ?? 0, top = rect?.top ?? 0;
+        const x0 = Math.max(0, Math.floor((r.left - left) * kx)), x1 = Math.min(ctx.drawingBufferWidth, Math.floor((r.left + r.width - left) * kx));
+        const yTop = Math.max(0, (r.top - top) * ky), yBot = Math.min(ctx.drawingBufferHeight, (r.top + r.height - top) * ky);
         const w = x1 - x0, h = Math.floor(yBot - yTop);
         if (w > 0 && h > 0) {
           const buf = new Uint8Array(w * h * 4);
-          ctx.readPixels(x0, Math.floor(ctx.drawingBufferHeight - yBot), w, h, ctx.RGBA, ctx.UNSIGNED_BYTE, buf);
-          let sum = 0, n = 0;
+          const bottom = Math.floor(ctx.drawingBufferHeight - yBot);
+          ctx.readPixels(x0, bottom, w, h, ctx.RGBA, ctx.UNSIGNED_BYTE, buf);
+          const cover = cap.visibleContent ? gl.domElement.closest('.booth-canvas')?.querySelector<HTMLCanvasElement>('.booth-cover') : null;
+          const coverOpacity = cover && !cover.hidden ? Number(getComputedStyle(cover).opacity) : 0;
+          const coverRect = coverOpacity > 0 ? cover!.getBoundingClientRect() : null;
+          const coverPixels = coverRect ? cover!.getContext('2d')?.getImageData(0, 0, cover!.width, cover!.height).data : null;
+          const liveOpacity = cap.visibleContent ? Number(getComputedStyle(gl.domElement).opacity) : 1;
+          const paper = cap.visibleContent ? getComputedStyle(document.documentElement).backgroundColor.match(/[\d.]+/g)?.map(Number) : null;
+          const paperLum = paper ? 0.2126 * paper[0] + 0.7152 * paper[1] + 0.0722 * paper[2] : 0;
+          let sum = 0, n = 0, pixels = 0, liveAlpha = 0;
           for (let i = 0; i < buf.length; i += 4 * 37) {
-            sum += 0.2126 * buf[i] + 0.7152 * buf[i + 1] + 0.0722 * buf[i + 2];
-            n++;
+            const lum = 0.2126 * buf[i] + 0.7152 * buf[i + 1] + 0.0722 * buf[i + 2];
+            if (!cap.visibleContent) { sum += lum; n++; continue; }
+            let coverAlpha = 0, coverLum = 0;
+            if (coverPixels && coverRect) {
+              const cssX = left + (x0 + (i / 4) % w + 0.5) / kx;
+              const cssY = top + (ctx.drawingBufferHeight - bottom - Math.floor(i / 4 / w) - 0.5) / ky;
+              const cx = Math.floor((cssX - coverRect.left) * cover!.width / coverRect.width);
+              const cy = Math.floor((cssY - coverRect.top) * cover!.height / coverRect.height);
+              if (cx >= 0 && cy >= 0 && cx < cover!.width && cy < cover!.height) {
+                const j = (cy * cover!.width + cx) * 4;
+                coverAlpha = coverPixels[j + 3] / 255 * coverOpacity;
+                coverLum = (0.2126 * coverPixels[j] + 0.7152 * coverPixels[j + 1] + 0.0722 * coverPixels[j + 2]) * coverAlpha;
+              }
+            }
+            // WebGL output is premultiplied; 2D getImageData is not. Composite both layers,
+            // then the page paper behind them, to measure the pixels actually presented.
+            sum += coverLum + lum * liveOpacity * (1 - coverAlpha);
+            n += coverAlpha + buf[i + 3] / 255 * liveOpacity * (1 - coverAlpha);
+            liveAlpha += buf[i + 3] / 255;
+            pixels++;
           }
-          cap.lums.push(+(sum / n).toFixed(2));
+          const emptyLive = cap.visibleContent && coverOpacity < 0.999 && liveOpacity > 0 && liveAlpha === 0;
+          const mean = cap.visibleContent ? (sum + paperLum * (pixels - n)) / pixels : sum / n;
+          cap.lums.push(sum > 0 && n > 0 && !emptyLive ? +mean.toFixed(2) : 0);
         }
       }
     }

@@ -61,6 +61,12 @@ export function BoothFocus({ samples }: { samples: FrameSample[] }) {
           aria-label={`${s.title}: ${s.meta}. Open the project`}
           onFocus={(e) => {
             setKeySlug(s.slug);
+            // L5 (09B): on the shelf a sample can be below (or above) the screen: bring it into view
+            const fr = focusRects.get(s.slug);
+            if (fr && (fr.y < 70 || fr.y + fr.h > window.innerHeight - 90)) {
+              const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+              window.scrollBy({ top: fr.y + fr.h / 2 - window.innerHeight / 2, behavior: reduce ? 'auto' : 'smooth' });
+            }
             warmProject(router, s.slug);
             const r = e.currentTarget.getBoundingClientRect();
             playEvent('hover', r.left + r.width / 2);

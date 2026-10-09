@@ -1,5 +1,6 @@
 import { MathUtils, PerspectiveCamera, Vector3 } from 'three';
 import { BOOTH, CABINET_FACE, EYE, FACE_Z, FOV, RECEDE_DZ, STAGING, TRAY } from './staging.ts';
+import type { ShelfDef } from './shelf.ts';
 
 /**
  * A camera pose: where it stands, what it looks at (pitched EYE.pitchDeg down), and a lens shift
@@ -49,6 +50,12 @@ function faceBox(shot: Shot, stage: { width: number; height: number }) {
 }
 
 const cache = new Map<string, FramedShot>();
+/** L2 (09B): a new arrangement moves the samples: every cached shot is stale. */
+export function clearShotCaches() {
+  cache.clear();
+  boxCache.clear();
+  hideCache.clear();
+}
 
 /**
  * Cabinet shot (home): the whole cabinet as an object on the page, placed into `box` (CSS px,
@@ -223,4 +230,42 @@ export function trayHidden(slug: string, aspect: number): Set<string> {
   if (hideCache.size > 64) hideCache.clear();
   hideCache.set(key, out);
   return out;
+}
+
+/**
+ * L3 (09B): the shelf's scroll-linked dolly. The camera looks straight at the unit (no pitch), its
+ * front edges spanning the frame's width (`s` px per metre on the front plane), from a fixed distance
+ * (2.6 unit widths). Its eye is a fixed height on the screen, set by the page's layout only (the frame's
+ * top on the page plus 0.42 of its width): so a toolbar showing or hiding (the screen's height) changes
+ * nothing in the picture, and the first screen is the same at every size, only scaled (the poster is). The lens is
+ * shifted (an off-centre projection) so that eye point sits there. As the page scrolls the eye stays
+ * on the screen and the shelf's front plane moves with the page exactly; what stands deeper on the
+ * boards moves a little less: the camera travels down the shelf. Nothing is eased or hijacked.
+ * Reduced motion: a fixed pose per shelf (the nearest row's centre) and the picture follows the
+ * scroll as a plain shift of the lens (no perspective change while scrolling).
+ * Returns the shot and the full (virtual) image the screen is a window of: setViewOffset(full…).
+ */
+export const SHELF_EYE = 0.42;
+export function shelfShot(def: ShelfDef, frame: { left: number; top: number; width: number }, view: { width: number; height: number }, reduced: boolean, scrollY = 0): FramedShot & { full: [number, number] } {
+  const s = frame.width / def.width; // px per metre on the front plane
+  const dist = 2.6 * def.width;
+  const fullH = 2 * s * dist * tanV; // the image height this lens covers at 35°
+  // the eye's screen height: where the frame's top sits on the page plus 0.42 of its width, so at the
+  // top of the page every screen sees the same picture of the shelf, only scaled
+  const eye = frame.top + scrollY + SHELF_EYE * frame.width;
+  const x = -(frame.left + frame.width / 2 - view.width / 2) / s;
+  const yc = def.height - (eye - frame.top) / s; // the world height now under the eye point
+  let y = yc;
+  let oy = fullH / 2 - eye;
+  if (reduced) {
+    // the row whose opening is nearest the eye
+    let best = def.floors[0];
+    for (let i = 0; i < def.rows.length; i++) {
+      const c = def.floors[i] + def.rows[i].clear / 2;
+      if (Math.abs(c - yc) < Math.abs(best - yc)) best = c;
+    }
+    y = best;
+    oy += (y - yc) * s;
+  }
+  return { position: [x, y, def.frontZ + dist], target: [x, y, def.frontZ - 1], dist, offset: [0, oy], full: [view.width, fullH] };
 }

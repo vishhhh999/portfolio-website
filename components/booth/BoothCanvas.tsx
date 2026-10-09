@@ -10,7 +10,7 @@ import { markDirty } from '@/lib/dirty';
 import { capturedEnvironment } from './environment';
 import { isMobileTier } from '@/lib/perfTier';
 import { revealed } from '@/lib/reveal';
-import { Euler, Matrix4, Quaternion, Vector3, type Intersection, type Mesh, type Object3D } from 'three';
+import { Box3, Euler, Matrix4, Quaternion, Vector3, type Intersection, type Mesh, type Object3D } from 'three';
 import { lineup } from '@/content/work';
 import { attachRenderer, requestFrames, setContinuous } from '@/lib/clock';
 import { lampById } from '@/lib/lampPresets';
@@ -26,11 +26,18 @@ import { PerfProbe } from './PerfProbe';
 import { perfInfo } from '@/lib/perfTier';
 import { modelsSettled } from './models';
 import { contextLost, contextRestored } from '@/lib/resilience';
-import { Post } from './Post';
+import { Post, postApi } from './Post';
 import { ModelRef } from './ModelRef';
-import { lineupShot, trayShot } from './shots';
+import { clearShotCaches, lineupShot, trayShot } from './shots';
+import { registerLayoutGate } from './layoutSwitch';
+import { useLayoutKey } from './useLayout';
+import { aoReady } from './BoothRoom';
+import { invalidateShadows } from './LampRig';
+import { measureViewport, onBeforeShapeChange, useShape } from '@/lib/shape';
+import { logEvent } from '@/lib/eventLog';
+import { useReducedMotion } from '@/lib/useReducedMotion';
 import type { BoothLightmap } from './BoothRoom';
-import { BOOTH, CABINET_FACE, CERTIFICATE, FACE_Z, FOCAL_MM, FOV, PLINTH_CHAMFER, PROPS, SENSOR_HEIGHT_MM, STAGING, TRAY, lineupLayout, sizeFloor, PHONE_LAYOUT } from './staging';
+import { BOOTH, CABINET_FACE, CERTIFICATE, FACE_Z, FOCAL_MM, FOV, PLINTH_CHAMFER, PROPS, SENSOR_HEIGHT_MM, STAGING, TRAY, lineupLayout, sizeFloor, activeLayout, layoutKeyFor, setActiveLayout, type LayoutKey } from './staging';
 
 declare global {
   interface Window {
@@ -46,6 +53,9 @@ declare global {
     /** Staging + camera data for tools/export-camera.mjs (Blender scene). */
     __boothExport?: (aspect: number) => unknown;
     __boothPickAt?: (x: number, y: number) => { pick: string | null; seen: string | null };
+    __boothVisibility?: (slug: string) => { visible: number; total: number; fraction: number };
+    /** Capture readiness, including models arriving after the safety reveal. */
+    __boothSettled?: () => boolean;
     __boothProbePoints?: () => { wall: { x: number; y: number }; paper: { x: number; y: number } };
   }
 }
@@ -53,11 +63,11 @@ declare global {
 const SLUGS = lineup.map((w) => w.slug);
 /** ?modelref=<slug>: one GLB alone, like its Blender reference render (tools/model-ref.mjs). */
 const MODEL_REF = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('modelref') : null;
-const LAYOUT = lineupLayout(SLUGS);
 
 /** Booth pointer events only inside the stage rect (the camera's projection spans the whole canvas). */
 function stageEvents(store: Parameters<typeof createPointerEvents>[0]) {
   const base = createPointerEvents(store);
+  let outsideStage = false;
   return {
     ...base,
     compute(event: { clientX: number; clientY: number; target: EventTarget | null }, state: RootState) {
@@ -69,7 +79,8 @@ function stageEvents(store: Parameters<typeof createPointerEvents>[0]) {
       const onUi = !!t?.closest?.('a, button, input, .panel, .work__body, .footer, .houselights, .page');
       const inside =
         !onUi && r && event.clientX >= r.left && event.clientX <= r.left + r.width && event.clientY >= r.top && event.clientY <= r.top + r.height;
-      if (!r || !inside) state.pointer.set(9, 9);
+      outsideStage = !inside;
+      if (outsideStage) state.pointer.set(9, 9);
       else state.pointer.set((event.clientX / state.size.width) * 2 - 1, -(event.clientY / state.size.height) * 2 + 1);
       // world matrices as drawn: some GLB subtrees are only refreshed inside the render itself
       state.scene.updateMatrixWorld();
@@ -81,6 +92,9 @@ function stageEvents(store: Parameters<typeof createPointerEvents>[0]) {
      * solid of the cabinet (frame, hood, housing, lip) is in front of it.
      */
     filter(items: Intersection[], state: RootState) {
+      // A page control can mount the stage during this same bubbling click (Index → 3D).
+      // Reject its intersections too; the out-of-range ray alone can retain stale hits.
+      if (outsideStage) return [];
       const seen = items.filter((i) => pickable(i.object) && isPart(i.object) && solid(i.object));
       if (!seen.length) return seen;
       // anything solid that is not a sample (walls, cabinet, tray, floor) nearer than the first
@@ -128,6 +142,47 @@ function pickable(o: Object3D | null) {
 function PickProbe() {
   const get = useThree((s) => s.get);
   useEffect(() => {
+    // Test-only CPU raycasts: compare the sample's projected silhouette with the opaque scene.
+    // Unlike a bounding-box check this detects shelf boards hiding the actual model.
+    window.__boothVisibility = (slug) => {
+      const state = get();
+      state.scene.updateMatrixWorld(true);
+      const visible = (o: Object3D | null) => {
+        for (; o; o = o.parent) if (!o.visible) return false;
+        return true;
+      };
+      const scene: Object3D[] = [], sample: Object3D[] = [];
+      const bounds = new Box3();
+      state.scene.traverse((o) => {
+        if (!(o as Mesh).isMesh || !visible(o) || !solid(o)) return;
+        scene.push(o);
+        if (slugOf(o) === slug && isPart(o)) {
+          sample.push(o);
+          bounds.expandByObject(o);
+        }
+      });
+      if (!sample.length) return { visible: 0, total: 0, fraction: 0 };
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      for (const x of [bounds.min.x, bounds.max.x])
+        for (const y of [bounds.min.y, bounds.max.y])
+          for (const z of [bounds.min.z, bounds.max.z]) {
+            const v = new Vector3(x, y, z).project(state.camera);
+            x0 = Math.min(x0, v.x); x1 = Math.max(x1, v.x);
+            y0 = Math.min(y0, v.y); y1 = Math.max(y1, v.y);
+          }
+      let total = 0, seen = 0;
+      for (let i = 0; i < 40; i++) for (let j = 0; j < 40; j++) {
+        state.pointer.set(x0 + (i + 0.5) / 40 * (x1 - x0), y0 + (j + 0.5) / 40 * (y1 - y0));
+        state.raycaster.setFromCamera(state.pointer, state.camera);
+        if (!state.raycaster.intersectObjects(sample, false).length) continue;
+        total++;
+        if (Math.abs(state.pointer.x) > 1 || Math.abs(state.pointer.y) > 1) continue;
+        const front = state.raycaster.intersectObjects(scene, false)[0];
+        if (front && slugOf(front.object) === slug) seen++;
+      }
+      state.pointer.set(9, 9);
+      return { visible: seen, total, fraction: total ? seen / total : 0 };
+    };
     window.__boothPickAt = (cx: number, cy: number) => {
       const state = get();
       const r = stageRect();
@@ -155,23 +210,29 @@ function SizeProbe() {
       const fz = FACE_Z;
       const ca = new Vector3(-CABINET_FACE.w / 2, BOOTH.height / 2, fz).project(camera);
       const cb = new Vector3(CABINET_FACE.w / 2, BOOTH.height / 2, fz).project(camera);
-      // G (08): phones measure against the portrait box's width (frame) instead of the cabinet's
-      const f = PHONE_LAYOUT ? frameRect() : null;
+      // G (08), L3 (09B): the square cabinet and the shelf measure against the frame's width (the box
+      // the arrangement is composed for) instead of the cabinet's
+      const f = activeLayout().key !== 'wide' ? frameRect() : null;
       const cab = f ? (2 * f.width) / window.innerWidth : cb.x - ca.x;
       const out: Record<string, number> = {};
       for (const w of lineup) {
         const st = STAGING[w.slug];
-        const y = st.base.h + st.object.h / 2;
+        const fy = st.y ?? 0;
+        const y = fy + st.base.h + st.object.h / 2;
         const z = st.z + st.object.d / 2;
         const a = new Vector3(st.x - st.object.w / 2, y, z).project(camera);
         const b = new Vector3(st.x + st.object.w / 2, y, z).project(camera);
-        const lo = new Vector3(st.x, st.base.h, z).project(camera);
-        const hi = new Vector3(st.x, st.base.h + st.object.h, z).project(camera);
+        const lo = new Vector3(st.x, fy + st.base.h, z).project(camera);
+        const hi = new Vector3(st.x, fy + st.base.h + st.object.h, z).project(camera);
         out[w.slug] = +((Math.max(b.x - a.x, (hi.y - lo.y) * ar) / cab) * 100).toFixed(1);
       }
       return out;
     };
-    window.__boothSizeFloors = () => Object.fromEntries(lineup.map((w) => [w.slug, PHONE_LAYOUT ? 14 : sizeFloor(w.slug)]));
+    // L3 (09B): the tall shelf 14%, the square shelf and the square cabinet 12% (of the frame); the wide cabinet its own floors
+    window.__boothSizeFloors = () => {
+      const k = activeLayout().key;
+      return Object.fromEntries(lineup.map((w) => [w.slug, k === 'wide' ? sizeFloor(w.slug) : k === 'square' || k === 'shelf4' ? 12 : 14]));
+    };
     window.__boothBoxes = () => {
       const W = window.innerWidth, H = window.innerHeight;
       const boxes: Record<string, { x0: number; y0: number; x1: number; y1: number }> = {};
@@ -179,7 +240,7 @@ function SizeProbe() {
       for (const w of lineup) {
         const st = STAGING[w.slug];
         const { w: ow, h: oh, d: od } = st.object;
-        const y0 = st.base.h;
+        const y0 = (st.y ?? 0) + st.base.h;
         aabb[w.slug] = [st.x - ow / 2, y0, st.z - od / 2, st.x + ow / 2, y0 + oh, st.z + od / 2];
         let x0 = Infinity, yy0 = Infinity, x1 = -Infinity, y1 = -Infinity;
         for (const cx of [st.x - ow / 2, st.x + ow / 2])
@@ -193,7 +254,7 @@ function SizeProbe() {
       }
       {
         // the About certificate on the shelf (B2): part of the no-overlap rule, not of the 11% rule
-        const c = CERTIFICATE, y0 = PROPS.ledge.y + PROPS.ledge.h, zc = BOOTH.backZ + 0.035;
+        const c = CERTIFICATE, y0 = PROPS.ledge.y + PROPS.ledge.h, zc = c.z;
         aabb.about = [c.x - c.w / 2 - 0.012, y0, zc - 0.03, c.x + c.w / 2 + 0.012, y0 + c.h + 0.024, zc + 0.01];
         let x0 = Infinity, yy0 = Infinity, x1 = -Infinity, y1 = -Infinity;
         for (const cx of [aabb.about[0], aabb.about[3]])
@@ -229,10 +290,163 @@ function SizeProbe() {
       const top = PROPS.ledge.y + PROPS.ledge.h + CERTIFICATE.h * 0.18;
       return {
         wall: at(new Vector3(-0.2, 0.68, BOOTH.backZ + 0.002)),
-        paper: at(new Vector3(CERTIFICATE.x + CERTIFICATE.w * 0.3, top, BOOTH.backZ + 0.035 + CERTIFICATE.d / 2 + 0.002)),
+        paper: at(new Vector3(CERTIFICATE.x + CERTIFICATE.w * 0.3, top, CERTIFICATE.z + CERTIFICATE.d / 2 + 0.002)),
       };
     };
   }, [camera]);
+  return null;
+}
+
+
+/**
+ * L2 (09B): a change of arrangement (a shape crossed by a resize or a rotation, or a tall screen
+ * moving between the shelf and a project's tray) never shows a half-built frame. The frame on screen
+ * is kept (copied once, on the GPU, into a 2D canvas over the WebGL one, the moment before the page
+ * changes), the new arrangement is applied (shared models and textures, only transforms, bases, the
+ * camera and the AO map change), its shaders are compiled and its AO map is in, one full frame is
+ * drawn under the cover, then the cover crossfades to the live canvas over 250ms (no fade under
+ * reduced motion). No pass is added or removed; nothing is read back to the CPU.
+ */
+function LayoutGate() {
+  const get = useThree((s) => s.get);
+  const key = useLayoutKey();
+  const keyNow = useRef(key);
+  keyNow.current = key;
+  const reduced = useReducedMotion();
+  const reducedRef = useRef(reduced);
+  reducedRef.current = reduced;
+  const cover = useRef<HTMLCanvasElement | null>(null);
+  const covered = useRef(false);
+  const pending = useRef<{ key: LayoutKey; compiled: boolean; frames: number; t0: number } | null>(null);
+  useEffect(() => {
+    const canvas = () => get().gl.domElement;
+    const host = () => canvas().closest('.booth-canvas') as HTMLElement | null;
+    const snapshot = () => {
+      if (!revealed.value || covered.current) return;
+      const src = canvas();
+      // Reproduce the prior rendered framing, before resize updates can move its camera or masks.
+      if (!postApi.snapshot()) advance(performance.now() / 1000, true, get());
+      let c = cover.current;
+      if (!c) {
+        c = document.createElement('canvas');
+        c.className = 'booth-cover';
+        c.setAttribute('aria-hidden', 'true');
+        host()?.appendChild(c);
+        cover.current = c;
+      }
+      c.width = src.width;
+      c.height = src.height;
+      c.getContext('2d')?.drawImage(src, 0, 0);
+      c.style.transition = 'none';
+      c.style.opacity = '1';
+      c.hidden = false;
+      src.style.transition = 'none';
+      src.style.opacity = '0';
+      covered.current = true;
+    };
+    const apply = (k: LayoutKey) => {
+      setActiveLayout(k);
+      clearShotCaches();
+      occluders = null;
+      invalidateShadows();
+      markDirty('layout', undefined, 3);
+      pending.current = { key: k, compiled: false, frames: 0, t0: performance.now() };
+      logEvent(`layout → ${k}`);
+      requestFrames(2);
+    };
+    const offBefore = onBeforeShapeChange((next) => {
+      const mode = (document.querySelector('.booth-stage') as HTMLElement | null)?.dataset.mode as 'full' | 'header' | undefined;
+      if (layoutKeyFor(next.shape, next.columns, mode ?? 'off') !== activeLayout().key) snapshot();
+    });
+    const resize = () => {
+      if (useBooth.getState().houseLights) return;
+      if ((document.querySelector('.booth-stage') as HTMLElement | null)?.dataset.mode !== 'full') return;
+      snapshot();
+      if (!covered.current) return;
+      // A second resize during the fade keeps the original cover until the latest view is ready.
+      const c = cover.current!;
+      c.style.transition = 'none'; c.style.opacity = '1'; c.hidden = false;
+      canvas().style.transition = 'none'; canvas().style.opacity = '0';
+      pending.current = { key: activeLayout().key, compiled: false, frames: 0, t0: performance.now() };
+      requestFrames(2);
+    };
+    window.addEventListener('resize', resize);
+    const offGate = registerLayoutGate((k, why) => {
+      if (!revealed.value) {
+        setActiveLayout(k);
+        clearShotCaches();
+        occluders = null;
+        return;
+      }
+      if (why === 'shape') snapshot();
+      else {
+        // a route change: the page under it has changed already, so there is no old frame to keep;
+        // the canvas waits, hidden, and fades in on its first full frame
+        canvas().style.transition = 'none';
+        canvas().style.opacity = '0';
+        if (cover.current) cover.current.hidden = true;
+        covered.current = false;
+      }
+      apply(k);
+    });
+    return () => {
+      offBefore();
+      offGate();
+      window.removeEventListener('resize', resize);
+      cover.current?.remove();
+      cover.current = null;
+    };
+  }, [get]);
+  useFrame(() => {
+    const p = pending.current;
+    if (!p) return;
+    const { gl, scene, camera } = get();
+    const viewport = measureViewport(), shape = useShape.getState();
+    if (Math.abs(shape.w - viewport.w) / shape.w > 0.02 || Math.abs(shape.h - viewport.h) / shape.h > 0.02) {
+      requestFrames(1);
+      return;
+    }
+    // the new tree has committed (this component re-rendered with the key), the AO map is in
+    if (keyNow.current !== p.key || !aoReady(p.key)) {
+      if (performance.now() - p.t0 < 4000) {
+        requestFrames(1);
+        return;
+      }
+    }
+    if (!p.compiled) {
+      p.compiled = true;
+      gl.compile(scene, camera);
+      requestFrames(2);
+      return;
+    }
+    if (++p.frames < 2) {
+      requestFrames(1);
+      return;
+    }
+    pending.current = null;
+    const src = gl.domElement;
+    const ms = reducedRef.current ? 0 : 250;
+    src.style.transition = ms ? `opacity ${ms}ms linear` : 'none';
+    src.style.opacity = '1';
+    const c = cover.current;
+    if (c && covered.current) {
+      c.style.transition = ms ? `opacity ${ms}ms linear` : 'none';
+      c.style.opacity = '0';
+      const finish = () => {
+        if (pending.current) return;
+        // A blocked main thread can run this timer before CSS presents the completed fade.
+        // Keep the old frame until the live canvas is actually opaque.
+        if (Number(getComputedStyle(src).opacity) < 0.999) {
+          window.requestAnimationFrame(finish);
+          return;
+        }
+        c.hidden = true;
+        covered.current = false;
+      };
+      window.setTimeout(finish, ms + 50);
+    }
+    logEvent(`layout ${p.key} drawn (${Math.round(performance.now() - p.t0)}ms)`);
+  }, 1);
   return null;
 }
 
@@ -287,11 +501,15 @@ function ClockBridge({ onReady }: { onReady: () => void }) {
   const scene = useThree((s) => s.scene);
   const camera = useThree((s) => s.camera);
   const gl = useThree((s) => s.gl);
+  useEffect(() => {
+    window.__boothSettled = () => modelsSettled() && (isMobileTier() || perfOff('envcapture') || activeLayout().kind === 'shelf' || !!capturedEnvironment(useBooth.getState().lamp));
+    return () => { delete window.__boothSettled; };
+  }, []);
   useFrame(() => {
     frames.current++;
     if (done.current || frames.current < 3) return;
     const timedOut = performance.now() - t0.current > 15000;
-    const envReady = isMobileTier() || perfOff('envcapture') || !!capturedEnvironment(useBooth.getState().lamp);
+    const envReady = isMobileTier() || perfOff('envcapture') || activeLayout().kind === 'shelf' || !!capturedEnvironment(useBooth.getState().lamp);
     if (!timedOut && !(modelsSettled() && envReady)) {
       requestFrames(1);
       return;
@@ -338,13 +556,16 @@ export default function BoothCanvas({ onReady, lightmap = null }: { onReady: () 
       booth: BOOTH,
       tray_plate: TRAY,
       plinthChamfer: PLINTH_CHAMFER,
-      bases: lineup.map((w) => ({
-        slug: w.slug,
-        position: [LAYOUT.x[w.slug], STAGING[w.slug].base.h / 2, LAYOUT.z[w.slug]],
-        size: STAGING[w.slug].base,
-        objectBase: [LAYOUT.x[w.slug], STAGING[w.slug].base.h, LAYOUT.z[w.slug]],
-        objectSize: STAGING[w.slug].object,
-      })),
+      bases: lineup.map((w) => {
+        const L = lineupLayout(SLUGS);
+        return {
+          slug: w.slug,
+          position: [L.x[w.slug], STAGING[w.slug].base.h / 2, L.z[w.slug]],
+          size: STAGING[w.slug].base,
+          objectBase: [L.x[w.slug], STAGING[w.slug].base.h, L.z[w.slug]],
+          objectSize: STAGING[w.slug].object,
+        };
+      }),
       props: PROPS,
     });
   }, []);
@@ -381,6 +602,7 @@ export default function BoothCanvas({ onReady, lightmap = null }: { onReady: () 
       }}
     >
       {ltc && <ClockBridge onReady={onReady} />}
+      {ltc && <LayoutGate />}
       {!ltc ? null : MODEL_REF ? (
         <ModelRef slug={MODEL_REF} />
       ) : (

@@ -13,7 +13,8 @@ import { playEvent } from '@/lib/sound';
 import { track } from '@/lib/analytics';
 import { applyUV } from './uvMaterial';
 import { paperNormal, smudgeMap } from './imperfections';
-import { BOOTH, CERTIFICATE, PROPS } from './staging';
+import { CERTIFICATE, PROPS } from './staging';
+import { useLayoutKey } from './useLayout';
 import { setCursorTarget, setFocusRect } from './focus';
 
 /**
@@ -138,9 +139,9 @@ export function Certificate() {
   }, [face, mats, invalidate]);
   useEffect(() => () => setFocusRect('about', null), []);
 
-  const { w, h, d, x, lean } = CERTIFICATE;
+  useLayoutKey(); // L2 (09B): re-render (move) when the arrangement changes
+  const { w, h, d, x, lean, z } = CERTIFICATE;
   const top = PROPS.ledge.y + PROPS.ledge.h;
-  const z = BOOTH.backZ + 0.035;
   const border = 0.012;
   return (
     <>

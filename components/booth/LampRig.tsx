@@ -34,7 +34,7 @@ import { useBooth } from '@/lib/store';
 import { ceilingMaterial, diffuserMaterial, getBlobMaterial, hoodGlow, lightmapTint } from './BoothRoom';
 import { postState } from './Post';
 import { onScreenFrame, screens } from './screens';
-import { BOOTH, TRAY } from './staging';
+import { activeLayout, BOOTH, TRAY } from './staging';
 import { boothEnvironment, captureEnvironment, capturedEnvironment, ENV_INTENSITY } from './environment';
 import { modelsSettled } from './models';
 import { perfOff } from '@/lib/perfFlags';
@@ -220,6 +220,17 @@ export function LampRig() {
     pl.width = P.panel.w;
     pl.height = P.panel.d;
     pl.position.set(0, BOOTH.height - 0.006, P.panel.z);
+    pl.rotation.set(-Math.PI / 2, 0, 0);
+    // L3 (09B): the shelf is a 1.5m wall unit, not the 0.8m booth. Its ceiling panel becomes a softbox
+    // above and in front of it, angled down at the boards, as wide as the unit
+    const S = !onTray ? activeLayout().shelf : undefined;
+    if (S) {
+      pl.position.set(0, S.height + 0.18, S.frontZ + 0.62);
+      pl.rotation.set(-0.95, 0, 0);
+      pl.width = S.width + 0.3;
+      pl.height = 0.7;
+      pl.intensity *= 1.35;
+    }
     // the diffuser glows only while its lamp is on; otherwise it only receives the scene's light (H)
     diffuserMaterial.emissive.setRGB(...P.panel.colour).multiplyScalar(P.diffuser * env);
     // ceiling: bounce from the floor + spill around the diffuser
@@ -262,7 +273,7 @@ export function LampRig() {
     const handJustOn = lamp === 'AFTERDARK' && lastHandLamp.current !== 'AFTERDARK';
     lastHandLamp.current = lamp;
     if (lamp === 'AFTERDARK') {
-      plane.constant = -(onTray ? TRAY.z : 0);
+      plane.constant = -(onTray ? TRAY.z : S ? S.frontZ : 0);
       ray.setFromCamera(ndc.current, camera);
       if (ray.ray.intersectPlane(plane, tmp.v)) hand.current.goal.copy(tmp.v).setY(Math.max(0.02, tmp.v.y));
       // switching the hand lamp on: it starts where the pointer is, not flying in from a corner
@@ -278,7 +289,8 @@ export function LampRig() {
       h.vel.add(tmp.dir);
       h.pos.addScaledVector(h.vel, step);
       handMoving = h.vel.lengthSq() > 1e-6 || h.pos.distanceToSquared(h.goal) > 1e-6;
-      k.position.set(h.pos.x * 0.35, K.position[1], (onTray ? TRAY.z : 0) + K.position[2]);
+      if (S) k.position.set(h.pos.x * 0.35, h.pos.y + 0.55, S.frontZ + K.position[2]);
+      else k.position.set(h.pos.x * 0.35, K.position[1], (onTray ? TRAY.z : 0) + K.position[2]);
       keyTarget.position.copy(h.pos);
       k.map = gobo;
     } else {
@@ -287,6 +299,17 @@ export function LampRig() {
       k.position.set(K.position[0], K.position[1], K.position[2] + dz);
       if (onTray) keyTarget.position.set(K.target[0] * 0.3, TRAY.top + 0.05, TRAY.z);
       else keyTarget.position.set(...K.target);
+      if (S && K.intensity > 0) {
+        // L3 (09B): the lamp's key keeps its side and character, stood back above the unit and aimed at
+        // its middle; its level rises with the square of the longer throw (decay 2), so a board reads
+        // as brightly lit as the booth floor does
+        const cab = Math.hypot(K.position[0] - K.target[0], K.position[1] - K.target[1], K.position[2] - K.target[2]);
+        k.position.set(K.position[0] * 1.6, S.height + 0.42, S.frontZ + 1.1);
+        keyTarget.position.set(K.target[0] * 0.6, S.height * 0.44, S.frontZ - 0.12);
+        const d = k.position.distanceTo(keyTarget.position);
+        k.intensity *= (d * d) / Math.max(0.05, cab * cab);
+        k.angle = Math.max(K.angle, 0.78);
+      }
       k.map = white;
     }
     keyTarget.updateMatrixWorld();
@@ -338,6 +361,9 @@ export function LampRig() {
       // (not just at 0) when unlit, so it costs nothing under the other lamps
       spill.current.intensity = screens.size && !perScreenLights ? P.screens.spill * ch.spill * spillSum * SPILL_GAIN : 0;
       spill.current.visible = spill.current.intensity > 0;
+      // L3 (09B): on the shelf the screens stand on several boards: the combined light spans the unit
+      if (S) spill.current.position.set(0, S.height * 0.5, S.frontZ - 0.05), (spill.current.width = S.width), (spill.current.height = S.height * 0.7);
+      else spill.current.position.set(0, 0.42, -0.2), (spill.current.width = 0.8), (spill.current.height = 0.16);
       spill.current.color.copy(screens.size ? spillColour.multiplyScalar(1 / screens.size) : spillColour);
     }
 
@@ -457,7 +483,7 @@ export function LampRig() {
     let id = 0;
     const idle = (cb: () => void) => (window.requestIdleCallback ? window.requestIdleCallback(cb, { timeout: 4000 }) : window.setTimeout(cb, 500));
     const next = () => {
-      if (!revealed.value) {
+      if (!revealed.value || !modelsSettled() || !capturedEnvironment(useBooth.getState().lamp)) {
         id = idle(next) as number;
         return;
       }
@@ -476,15 +502,19 @@ export function LampRig() {
     // lamp's full output for the capture, then at the actual strike progress for the frame drawn,
     // so the environment is right from the lamp's first frame (no step once it has warmed up)
     const lamp = useBooth.getState().lamp;
-    if (!MOBILE_TIER && !perfOff('envcapture') && modelsSettled() && !capturedEnvironment(lamp)) {
+    // L3 (09B): the environment is the booth's interior: captured in the cabinet only (the shelf uses
+    // the cabinet's capture when there is one, the built interior otherwise)
+    const cabinet = activeLayout().kind === 'cabinet';
+    if (!MOBILE_TIER && !perfOff('envcapture') && cabinet && modelsSettled() && !capturedEnvironment(lamp)) {
       applyRig(0, 1);
       scene.environment = captureEnvironment(gl, scene, lamp);
+      markDirty('environment captured', ['reflector'], 2);
       logEvent(`env capture ${lamp} (on screen)`);
     }
     // C4 (08): the other lamps are captured ahead, one per idle moment after the reveal, so a first
     // pick never captures mid-interaction (the rig is set to that lamp at full output for the capture,
     // then back to the visible lamp before this frame is drawn)
-    const ahead = precapture.current;
+    const ahead = cabinet && modelsSettled() && capturedEnvironment(lamp) ? precapture.current : null;
     if (ahead) {
       precapture.current = null;
       if (!capturedEnvironment(ahead)) {

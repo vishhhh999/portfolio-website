@@ -59,7 +59,7 @@ export default function AboutPage() {
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={about.portrait.src} alt={about.portrait.alt} width={about.portrait.width} height={about.portrait.height} fetchPriority="high" decoding="async" />
               </picture>
-              <figcaption className="mono">Specimen · photographed in daylight</figcaption>
+              <figcaption className="mono">Specimen · black and white</figcaption>
             </figure>
           </div>
 

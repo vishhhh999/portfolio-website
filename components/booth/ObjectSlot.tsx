@@ -12,13 +12,14 @@ import { isMobileTier } from '@/lib/perfTier';
 import { useBooth } from '@/lib/store';
 import { useReducedMotion } from '@/lib/useReducedMotion';
 import { baseFor, baseMaterial, ContactBlob } from './BoothRoom';
-import { loadModel } from './models';
+import { holdModels, loadModel } from './models';
 import { attachScreen } from './deviceScreen';
-import { PLINTH_GREY, RECEDE_DZ, STAGING, TRAY } from './staging';
+import { activeLayout, PLINTH_GREY, RECEDE_DZ, STAGING, TRAY } from './staging';
+import { useLayoutKey } from './useLayout';
 import { trayHidden } from './shots';
 import { stageRect } from '@/lib/views';
 import { applyUV, blankInk, createProofInk } from './uvMaterial';
-import { cursorTarget, hoverFocus, setCursorTarget, setFocusRect } from './focus';
+import { cursorTarget, focusRects, hoverFocus, setCursorTarget, setFocusRect, tappedRect } from './focus';
 import { playEvent } from '@/lib/sound';
 import { track } from '@/lib/analytics';
 import { openProject, warmProject } from '@/lib/navigate';
@@ -170,7 +171,7 @@ function ModelObject({ work, onReady }: { work: Work; onReady: () => void }) {
   const [wedge, setWedge] = useState<BufferGeometry | null>(null);
   const m = work.model!;
   const anim = useRef<{ mixer: AnimationMixer; action: AnimationAction; duration: number; p: number } | null>(null);
-  const fade = useRef<{ t: number; mats: { m: Material; transparent: boolean; opacity: number }[] } | null>(null);
+  const fade = useRef<{ t: number; release: () => void; mats: { m: Material; transparent: boolean; opacity: number }[] } | null>(null);
   useFrame((_, rawDt) => {
     const f = fade.current;
     if (!f) return;
@@ -183,6 +184,7 @@ function ModelObject({ work, onReady }: { work: Work; onReady: () => void }) {
         e.m.opacity = e.opacity;
       }
       fade.current = null;
+      f.release();
       logEvent(`model ${work.slug} faded in`);
     }
     markDirty('model fade', undefined, 1);
@@ -290,7 +292,9 @@ function ModelObject({ work, onReady }: { work: Work; onReady: () => void }) {
               m.opacity = 0;
             }
           });
-          fade.current = { t: 0, mats };
+          // A slow renderer may hit the safety reveal before its models arrive. Capture the
+          // environment only after these late models reach their opaque, settled appearance.
+          fade.current = { t: 0, mats, release: active === null || active === work.slug ? holdModels() : () => {} };
           logEvent(`model ${work.slug} fading in`);
         }
         setRoot(scene);
@@ -304,6 +308,8 @@ function ModelObject({ work, onReady }: { work: Work; onReady: () => void }) {
       live = false;
       detachScreen();
       anim.current = null;
+      fade.current?.release();
+      fade.current = null;
     };
   }, [gl, m, work, invalidate, onReady]);
 
@@ -369,12 +375,15 @@ export function ObjectSlot({ work, lineup }: { work: Work; lineup: string[] }) {
   const [modelReady, setModelReady] = useState(false);
   const onModelReady = useCallback(() => setModelReady(true), []);
 
+  // L2 (09B): the slot re-renders when the arrangement changes (a resize or rotation across a shape)
+  const layoutKey = useLayoutKey();
   const st = STAGING[work.slug];
   const { object, base, x, z } = st;
+  const y = st.y ?? 0;
   const active = activeSlug === work.slug;
   const receded = activeSlug !== null && !active;
-  const basePart = useMemo(() => baseFor(lineup, work.slug), [lineup, work.slug]);
-  const baseMat = useMemo(() => baseMaterial(base.kind, mobile) as MeshStandardMaterial, [base.kind, mobile]);
+  const basePart = useMemo(() => (base.kind === 'none' ? null : baseFor(lineup, work.slug)), [lineup, work.slug, base.kind, layoutKey]);
+  const baseMat = useMemo(() => baseMaterial(base.kind === 'none' ? 'plinth' : base.kind, mobile) as MeshStandardMaterial, [base.kind, mobile, layoutKey]);
   const baseColor = useMemo(() => baseMat.color.clone(), [baseMat]);
 
   type Dimmable = { mat: MeshStandardMaterial; base: Color };
@@ -409,6 +418,19 @@ export function ObjectSlot({ work, lineup }: { work: Work; lineup: string[] }) {
   const size = useThree((st) => st.size);
   const box = useMemo(() => ({ v: new Vector3(), corners: [-1, 1].flatMap((sx) => [0, 1].flatMap((sy) => [-1, 1].map((sz) => [sx, sy, sz] as const))) }), []);
   useEffect(() => () => setFocusRect(work.slug, null), [work.slug]);
+  // L2 (09B): a new arrangement clears the hover (the object is somewhere else now); its turn is kept
+  const firstLayout = useRef(true);
+  useEffect(() => {
+    if (firstLayout.current) {
+      firstLayout.current = false;
+      return;
+    }
+    setHovered(false);
+    if (hoverFocus.slug === work.slug) hoverFocus.slug = null;
+    document.body.style.cursor = '';
+    markDirty('layout', undefined, 3);
+    invalidate();
+  }, [layoutKey, work.slug, invalidate]);
   useEffect(() => onSpin(() => invalidate()), [invalidate]);
 
   useFrame((_, rawDt) => {
@@ -426,7 +448,7 @@ export function ObjectSlot({ work, lineup }: { work: Work; lineup: string[] }) {
 
     // Object: on its base (slot space) or on the tray (world space, converted to slot space).
     const tx = active ? -x : 0;
-    const ty = active ? TRAY.top : base.h;
+    const ty = active ? TRAY.top - y : base.h;
     const tz = active ? TRAY.z - slot.position.z : 0;
     obj.position.x += (tx - obj.position.x) * k;
     obj.position.y += (ty - obj.position.y) * k;
@@ -535,8 +557,9 @@ export function ObjectSlot({ work, lineup }: { work: Work; lineup: string[] }) {
       }
       const r = window.__boothStageRect?.();
       if (r) {
-        const ix = Math.max(0, Math.min(x1, r.right) - Math.max(x0, r.left));
-        const iy = Math.max(0, Math.min(y1, r.bottom) - Math.max(y0, r.top));
+        // L5 (09B): the view is the stage as far as it is on screen (the shelf's stage runs past the first screen)
+        const ix = Math.max(0, Math.min(x1, r.right, size.width) - Math.max(x0, r.left, 0));
+        const iy = Math.max(0, Math.min(y1, r.bottom, size.height) - Math.max(y0, r.top, 0));
         pick = (ix * iy) / Math.max(1, (x1 - x0) * (y1 - y0)) >= 0.6;
       }
       if (activeSlug === null) setFocusRect(work.slug, { x: x0, y: y0, w: x1 - x0, h: y1 - y0 });
@@ -556,17 +579,31 @@ export function ObjectSlot({ work, lineup }: { work: Work; lineup: string[] }) {
     <group
       ref={slotRef}
       userData={{ slug: work.slug }}
-      position={[x, 0, z]}
+      position={[x, y, z]}
       onPointerDown={(e) => {
         // I: press and drag turns the object (phones: only the one on the project tray)
-        if (!work.model || (mobile && !active) || e.button !== 0) return;
+        // L3 (09B): on the shelf a phone turns a sample with a sideways drag too (vertical pans scroll)
+        if (!work.model || (mobile && !active && activeLayout().kind !== 'shelf') || e.button !== 0) return;
         e.stopPropagation();
         setCursorTarget(cursorTarget.label, true);
+        // L3 (09B): the floating lamp panel keeps clear of the sample a finger is on
+        const fr = focusRects.get(work.slug);
+        if (e.nativeEvent.pointerType !== 'mouse' && fr) tappedRect.r = { left: fr.x, top: fr.y, right: fr.x + fr.w, bottom: fr.y + fr.h };
         const sp = spinOf(work.slug);
         let last = e.nativeEvent.clientX, travel = 0, t = performance.now();
+        const x0 = e.nativeEvent.clientX, y0 = e.nativeEvent.clientY;
+        let decided: 'turn' | 'scroll' | null = e.nativeEvent.pointerType === 'mouse' ? 'turn' : null;
         sp.target = null;
         sp.v = 0;
         const move = (ev: PointerEvent) => {
+          // touch: the first 8px decide: mostly sideways turns the sample, anything else is the page's scroll
+          if (!decided) {
+            const ax = Math.abs(ev.clientX - x0), ay = Math.abs(ev.clientY - y0);
+            if (Math.max(ax, ay) < 8) return;
+            decided = ax > ay ? 'turn' : 'scroll';
+            last = ev.clientX;
+          }
+          if (decided === 'scroll') return;
           const dx = ev.clientX - last;
           last = ev.clientX;
           travel += Math.abs(dx);
@@ -581,6 +618,7 @@ export function ObjectSlot({ work, lineup }: { work: Work; lineup: string[] }) {
           invalidate();
         };
         const up = () => {
+          tappedRect.r = null;
           setCursorTarget(hoverFocus.slug === work.slug && !active ? `Open ${work.title}` : null, false);
           window.removeEventListener('pointermove', move);
           window.removeEventListener('pointerup', up);
@@ -629,7 +667,7 @@ export function ObjectSlot({ work, lineup }: { work: Work; lineup: string[] }) {
         {!perfOff('contact') &&
           shadowKeys.map((sk) => (
             <ContactShadows
-          key={`${modelReady ? 'ready' : 'wait'}-${sk}`}
+          key={`${modelReady ? 'ready' : 'wait'}-${layoutKey}-${sk}`}
           ref={(g: Group | null) => {
             if (g) shadowRefs.current.set(sk, g);
             else shadowRefs.current.delete(sk);

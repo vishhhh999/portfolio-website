@@ -42,7 +42,8 @@ if (!process.env.SKIP_MASTHEAD) {
   }
 }
 
-for (const [name, vp, mobile] of [['1568', { width: 1568, height: 980 }, false], ['390', { width: 390, height: 844 }, true]]) {
+// L7 (09B): also the tall shapes (the phone with its toolbars shown, the iPad Pro portrait) and the square one
+for (const [name, vp, mobile] of [['1568', { width: 1568, height: 980 }, false], ['390', { width: 390, height: 844 }, true], ['393x659', { width: 393, height: 659 }, true], ['1032x1230', { width: 1032, height: 1230 }, false], ['1180x1000', { width: 1180, height: 1000 }, false]].filter(([n]) => !process.env.PILL_SIZES || process.env.PILL_SIZES.split(',').includes(n))) {
   const ctx = await b.newContext({ viewport: vp, isMobile: mobile, hasTouch: mobile, reducedMotion: 'reduce' });
   await ctx.addInitScript(() => { try { sessionStorage.setItem('vm:opened:v1', '1'); } catch {} });
   const p = await ctx.newPage();
