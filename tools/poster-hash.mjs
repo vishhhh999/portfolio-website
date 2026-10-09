@@ -20,7 +20,8 @@ const FILES = [
   'public/booth/lightmap.ktx2', 'public/booth/lightmap.png', 'public/booth/lightmap-phone.webp', 'public/booth/ao-phone.png',
   'app/(site)/layout.tsx', 'app/globals.css', 'components/booth/BoothCanvas.tsx', 'lib/views.ts',
   // L (09B): the shapes, the shelf and its AO, the frame's sizing
-  'lib/shape.ts', 'components/booth/shelf.ts', 'components/booth/ShelfUnit.tsx', 'components/booth/BoothFrame.tsx', 'components/booth/CameraRig.tsx',
+  'lib/shape.ts', 'components/booth/shelf.ts',
+  'components/booth/shelfGeometry.ts', 'components/booth/ShelfUnit.tsx', 'components/booth/BoothFrame.tsx', 'components/booth/CameraRig.tsx',
   'public/booth/ao-shelf2.png', 'public/booth/ao-shelf3.png', 'public/booth/ao-shelf4.png',
 ];
 const DIRS = ['public/models', 'public/brand'];

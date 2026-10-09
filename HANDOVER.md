@@ -1,8 +1,10 @@
 # HANDOVER: The Booth (visheshmahendru.com)
 
-## 09B status (8 Oct 2026, read this first): handed over mid-verification
+## 09B verification (read this before the historical notes)
 
-Batch 09B (the layout by screen shape, the shelf) is on branch `claude/quirky-knuth-70j1df`, draft PR #8. The code is done; posters, the regression suite, screenshots and the merge are left. **Read `CODEX-HANDOFF.md`**: it has the full state, the verified results (the 20-viewport L7 matrix passes), the decisions Vish should know (the square shape gets a 4-column shelf; the wide band rule; the shelf not locked yet), and the exact steps to finish.
+The owner's current instructions supersede the branch and squash workflow below: finish the three corrections and the complete poster run on `claude/quirky-knuth-70j1df`, pass the local build and the full suite, then merge into `main` with both parents preserved. Close PR #8 after pushing that merge. Subsequent work goes directly to `main`, with a passing build and checks before every push. Changes to the first frame require a full poster re-render in the same commit.
+
+The About caption is **Specimen · black and white**; the photo is unchanged. The tablet band rule ends at aspect 1.5, restoring the 09A desktop fit. At 1032x1230 the targeted laptop check measures 97.8% visibility and enforces an 80% minimum. The phone hint sits above the first shelf row. All 53 booth posters and 10 share cards were rendered together, and the build and all 56 poster comparisons passed. See `DELIVERY-09B.md` for the final suite results and limits of software rendering.
 
 ---
 

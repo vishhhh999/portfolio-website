@@ -13,7 +13,8 @@ import { dirname, join } from 'path';
 import sharp from 'sharp';
 import { Vector3 } from 'three';
 import { fileURLToPath } from 'url';
-import { SHELF, SHELF_ATLAS, shelfParts } from '../components/booth/shelf.ts';
+import { SHELF } from '../components/booth/shelf.ts';
+import { SHELF_ATLAS, shelfParts } from '../components/booth/shelfGeometry.ts';
 import { layoutDef } from '../components/booth/staging.ts';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');

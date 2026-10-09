@@ -2,6 +2,9 @@
 
 This document holds everything needed to pick the project up cold, by you or by a new Claude session. It is current as of 8 Oct 2026, after batch 09B (PR #8: the layout chosen by screen shape, switched live, and the shelf on tall screens), on top of 09A (PR #7). `HANDOVER.md` has the session wrap-up; `DELIVERY-09B.md` and `DELIVERY-09A.md` the batch reports.
 
+
+09B owner corrections and final verification are recorded in `DELIVERY-09B.md`: the exact About caption with the photo unchanged, tablet-only band fitting below aspect 1.5, four desktop fit checks, the tablet laptop visibility gate, and phone hint clearance. Shelf geometry moved into `shelfGeometry.ts` so initial sizing code does not load Three.js; the generated shelf meshes were verified byte-for-byte identical. The stage ignores pointer events outside its canvas so Index / 3D viewport UI clicks cannot activate scene links. All 63 poster/share-card files came from one unfiltered render. The gated build, 20 regression tools and three delivery/report tools passed under SwiftShader. After the history-preserving PR #8 merge, changes go directly to `main`, with passing build/checks before push and a complete poster re-render in every commit that changes the first frame. Real-device performance remains unmeasured.
+
 Paste it (or point to it) at the start of any new session, together with `BRIEF.md` from the repo.
 
 ---

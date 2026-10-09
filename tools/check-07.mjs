@@ -37,6 +37,7 @@ const page = async (url, w = 1568, h = 980) => {
   const item = p.locator('.sitenav > :first-child');
   check('nav on "/" reads Index', (await item.innerText()).trim().toLowerCase() === 'index');
   await item.click();
+  await p.waitForFunction(() => document.documentElement.hasAttribute('data-home-index'), null, { timeout: 60000 });
   await p.waitForTimeout(400);
   const listShown = await p.locator('.homeindex').isVisible();
   const boothGone = !(await p.locator('.booth-frame-wrap').isVisible());
@@ -47,6 +48,9 @@ const page = async (url, w = 1568, h = 980) => {
   await p.waitForTimeout(300);
   check('hover shows an image preview', (await p.locator('.homeindex__preview img[data-on="true"]').count()) === 1);
   await item.click();
+  // BoothHost commits the visibility attribute in an effect. Wait for that commit, rather
+  // than counting a fixed delay while the software renderer can occupy the main thread.
+  await p.waitForFunction(() => !document.documentElement.hasAttribute('data-home-index'), null, { timeout: 60000 });
   await p.waitForTimeout(400);
   check('3D viewport swaps back', (await p.locator('.booth-frame-wrap').isVisible()) && !(await p.locator('.homeindex').isVisible()) && new URL(p.url()).pathname === '/');
   await p.close();

@@ -34,7 +34,7 @@ import { isMobileTier } from '@/lib/perfTier';
 import { useBooth } from '@/lib/store';
 import { shellParts, type ShellPart } from './shell';
 import { activeLayout, BOOTH, CABINET, CABINET_FACE, COVE, DIFFUSER, PLINTH_GREY, PROPS, STAGING, TRAY, type LayoutKey } from './staging';
-import { shelfParts, type ShelfPart } from './shelf';
+import { shelfParts, type ShelfPart } from './shelfGeometry';
 import { useLayoutKey } from './useLayout';
 import { ShelfUnit } from './ShelfUnit';
 import { applyUV } from './uvMaterial';

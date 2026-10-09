@@ -9,7 +9,8 @@ import { markDirty } from '@/lib/dirty';
 import { BOOTH_GREY, ContactBlob, roughnessNoise, shellAO } from './BoothRoom';
 import { wallRoughness } from './imperfections';
 import { PLINTH_GREY } from './staging';
-import { SHELF, type ShelfDef, type ShelfPart } from './shelf';
+import { SHELF, type ShelfDef } from './shelf';
+import type { ShelfPart } from './shelfGeometry';
 import { useLayoutKey } from './useLayout';
 
 /** The label rail's face: brushed N6.5 with the name engraved in mono capitals (a dark cut over a light lip). */

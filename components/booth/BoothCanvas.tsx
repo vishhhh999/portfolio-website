@@ -67,6 +67,7 @@ const MODEL_REF = typeof window !== 'undefined' ? new URLSearchParams(window.loc
 /** Booth pointer events only inside the stage rect (the camera's projection spans the whole canvas). */
 function stageEvents(store: Parameters<typeof createPointerEvents>[0]) {
   const base = createPointerEvents(store);
+  let outsideStage = false;
   return {
     ...base,
     compute(event: { clientX: number; clientY: number; target: EventTarget | null }, state: RootState) {
@@ -78,7 +79,8 @@ function stageEvents(store: Parameters<typeof createPointerEvents>[0]) {
       const onUi = !!t?.closest?.('a, button, input, .panel, .work__body, .footer, .houselights, .page');
       const inside =
         !onUi && r && event.clientX >= r.left && event.clientX <= r.left + r.width && event.clientY >= r.top && event.clientY <= r.top + r.height;
-      if (!r || !inside) state.pointer.set(9, 9);
+      outsideStage = !inside;
+      if (outsideStage) state.pointer.set(9, 9);
       else state.pointer.set((event.clientX / state.size.width) * 2 - 1, -(event.clientY / state.size.height) * 2 + 1);
       // world matrices as drawn: some GLB subtrees are only refreshed inside the render itself
       state.scene.updateMatrixWorld();
@@ -90,6 +92,9 @@ function stageEvents(store: Parameters<typeof createPointerEvents>[0]) {
      * solid of the cabinet (frame, hood, housing, lip) is in front of it.
      */
     filter(items: Intersection[], state: RootState) {
+      // A page control can mount the stage during this same bubbling click (Index → 3D).
+      // Reject its intersections too; the out-of-range ray alone can retain stale hits.
+      if (outsideStage) return [];
       const seen = items.filter((i) => pickable(i.object) && isPart(i.object) && solid(i.object));
       if (!seen.length) return seen;
       // anything solid that is not a sample (walls, cabinet, tray, floor) nearer than the first

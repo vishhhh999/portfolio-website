@@ -19,7 +19,7 @@ await p.goto(BASE + '/', { waitUntil: 'networkidle' }); // the lamp panel (and i
 check('sound off by default', (await p.textContent('.sound'))?.toLowerCase().includes('off'));
 await p.waitForTimeout(1500);
 check('no audio downloaded while off', audio.length === 0, audio.join(', '));
-await p.evaluate(() => document.querySelector('.sound').click()); // a DOM click: SwiftShader keeps the main thread busy
+await p.locator('.sound').click(); // a trusted user gesture, as required to start Web Audio
 await p.waitForTimeout(1200);
 const level = async () => p.evaluate(() => Number(getComputedStyle(document.querySelector('.sound__meter')).getPropertyValue('--level')) || 0);
 check('sound on after a click', (await p.textContent('.sound'))?.toLowerCase().includes('on'));
@@ -27,6 +27,9 @@ check('persisted', (await p.evaluate(() => localStorage.getItem('vm:sound:v1')))
 for (const [key, lamp] of [['1', 'D50'], ['2', 'TL84'], ['3', 'A'], ['4', 'UV'], ['5', 'FLOOD'], ['6', 'SCREEN'], ['7', 'AFTER DARK']]) {
   await p.keyboard.press(key);
   await p.waitForTimeout(1400);
+  // The meter updates on animation frames. A wall-clock pause can finish before its next
+  // update while SwiftShader compiles the first booth frame; sample two presented frames later.
+  await p.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   const l = await level();
   check(`bed playing under ${lamp}`, l > 0.05, `meter ${l.toFixed(2)}`);
 }

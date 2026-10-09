@@ -2,6 +2,9 @@
 
 **Owner's follow-up, 8 Oct 2026, overrides the historical steps below:** change the About caption to "Specimen · black and white" without touching the photo; keep the wide band rule only below aspect 1.5; expose at least 80% of the tablet Mitooshi laptop at 1032x1230 and assert it in check-shapes; move the phone hint clear of the top shelf row. Re-render ALL posters in one process, not HOME_ONLY. Pass the gated build and suite on this branch, then merge PR #8 into main with history preserved, without squash. After that, work directly on main and push each step only with build and checks passing. A first-frame change must include the full poster re-render in the same commit. Report the merge SHA and final Vercel production deployment URL. See DELIVERY-09B.md for the completed results.
 
+
+**Final verification:** all 63 poster/share-card files were rendered together from the final source, the gated production build and type check passed, and all 20 regression tools and three delivery/report tools passed. `DELIVERY-09B.md` is the current report. The instructions below preserve the original handoff history; the owner's workflow above governs subsequent work.
+
 Written 8 Oct 2026 at the end of a Claude Code session, so another agent (ChatGPT Codex) can finish batch 09B. Everything you need is in this file and the repo docs it points to.
 
 ---
