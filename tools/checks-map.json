@@ -1,0 +1,13 @@
+{
+  "serial": ["shots-09b"],
+  "rules": [
+    { "globs": ["components/booth/shelf.ts", "components/booth/shelfGeometry.ts", "components/booth/ShelfUnit.tsx"], "checks": ["check-shapes", "check-picking", "check-pill"] },
+    { "globs": ["components/booth/BoothCanvas.tsx", "components/booth/BoothHost.tsx", "components/booth/BoothFrame.tsx"], "checks": ["check-smear", "check-flicker", "check-views"] },
+    { "globs": ["components/booth/staging.ts", "components/booth/shots.ts", "components/booth/CameraRig.tsx", "components/booth/Post.tsx", "components/booth/LampRig.tsx", "components/booth/BoothFrame.tsx"], "checks": ["check-poster", "check-flicker", "check-views", "check-layout"] },
+    { "globs": ["app/globals.css"], "checks": ["check-layout", "check-pill", "check-targets", "check-overflow"] },
+    { "globs": ["content/**", "app/**"], "checks": ["check-07", "check-about", "check-axe", "check-overflow", "check-console"] },
+    { "globs": ["components/ui/SwitchPanel.tsx", "components/ui/SiteNav.tsx", "components/ui/HomeIndex.tsx"], "checks": ["check-pill", "check-houselights", "check-lamp"] },
+    { "globs": ["public/booth/**", "public/og/**"], "checks": ["check-poster"] },
+    { "globs": ["AGENTS.md", "HANDOVER.md", "PROJECT-CONTEXT.md", "DELIVERY-09B.md", "BATCH-10-REPORT.md"], "checks": [] }
+  ]
+}

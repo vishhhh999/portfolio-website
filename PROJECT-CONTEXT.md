@@ -369,6 +369,16 @@ The 3D pages can't be scored in a GPU-less container. Use PageSpeed Insights on 
 
 ## 9. Testing (run against a production build on port 3100)
 
+Batch 10 check tiers run against the production server on port 3100. The runner starts it if the port is free. After changing files under `public/`, restart an already running server before checking the new bytes.
+
+| Command | When to run | Coverage |
+|---|---|---|
+| `npm run check:fast` | Quick smoke check | TypeScript, routes, poster hash gate, shape classification, targets at desktop and phone sizes, redirects. Target under three minutes in software rendering. |
+| `npm run check:affected` | After each step | Fast tier plus checks mapped to changed files in `tools/checks-map.json`. An unmapped file invokes the full tier. |
+| `npm run check:full` | Before a batch ends or when a first-frame input changes | Every regression check and the complete viewport matrices, with independent checks run concurrently. `JOBS=3` is the default. |
+
+The runner prints per-tool seconds and writes `suite.log`; `--bail` stops scheduling new checks after a failure. `GL=soft` uses SwiftShader; `GL=gpu` requires a verified hardware renderer and refuses software fallback. `TIMEOUT_MS` overrides the normal 300-second software and 90-second GPU waits. Keep `npm run build` green before pushing to `main`.
+
 ```bash
 npm run build && npx next start -p 3100
 PLAYWRIGHT=<path to playwright> node tools/<check>.mjs

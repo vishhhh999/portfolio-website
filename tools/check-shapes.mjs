@@ -21,7 +21,7 @@ const MATRIX = [
   [390, 664, 'tall'], [393, 659, 'tall'], [393, 852, 'tall'], [430, 932, 'tall'], [750, 393, 'phone-landscape'], [932, 430, 'phone-landscape'],
   [768, 1024, 'tall'], [820, 1180, 'tall'], [1032, 1230, 'tall'], [1032, 1260, 'tall'], [1376, 940, 'wide'], [1376, 980, 'wide'], [1180, 820, 'wide'],
   [1024, 1366, 'tall'], [1440, 900, 'wide'], [1568, 980, 'wide'], [1920, 1080, 'wide'], [2560, 1440, 'wide'], [1180, 1000, 'square'], [1024, 1000, 'square'],
-].filter(([w, h]) => !process.env.ONLY || process.env.ONLY.split(',').includes(`${w}x${h}`));
+].filter(([w, h]) => process.env.ONLY ? process.env.ONLY.split(',').includes(`${w}x${h}`) : process.env.SIZES === 'all' ? true : ['393x659', '1032x1230', '1440x900', '1180x1000'].includes(`${w}x${h}`));
 const LAYOUT = (shape, w) => (shape === 'tall' ? (w < 600 ? 'shelf2' : 'shelf3') : shape === 'square' ? 'shelf4' : 'wide');
 const hit = (a, c) => a.left < c.right - 0.5 && a.right > c.left + 0.5 && a.top < c.bottom - 0.5 && a.bottom > c.top + 0.5;
 const b = await launch({ args: [] });

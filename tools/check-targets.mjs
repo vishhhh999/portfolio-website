@@ -14,7 +14,7 @@ const BASE = process.env.BASE || 'http://localhost:3100';
 const ROUTES = (process.env.ROUTES || '/,/about,/archive,/work/sonde,/work/jsw-sports,/house-lights,/nope-404').split(',');
 const b = await launch({ args: [] });
 let fails = 0;
-for (const [name, vp, touch] of [['desktop', { width: 1568, height: 980 }, false], ['phone', { width: 390, height: 844 }, true], ['tablet', { width: 820, height: 1180 }, true]]) {
+for (const [name, vp, touch] of [['desktop', { width: 1568, height: 980 }, false], ['phone', { width: 390, height: 844 }, true], ['tablet', { width: 820, height: 1180 }, true]].filter(([name]) => !process.env.SIZES || process.env.SIZES === 'all' || process.env.SIZES.split(',').includes(name))) {
   const ctx = await b.newContext({ viewport: vp, isMobile: touch && vp.width < 600, hasTouch: touch, deviceScaleFactor: 1, reducedMotion: 'reduce' });
   await ctx.addInitScript(() => { try { sessionStorage.setItem('vm:opened:v1', '1'); sessionStorage.setItem('vm:hint:v1', '1'); } catch {} });
   const p = await ctx.newPage();

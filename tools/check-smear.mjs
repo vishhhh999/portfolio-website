@@ -15,7 +15,9 @@ const require = createRequire(import.meta.url);
 const pw = require(process.env.PLAYWRIGHT || 'playwright');
 import sharp from 'sharp';
 const BASE = process.env.BASE || 'http://localhost:3100';
-const widths = (process.argv[2] || '1568,2560').split(',').map(Number);
+const complete = process.env.SIZES === 'all';
+const widths = (process.argv[2] || (complete ? '1568,2560' : '1568')).split(',').map(Number);
+const scrolls = complete ? [0, 300, 700, 1200, 0] : [0, 700, 0];
 const b = await launch({ args: [] });
 let fails = 0;
 const report = (ok, msg) => {
@@ -72,7 +74,7 @@ for (const W of widths) {
     await p.goto(BASE + route, { waitUntil: 'networkidle' });
     await p.waitForSelector('.booth-stage[data-ready="true"]', { timeout: timeoutMs() }).catch(() => {});
     await p.waitForTimeout(1500);
-    for (const y of [0, 300, 700, 1200, 0]) {
+    for (const y of scrolls) {
       await p.mouse.wheel(0, 0);
       await scrollTo(p, y);
       await check(p, `${W} ${route} scroll ${y}`);
@@ -114,7 +116,7 @@ if (!process.env.SKIP_SHAPES) {
     await p.goto(BASE + '/', { waitUntil: 'networkidle' });
     await p.waitForSelector('.booth-stage[data-ready="true"]', { timeout: timeoutMs() }).catch(() => {});
     await p.waitForTimeout(1500);
-    for (const y of [0, 400, 900, 1600, 0]) {
+    for (const y of complete ? [0, 400, 900, 1600, 0] : [0, 900, 0]) {
       await scrollTo(p, y);
       await check(p, `${W}x${H} / (shelf) scroll ${y}`);
     }
@@ -128,7 +130,7 @@ if (!process.env.SKIP_SHAPES) {
   await p.waitForSelector('.booth-stage[data-ready="true"]');
   await p.waitForTimeout(1500);
   const want = { '2560x1440': 'wide', '1376x940': 'wide', '1376x980': 'wide', '1032x1230': 'shelf3', '393x659': 'shelf2' };
-  for (const [w, h] of [[1376, 940], [1032, 1230], [393, 659], [1032, 1230], [1376, 940], [2560, 1440], [1032, 1230], [1376, 980], [1032, 1230], [1376, 980]]) {
+  for (const [w, h] of complete ? [[1376, 940], [1032, 1230], [393, 659], [1032, 1230], [1376, 940], [2560, 1440], [1032, 1230], [1376, 980], [1032, 1230], [1376, 980]] : [[1376, 940], [1032, 1230], [393, 659], [2560, 1440]]) {
     await p.setViewportSize({ width: w, height: h });
     await p.waitForFunction(([w, h]) => { const s = window.__boothShape?.(); return s && s.w === w && Math.abs(s.h - h) < 2; }, [w, h], { timeout: timeoutMs(), polling: 500 });
     await p.waitForFunction(() => !document.querySelector('.booth-cover') || document.querySelector('.booth-cover').hidden, null, { timeout: timeoutMs(), polling: 500 });

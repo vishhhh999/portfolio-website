@@ -44,6 +44,7 @@ export const POSTER_GROUPS = Object.freeze({
   'tray-tablet': { inputs: gatheredSource, files: trayFiles('-tablet') },
 });
 export const GROUP_NAMES = Object.keys(POSTER_GROUPS);
+export const groupInputs = (name) => [...new Set([...shared, ...POSTER_GROUPS[name].inputs])];
 export const POSTER_FILES = GROUP_NAMES.flatMap((name) => POSTER_GROUPS[name].files);
 if (POSTER_FILES.length !== 63 || new Set(POSTER_FILES).size !== 63 || TRAY.length !== 4) throw new Error('Poster group coverage is not 63 unique files');
 

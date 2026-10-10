@@ -281,8 +281,8 @@ if (run('resize')) {
     for (let i = 0; i < 3; i++) (await q.evaluate(() => window.__boothBench?.(1)), await q.waitForTimeout(200));
   };
   const seqs = {
-    'window drag 2560x1440 → 1376x940 → 1032x1230 → 393x659 → back': [[1376, 940], [1032, 1230], [393, 659], [1032, 1230], [1376, 940], [2560, 1440]],
-    'iPad Pro 13 rotation 1032x1230 ↔ 1376x980': [[1032, 1230], [1376, 980], [1032, 1230], [1376, 980]],
+    'window drag 2560x1440 → 1376x940 → 1032x1230 → 393x659 → back': process.env.SIZES === 'all' ? [[1376, 940], [1032, 1230], [393, 659], [1032, 1230], [1376, 940], [2560, 1440]] : [[1032, 1230], [393, 659], [2560, 1440]],
+    'iPad Pro 13 rotation 1032x1230 ↔ 1376x980': process.env.SIZES === 'all' ? [[1032, 1230], [1376, 980], [1032, 1230], [1376, 980]] : [[1032, 1230], [1376, 980]],
   };
   for (const [name, seq] of Object.entries(seqs)) {
     const lums = await capture(q, async () => {

@@ -8,6 +8,9 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "check": "node tools/check-routes.mjs && tsc --noEmit",
+    "check:fast": "node tools/run-checks.mjs fast",
+    "check:affected": "node tools/run-checks.mjs affected",
+    "check:full": "node tools/run-checks.mjs full",
     "test:overflow": "node tools/check-overflow.mjs",
     "postinstall": "node tools/patch-r3f-timer.mjs"
   },

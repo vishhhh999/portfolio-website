@@ -40,9 +40,10 @@ async function compare(liveBuf, posterFile) {
 // the repeat-visit posters, and the first-visit (dark) posters against the booth with the opening strike held at 0
 const groups = process.env.CHECK_GROUPS?.split(',').filter(Boolean);
 if (groups?.some((name) => !GROUP_NAMES.includes(name))) throw new Error('Unknown CHECK_GROUPS entry: ' + groups.filter((name) => !GROUP_NAMES.includes(name)).join(', '));
+const representative = !groups && process.env.SIZES !== 'all';
 const only = process.env.ONLY_HOME?.split(',');
 for (const entry of HOME.filter((e) => (!only || only.includes(e.name)) && (!groups || groups.includes(e.name))))
-  for (const [w, h, dpr, mobile] of entry.check)
+  for (const [w, h, dpr, mobile] of representative ? entry.check.slice(0, 1) : entry.check)
     for (const dark of [false, true]) {
       const p = await b.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: dpr, isMobile: mobile, hasTouch: mobile, reducedMotion: dark ? 'no-preference' : 'reduce' });
       p.setDefaultTimeout(timeoutMs());
@@ -71,7 +72,7 @@ for (const entry of HOME.filter((e) => (!only || only.includes(e.name)) && (!gro
       console.log(`${ok ? 'PASS' : 'FAIL'} ${w}x${h}${dark ? ' first visit' : ''}: picked ${picked} (want ${entry.name}), poster ${file.replace(PUB, '/')} vs live: mean difference ${diff.toFixed(2)}% (limit ${THRESHOLD}%)`);
     }
 // P2 (09): each project header's tray poster against the live tray shot (desktop and phone)
-for (const slug of groups && !groups.some((name) => name.startsWith('tray-')) ? [] : process.env.TRAY ? process.env.TRAY.split(',').filter(Boolean) : process.env.ONLY_HOME ? [] : SLUGS) {
+for (const slug of groups && !groups.some((name) => name.startsWith('tray-')) ? [] : process.env.TRAY ? process.env.TRAY.split(',').filter(Boolean) : process.env.ONLY_HOME ? [] : representative ? SLUGS.slice(0, 1) : SLUGS) {
   for (const t of TRAY.filter((t) => !groups || groups.includes('tray-' + (t.suffix ? t.suffix.slice(1) : 'wide')))) {
     const [w, h, dpr, mobile] = t.render;
     const file = `booth/tray/${slug}${t.suffix}.webp`;
