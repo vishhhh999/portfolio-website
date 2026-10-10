@@ -8,6 +8,11 @@
     { "globs": ["content/**", "app/**"], "checks": ["check-07", "check-about", "check-axe", "check-overflow", "check-console"] },
     { "globs": ["components/ui/SwitchPanel.tsx", "components/ui/SiteNav.tsx", "components/ui/HomeIndex.tsx"], "checks": ["check-pill", "check-houselights", "check-lamp"] },
     { "globs": ["public/booth/**", "public/og/**"], "checks": ["check-poster"] },
+    { "globs": ["tools/check-console.mjs"], "checks": ["check-console"] },
+    { "globs": ["tools/checks-map.json"], "checks": [] },
+    { "globs": ["tools/gpu-smoke.mjs"], "checks": [] },
+    { "globs": ["tools/lib/browser.mjs"], "checks": ["check-shape", "check-targets", "check-console"] },
+    { "globs": ["package.json", "package-lock.json"], "checks": [] },
     { "globs": ["AGENTS.md", "HANDOVER.md", "PROJECT-CONTEXT.md", "DELIVERY-09B.md", "BATCH-10-REPORT.md"], "checks": [] }
   ]
 }
