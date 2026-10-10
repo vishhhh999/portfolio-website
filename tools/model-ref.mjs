@@ -1,3 +1,4 @@
+import { launch, timeoutMs } from './lib/browser.mjs';
 /**
  * D1: each GLB in the browser beside its Blender reference render, set up the same way (50mm,
  * straight-on, 0.18 grey world, one soft key front-top-left, AgX). Writes
@@ -13,7 +14,7 @@ const BASE = process.env.BASE || 'http://localhost:3100';
 const OUT = new URL('./lamp-review/model-ref/', import.meta.url).pathname;
 const ROOT = new URL('../', import.meta.url).pathname;
 mkdirSync(OUT, { recursive: true });
-const b = await pw.chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const b = await launch({ args: [] });
 const LIST = process.argv[2] ? process.argv[2].split(',') : ['too-yumm', 'sook', 'jsw-sports', 'jsw-sports:open', 'shunya', 'mitooshi', 'house-of-hex', 'sonde', 'indo-thai', 'bengal-t20'];
 for (const item of LIST) {
   // A6 (09): slug[:variant][@yaw/elev] orbits the camera (degrees): a 3/4 view to match a reference, or the back
@@ -21,7 +22,7 @@ for (const item of LIST) {
   const [slug, variant] = main.split(':');
   const [yaw, elev] = (angles ?? '').split('/');
   const p = await b.newPage({ viewport: { width: 800, height: 800 }, reducedMotion: 'reduce' });
-  p.setDefaultTimeout(600000);
+  p.setDefaultTimeout(timeoutMs());
   await p.goto(`${BASE}/?modelref=${slug}&gpu=high&tone=agx${variant ? '&open' : ''}${angles ? `&yaw=${yaw}&elev=${elev}` : ''}`, { waitUntil: 'networkidle' });
   await p.waitForFunction(() => document.documentElement.dataset.modelref === 'ready');
   await p.waitForTimeout(4000);

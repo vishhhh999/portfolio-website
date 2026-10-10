@@ -1,3 +1,4 @@
+import { launch, timeoutMs } from './lib/browser.mjs';
 /**
  * Writes tools/camera.json from the live booth, so the Blender scene uses
  * exactly the numbers the site renders with (same code path, no copy).
@@ -11,7 +12,7 @@ const BASE = process.env.BASE || 'http://localhost:3100';
 
 const toBlender = ([x, y, z]) => [x, -z, y]; // three.js Y-up → Blender Z-up
 
-const browser = await pw.chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const browser = await launch({ args: [] });
 const page = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
 await page.goto(BASE + '/', { waitUntil: 'networkidle' });
 await page.waitForFunction(() => typeof window.__boothExport === 'function', null, { timeout: 20000 });

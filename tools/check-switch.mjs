@@ -1,3 +1,4 @@
+import { launch, timeoutMs } from './lib/browser.mjs';
 /**
  * A3: project-to-project switching. With /work/too-yumm open, follow "Next on the tray" and then
  * click another sample in the booth header. Measures click → first animated booth frame (the
@@ -10,15 +11,15 @@ const require = createRequire(import.meta.url);
 const pw = require(process.env.PLAYWRIGHT || 'playwright');
 const BASE = process.env.BASE || 'http://localhost:3100';
 const label = process.argv[2] || 'run';
-const b = await pw.chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const b = await launch({ args: [] });
 const p = await b.newPage({ viewport: { width: 1568, height: 980 } });
-p.setDefaultTimeout(600000);
+p.setDefaultTimeout(timeoutMs());
 await p.addInitScript(() => {
   window.__long = [];
   new PerformanceObserver((l) => l.getEntries().forEach((e) => window.__long.push({ t: e.startTime, d: Math.round(e.duration) }))).observe({ type: 'longtask', buffered: true });
 });
 await p.goto(BASE + '/work/too-yumm', { waitUntil: 'networkidle' });
-await p.waitForSelector('.booth-stage[data-ready="true"]', { timeout: 600000 });
+await p.waitForSelector('.booth-stage[data-ready="true"]', { timeout: timeoutMs() });
 await p.waitForTimeout(2500);
 
 async function measure(name, act, target) {

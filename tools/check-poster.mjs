@@ -1,3 +1,4 @@
+import { launch, timeoutMs, waitForBoothSettled, settleAfterReady } from './lib/browser.mjs';
 /**
  * C1 (08): the poster is the live booth. L6 (09B): at every shape's check viewports
  * (tools/poster-matrix.mjs) the frame is captured live (poster hidden) and compared with the poster
@@ -15,7 +16,7 @@ const pw = require(process.env.PLAYWRIGHT || 'playwright');
 const BASE = process.env.BASE || 'http://localhost:3100';
 const PUB = new URL('../public/', import.meta.url).pathname;
 const THRESHOLD = 2.5;
-const b = await pw.chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const b = await launch({ args: [] });
 let fails = 0;
 /** Mean absolute difference per channel (%), the poster scaled to the live capture's width (L6 09B: a
  *  shelf poster is its first screen, so only its top part, as tall as the live capture, is compared). */
@@ -41,19 +42,19 @@ for (const entry of HOME.filter((e) => !only || only.includes(e.name)))
   for (const [w, h, dpr, mobile] of entry.check)
     for (const dark of [false, true]) {
       const p = await b.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: dpr, isMobile: mobile, hasTouch: mobile, reducedMotion: dark ? 'no-preference' : 'reduce' });
-      p.setDefaultTimeout(900000);
+      p.setDefaultTimeout(timeoutMs());
       if (dark) await p.addInitScript(() => (window.__boothStrikeHold = 0));
       else await p.addInitScript(() => sessionStorage.setItem('vm:opened:v1', '1'));
       await p.goto(BASE + '/?gpu=high', { waitUntil: 'networkidle' });
       await p.waitForSelector('.booth-stage[data-ready="true"]');
-      await p.waitForFunction(() => window.__boothSettled?.() === true);
+      await waitForBoothSettled(p, 'poster booth readiness');
       // the poster the page actually picked here (the boot script, by shape)
       const picked = await p.evaluate(() => document.documentElement.getAttribute('data-poster'));
       const shown = dark ? '' : await p.evaluate(() => document.querySelector('.booth-poster img')?.currentSrc ?? '');
       await p.addStyleTag({ content: HIDE_HOME });
-      await p.waitForTimeout(4000);
+      await settleAfterReady(p, 4000, 'settled check-poster.mjs capture');
       const r = await p.locator('.booth-frame').boundingBox();
-      const png = await p.screenshot({ clip: { x: r.x, y: r.y, width: r.width, height: Math.min(r.height, h - r.y) }, timeout: 900000 });
+      const png = await p.screenshot({ clip: { x: r.x, y: r.y, width: r.width, height: Math.min(r.height, h - r.y) }, timeout: timeoutMs() });
       if (process.env.DEBUG_POSTERS) {
         const out = new URL('./lamp-review/09b/poster-check/', import.meta.url).pathname;
         mkdirSync(out, { recursive: true });
@@ -72,7 +73,7 @@ for (const slug of process.env.TRAY ? process.env.TRAY.split(',').filter(Boolean
     const [w, h, dpr, mobile] = t.render;
     const file = `booth/tray/${slug}${t.suffix}.webp`;
     const p = await b.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: dpr, isMobile: mobile, hasTouch: mobile, reducedMotion: 'reduce' });
-    p.setDefaultTimeout(900000);
+    p.setDefaultTimeout(timeoutMs());
     await p.addInitScript(() => {
       sessionStorage.setItem('vm:opened:v1', '1');
       window.__boothAnimHold = 1;
@@ -81,14 +82,14 @@ for (const slug of process.env.TRAY ? process.env.TRAY.split(',').filter(Boolean
     // the poster the page picked, read before the booth is ready (the poster leaves the page 450ms after)
     const shown = await p.evaluate(() => document.querySelector('#booth-tray-poster')?.getAttribute('src') ?? '');
     await p.waitForSelector('.booth-stage[data-ready="true"]');
-    await p.waitForFunction(() => window.__boothSettled?.() === true);
+    await waitForBoothSettled(p, 'poster booth readiness');
     // the neighbours load when idle and fade in: capture the settled shelf, not a moment in its loading
     await p.waitForLoadState('networkidle');
     await p.waitForTimeout(2500);
     await p.addStyleTag({ content: HIDE_TRAY });
-    await p.waitForTimeout(5000);
+    await settleAfterReady(p, 5000, 'settled check-poster.mjs capture');
     const r = await p.locator('.booth-stage').boundingBox();
-    const png = await p.screenshot({ clip: { x: r.x, y: r.y, width: r.width, height: Math.min(r.height, h - r.y) }, timeout: 900000 });
+    const png = await p.screenshot({ clip: { x: r.x, y: r.y, width: r.width, height: Math.min(r.height, h - r.y) }, timeout: timeoutMs() });
     await p.close();
     const diff = await compare(png, PUB + file);
     const ok = diff <= THRESHOLD && shown === `/${file}`;

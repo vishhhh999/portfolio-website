@@ -1,3 +1,4 @@
+import { launch, timeoutMs } from './lib/browser.mjs';
 /**
  * F3 + P4 (09): the lamp pill never covers what a visitor reads or clicks, and the masthead never
  * collides with itself.
@@ -14,7 +15,7 @@ const require = createRequire(import.meta.url);
 const pw = require(process.env.PLAYWRIGHT || 'playwright');
 const BASE = process.env.BASE || 'http://localhost:3100';
 const SLUGS = (process.env.ONLY || 'too-yumm,jsw-sports,mitooshi,sonde,house-of-hex,bengal-t20,sook,shunya,indo-thai').split(',');
-const b = await pw.chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const b = await launch({ args: [] });
 let fails = 0;
 const hit = (a, c) => a.left < c.right - 0.5 && a.right > c.left + 0.5 && a.top < c.bottom - 0.5 && a.bottom > c.top + 0.5;
 
@@ -47,10 +48,10 @@ for (const [name, vp, mobile] of [['1568', { width: 1568, height: 980 }, false],
   const ctx = await b.newContext({ viewport: vp, isMobile: mobile, hasTouch: mobile, reducedMotion: 'reduce' });
   await ctx.addInitScript(() => { try { sessionStorage.setItem('vm:opened:v1', '1'); } catch {} });
   const p = await ctx.newPage();
-  p.setDefaultTimeout(600000);
+  p.setDefaultTimeout(timeoutMs());
   for (const slug of SLUGS) {
     await p.goto(`${BASE}/work/${slug}`, { waitUntil: 'networkidle' });
-    await p.waitForSelector('.booth-stage[data-ready="true"]', { timeout: 600000 }).catch(() => {});
+    await p.waitForSelector('.booth-stage[data-ready="true"]', { timeout: timeoutMs() }).catch(() => {});
     await p.waitForTimeout(1500);
     const total = await p.evaluate(() => document.documentElement.scrollHeight - innerHeight);
     const steps = Math.ceil(total / (vp.height * 0.45)) + 1;
@@ -67,7 +68,7 @@ for (const [name, vp, mobile] of [['1568', { width: 1568, height: 980 }, false],
       // the page's scroll event is what the pill listens to; in software rendering the main thread is
       // busy with the booth and the browser can hold that event back for seconds, so the timings below
       // start once it has been delivered (a real browser delivers it on the next frame)
-      if (moved) await p.waitForFunction(() => window.__pillScrolls > 0, null, { timeout: 120000 });
+      if (moved) await p.waitForFunction(() => window.__pillScrolls > 0, null, { timeout: timeoutMs() });
       // a check mid-move (the pill decides every frame while the page moves) and one at rest
       for (const wait of [250, 1700]) {
         await p.waitForTimeout(wait);

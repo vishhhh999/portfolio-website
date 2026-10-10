@@ -1,3 +1,4 @@
+import { launch, timeoutMs } from './lib/browser.mjs';
 /**
  * C1 / C2 (07) and D5 (06): layout edges.
  *  C2  the home booth: one centred column. The cabinet's rendered left and right edges (its opaque
@@ -14,7 +15,7 @@ import sharp from 'sharp';
 const require = createRequire(import.meta.url);
 const pw = require(process.env.PLAYWRIGHT || 'playwright');
 const BASE = process.env.BASE || 'http://localhost:3100';
-const b = await pw.chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const b = await launch({ args: [] });
 let fails = 0;
 const ok = (c, m) => {
   if (!c) fails++;
@@ -26,9 +27,9 @@ for (const [W, H] of [[390, 844], [725, 960], [1024, 768], [1440, 900], [1568, 9
   const mobile = W < 600;
   const ctx = await b.newContext({ viewport: { width: W, height: H }, isMobile: mobile, hasTouch: mobile });
   const p = await ctx.newPage();
-  p.setDefaultTimeout(600000);
+  p.setDefaultTimeout(timeoutMs());
   await p.goto(BASE + '/?viewdebug=cabinet', { waitUntil: 'networkidle' });
-  await p.waitForSelector('.booth-stage[data-ready="true"]', { timeout: 600000 });
+  await p.waitForSelector('.booth-stage[data-ready="true"]', { timeout: timeoutMs() });
   await p.waitForTimeout(1500);
   const f = await p.evaluate(() => {
     const r = document.querySelector('.booth-frame').getBoundingClientRect();
@@ -82,7 +83,7 @@ for (const [W, H] of [[390, 844], [725, 960], [1024, 768], [1440, 900], [1568, 9
 for (const W of [1568, 2560]) {
   const ctx = await b.newContext({ viewport: { width: W, height: Math.round(W * 0.6) } });
   const p = await ctx.newPage();
-  p.setDefaultTimeout(600000);
+  p.setDefaultTimeout(timeoutMs());
   for (const route of ['/', '/work/too-yumm', '/archive']) {
     await p.goto(BASE + route, { waitUntil: 'networkidle' });
     await p.waitForTimeout(800);

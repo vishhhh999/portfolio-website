@@ -1,3 +1,4 @@
+import { launch, timeoutMs } from './lib/browser.mjs';
 /**
  * Batch 07 page checks (DOM only, no WebGL needed):
  *   nav      on "/" the first nav item reads "Index", swaps to the Index view in place (URL stays
@@ -16,7 +17,7 @@ import { existsSync, readFileSync, readdirSync } from 'fs';
 const require = createRequire(import.meta.url);
 const pw = require(process.env.PLAYWRIGHT || 'playwright');
 const BASE = process.env.BASE || 'http://localhost:3100';
-const b = await pw.chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const b = await launch({ args: [] });
 const results = [];
 const check = (name, ok, detail = '') => {
   results.push(ok);

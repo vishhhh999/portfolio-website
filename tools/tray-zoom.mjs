@@ -1,3 +1,4 @@
+import { launch, timeoutMs } from './lib/browser.mjs';
 /**
  * F4 (08): every model's textures at tray zoom: the tray shot of each project at 2560x1440, cropped
  * to the stage, into tools/lamp-review/08/tray-zoom/<slug>.jpg (focus pass off, so nothing is softened).
@@ -12,10 +13,10 @@ const BASE = process.env.BASE || 'http://localhost:3100';
 const OUT = new URL('./lamp-review/08/tray-zoom/', import.meta.url).pathname;
 mkdirSync(OUT, { recursive: true });
 const slugs = process.argv.slice(2).length ? process.argv.slice(2) : ['too-yumm', 'bengal-t20', 'sook', 'shunya', 'house-of-hex', 'mitooshi', 'indo-thai', 'sonde', 'jsw-sports'];
-const b = await pw.chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const b = await launch({ args: [] });
 for (const slug of slugs) {
   const p = await b.newPage({ viewport: { width: 2560, height: 1440 } });
-  p.setDefaultTimeout(900000);
+  p.setDefaultTimeout(timeoutMs());
   await p.addInitScript(() => sessionStorage.setItem('vm:opened:v1', '1'));
   await p.goto(`${BASE}/work/${slug}?gpu=high&perf&no=focus`, { waitUntil: 'networkidle' });
   await p.waitForSelector('.booth-stage[data-ready="true"]');

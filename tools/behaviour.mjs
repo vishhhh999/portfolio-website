@@ -1,3 +1,4 @@
+import { launch, timeoutMs } from './lib/browser.mjs';
 /**
  * Behaviour checks against a running build (node tools/behaviour.mjs):
  * hover plate + click through the canvas, tray, next project, house lights,
@@ -10,7 +11,7 @@ const require = createRequire(import.meta.url);
 const pw = require(process.env.PLAYWRIGHT || 'playwright');
 const BASE = process.env.BASE || 'http://localhost:3100';
 const OUT = new URL('./lamp-review/', import.meta.url).pathname;
-const browser = await pw.chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const browser = await launch({ args: [] });
 const errors = [];
 const results = {};
 const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });

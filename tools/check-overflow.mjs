@@ -1,3 +1,4 @@
+import { launch, timeoutMs } from './lib/browser.mjs';
 /**
  * Horizontal overflow check: every route at a 390px phone viewport must have
  * document.documentElement.scrollWidth <= clientWidth. Exits 1 on any failure.
@@ -16,7 +17,7 @@ const slugs = readdirSync(new URL('../content/work/', import.meta.url))
   .map((f) => f.replace(/\.ts$/, ''));
 const routes = ['/', ...slugs.map((s) => `/work/${s}`), '/archive', '/about', '/house-lights'];
 
-const browser = await pw.chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const browser = await launch({ args: [] });
 const ctx = await browser.newContext({ viewport: { width: WIDTH, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
 const results = [];
 for (const route of routes) {

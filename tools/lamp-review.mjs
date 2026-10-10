@@ -1,3 +1,4 @@
+import { launch, timeoutMs } from './lib/browser.mjs';
 /**
  * Screenshots the lineup shot under every lamp, desktop 1440 + mobile 390,
  * into tools/lamp-review/. Then: python3 tools/floor-stops.py && python3 tools/contact-sheet.py
@@ -12,13 +13,13 @@ const OUT = new URL('./lamp-review/', import.meta.url).pathname;
 const LAMPS = ['D50', 'TL84', 'A', 'UV', 'FLOOD', 'SCREEN', 'AFTERDARK'];
 const only = process.argv[2] ? process.argv[2].split(',') : LAMPS;
 
-const browser = await pw.chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--autoplay-policy=no-user-gesture-required'] });
+const browser = await launch({ args: ['--autoplay-policy=no-user-gesture-required'] });
 const errors = [];
 for (const [name, viewport, mobile] of [['desktop', { width: 1440, height: 900 }, false], ['mobile', { width: 390, height: 844 }, true]]) {
   if (process.env.ONLY && process.env.ONLY !== name) continue;
   const ctx = await browser.newContext({ viewport, isMobile: mobile, hasTouch: mobile, deviceScaleFactor: 1, reducedMotion: 'reduce' });
   const page = await ctx.newPage();
-  page.setDefaultTimeout(180000);
+  page.setDefaultTimeout(timeoutMs());
   page.on('console', (m) => m.type() === 'error' && errors.push(name + ': ' + m.text()));
   page.on('pageerror', (e) => errors.push(name + ' pageerror: ' + e.message));
   await page.goto(BASE + '/', { waitUntil: 'networkidle' });

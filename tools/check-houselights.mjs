@@ -1,3 +1,4 @@
+import { launch, timeoutMs } from './lib/browser.mjs';
 /**
  * B5: house lights is a mode of the current page, never a navigation. On / and /work/jsw-sports:
  * I (and the rocker) toggles booth ↔ flat in place: the URL and the page content stay the same,
@@ -8,10 +9,10 @@ import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 const pw = require(process.env.PLAYWRIGHT || 'playwright');
 const BASE = process.env.BASE || 'http://localhost:3100';
-const b = await pw.chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const b = await launch({ args: [] });
 const ctx = await b.newContext({ viewport: { width: 1568, height: 980 } });
 const p = await ctx.newPage();
-p.setDefaultTimeout(120000);
+p.setDefaultTimeout(timeoutMs());
 let fails = 0;
 const ok = (c, m) => {
   if (!c) fails++;

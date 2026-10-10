@@ -1,3 +1,4 @@
+import { launch, timeoutMs, waitForBoothSettled, settleAfterReady } from './lib/browser.mjs';
 /**
  * C1 (08): renders the LCP posters from the live booth: the cabinet's own frame box, cropped exactly,
  * so the poster sits in .booth-frame at any viewport and the 300ms crossfade to the canvas never
@@ -21,7 +22,7 @@ const BASE = process.env.BASE || 'http://localhost:3100';
 const OUT = new URL('../public/booth/', import.meta.url).pathname;
 mkdirSync(OUT, { recursive: true });
 
-const browser = await pw.chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const browser = await launch({ args: [] });
 /**
  * The booth frame as the page shows it at this viewport (L6 09B: the shelf's frame runs past the first
  * screen, so its poster is the part on the first screen, at the frame's width).
@@ -30,16 +31,16 @@ async function capture(w, h, dpr, mobile, dark = false) {
   // dark: the first visit of a session, the booth's own first frame with the tubes off (the opening
   // strike held at 0), shown as the poster on that visit so the strike starts from what was already there
   const page = await browser.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: dpr, isMobile: mobile, hasTouch: mobile, reducedMotion: dark ? 'no-preference' : 'reduce' });
-  page.setDefaultTimeout(900000);
+  page.setDefaultTimeout(timeoutMs());
   if (dark) await page.addInitScript(() => (window.__boothStrikeHold = 0));
   else await page.addInitScript(() => sessionStorage.setItem('vm:opened:v1', '1'));
   await page.goto(BASE + '/?gpu=high', { waitUntil: 'networkidle' });
   await page.waitForSelector('.booth-stage[data-ready="true"]');
-  await page.waitForFunction(() => window.__boothSettled?.() === true);
+  await waitForBoothSettled(page, 'poster booth readiness');
   await page.addStyleTag({ content: HIDE_HOME });
-  await page.waitForTimeout(4000);
+  await settleAfterReady(page, 4000, 'settled make-posters.mjs capture');
   const r = await page.locator('.booth-frame').boundingBox();
-  const top = await page.screenshot({ clip: { x: r.x, y: r.y, width: r.width, height: Math.min(r.height, h - r.y) }, timeout: 900000 });
+  const top = await page.screenshot({ clip: { x: r.x, y: r.y, width: r.width, height: Math.min(r.height, h - r.y) }, timeout: timeoutMs() });
   // the shelf's poster is its first screen; the cabinet's covers its whole frame: on a wide window the
   // cabinet can run past the first screen (side bands ≤ 3%), so the rest is captured scrolled and stitched
   const shelf = await page.evaluate(() => (document.documentElement.dataset.layout ?? '').startsWith('shelf'));
@@ -49,9 +50,9 @@ async function capture(w, h, dpr, mobile, dark = false) {
   }
   const dy = Math.ceil(r.y + r.height - h + 8);
   await page.evaluate((y) => window.scrollTo({ top: y, behavior: 'instant' }), dy);
-  await page.waitForTimeout(4000);
+  await settleAfterReady(page, 4000, 'settled make-posters.mjs capture');
   const r2 = await page.locator('.booth-frame').boundingBox();
-  const bottom = await page.screenshot({ clip: { x: r2.x, y: Math.max(0, r2.y), width: r2.width, height: r2.y + r2.height - Math.max(0, r2.y) }, timeout: 900000 });
+  const bottom = await page.screenshot({ clip: { x: r2.x, y: Math.max(0, r2.y), width: r2.width, height: r2.y + r2.height - Math.max(0, r2.y) }, timeout: timeoutMs() });
   await page.close();
   // composite in device pixels: the bottom capture's last rows complete the frame under the top capture
   const W = Math.round(r.width * dpr), H = Math.round(r.height * dpr);
@@ -92,26 +93,26 @@ const OG = new URL('../public/og/', import.meta.url).pathname;
 mkdirSync(OG, { recursive: true });
 async function trayCapture(slug, w, h, dpr, mobile) {
   const page = await browser.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: dpr, isMobile: mobile, hasTouch: mobile, reducedMotion: 'reduce' });
-  page.setDefaultTimeout(900000);
+  page.setDefaultTimeout(timeoutMs());
   await page.addInitScript(() => {
     sessionStorage.setItem('vm:opened:v1', '1');
     window.__boothAnimHold = 1; // the JSW book open, as it settles on the tray
   });
   await page.goto(`${BASE}/work/${slug}?gpu=high`, { waitUntil: 'networkidle' });
   await page.waitForSelector('.booth-stage[data-ready="true"]');
-  await page.waitForFunction(() => window.__boothSettled?.() === true);
+  await waitForBoothSettled(page, 'poster booth readiness');
   // the neighbours load when idle and fade in: capture the settled shelf, not a moment in its loading
   await page.waitForLoadState('networkidle');
   await page.waitForTimeout(2500);
   await page.addStyleTag({ content: HIDE_TRAY });
-  await page.waitForTimeout(5000);
+  await settleAfterReady(page, 5000, 'settled make-posters.mjs capture');
   const r = await page.locator('.booth-stage').boundingBox();
   const meta = await page.evaluate(() => ({
     title: document.querySelector('.work__head h1')?.textContent?.trim() ?? '',
     disciplines: [...document.querySelectorAll('.calib__rows div')].find((d) => d.querySelector('dt')?.textContent?.trim() === 'Disciplines')?.querySelector('dd')?.textContent?.trim() ?? '',
     year: [...document.querySelectorAll('.calib__rows div')].find((d) => d.querySelector('dt')?.textContent?.trim() === 'Year')?.querySelector('dd')?.textContent?.trim() ?? '',
   }));
-  const png = await page.screenshot({ clip: { x: r.x, y: r.y, width: r.width, height: Math.min(r.height, h - r.y) }, timeout: 900000 });
+  const png = await page.screenshot({ clip: { x: r.x, y: r.y, width: r.width, height: Math.min(r.height, h - r.y) }, timeout: timeoutMs() });
   await page.close();
   return { png, meta };
 }

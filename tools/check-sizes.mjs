@@ -1,3 +1,4 @@
+import { launch, timeoutMs } from './lib/browser.mjs';
 /**
  * Projected long side of every sample in the home lineup (object only, plinth excluded: its width,
  * or its height for a portrait piece) as % of the cabinet's projected width, measured through the
@@ -13,7 +14,7 @@ import { meshClearance } from './mesh-clearance.mjs';
 const require = createRequire(import.meta.url);
 const pw = require(process.env.PLAYWRIGHT || 'playwright');
 const BASE = process.env.BASE || 'http://localhost:3100';
-const b = await pw.chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const b = await launch({ args: [] });
 let ok = true;
 const MIN = 11;
 // H3 (09): inside a multi-piece sample (SHUNYA) no two pieces intersect or come within 2mm
@@ -24,7 +25,7 @@ const MIN = 11;
 for (const [w, h] of [[1440, 900], [1568, 980], [2560, 1271], [1920, 1080], [1366, 768], [725, 960], [390, 844], [430, 932]]) {
   const p = await b.newPage({ viewport: { width: w, height: h }, reducedMotion: 'reduce' });
   await p.goto(BASE + '/', { waitUntil: 'networkidle' });
-  await p.waitForSelector('.booth-stage[data-ready="true"]', { timeout: 180000 });
+  await p.waitForSelector('.booth-stage[data-ready="true"]', { timeout: timeoutMs() });
   await p.waitForTimeout(800);
   const sizes = await p.evaluate(() => window.__boothSizes());
   const floors = await p.evaluate(() => window.__boothSizeFloors());

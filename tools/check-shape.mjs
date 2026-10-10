@@ -1,3 +1,4 @@
+import { launch, timeoutMs } from './lib/browser.mjs';
 /**
  * L1 + L7 (09B): the shape classifier, in a real browser, at every viewport Vish tests on.
  *   1. Every L7 viewport (width x svh height): the boot script's shape (<html data-shape>, before
@@ -22,7 +23,7 @@ export const MATRIX = [
   [1180, 1000, 'square', 3], [1024, 1000, 'square', 3],
 ];
 
-const b = await pw.chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const b = await launch({ args: [] });
 let fails = 0;
 const ok = (cond, msg) => {
   if (!cond) fails++;

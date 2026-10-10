@@ -1,3 +1,4 @@
+import { launch, timeoutMs } from './lib/browser.mjs';
 /**
  * H2: the frame budget. At 2560x1440 (desktop tier) and 390x844 @2x (mobile tier), the home booth
  * under D50: per-pass timings (window.__boothPasses, each pass closed with a GPU sync) and the cost
@@ -11,14 +12,14 @@ const require = createRequire(import.meta.url);
 const pw = require(process.env.PLAYWRIGHT || 'playwright');
 const BASE = process.env.BASE || 'http://localhost:3100';
 const N = +(process.argv[2] || 6);
-const b = await pw.chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const b = await launch({ args: [] });
 async function run(vp, q, mobile) {
   const ctx = await b.newContext({ viewport: vp, deviceScaleFactor: mobile ? 2 : 1, isMobile: mobile, hasTouch: mobile });
   const p = await ctx.newPage();
   await p.addInitScript(() => sessionStorage.setItem('vm:opened:v1', '1')); // J5: no opening strike in steady-state checks
-  p.setDefaultTimeout(900000);
+  p.setDefaultTimeout(timeoutMs());
   await p.goto(`${BASE}/?perf&gpu=high${q}`, { waitUntil: 'networkidle' });
-  await p.waitForSelector('.booth-stage[data-ready="true"]', { timeout: 900000 });
+  await p.waitForSelector('.booth-stage[data-ready="true"]', { timeout: timeoutMs() });
   await p.waitForTimeout(3000);
   // B5 (08): a still frame (nothing changed: side renders reused) and a moving one (all forced)
   const still = await p.evaluate((n) => window.__boothPasses(n, false), N);

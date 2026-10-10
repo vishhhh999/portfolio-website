@@ -1,3 +1,4 @@
+import { launch, timeoutMs, waitForBoothSettled, settleAfterReady } from './lib/browser.mjs';
 /**
  * L7 (09B): the home booth at every viewport Vish tests on (width x svh height, tools/check-shape.mjs
  * MATRIX), in one load each:
@@ -23,7 +24,7 @@ const MATRIX = [
 ].filter(([w, h]) => !process.env.ONLY || process.env.ONLY.split(',').includes(`${w}x${h}`));
 const LAYOUT = (shape, w) => (shape === 'tall' ? (w < 600 ? 'shelf2' : 'shelf3') : shape === 'square' ? 'shelf4' : 'wide');
 const hit = (a, c) => a.left < c.right - 0.5 && a.right > c.left + 0.5 && a.top < c.bottom - 0.5 && a.bottom > c.top + 0.5;
-const b = await pw.chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const b = await launch({ args: [] });
 let fails = 0;
 const rows = [];
 for (const [w, h, want] of MATRIX) {
@@ -31,10 +32,10 @@ for (const [w, h, want] of MATRIX) {
   const ctx = await b.newContext({ viewport: { width: w, height: h }, isMobile: phone || (want === 'tall' && w < 1100), hasTouch: phone, deviceScaleFactor: 1, reducedMotion: 'reduce' });
   await ctx.addInitScript(() => sessionStorage.setItem('vm:opened:v1', '1'));
   const p = await ctx.newPage();
-  p.setDefaultTimeout(900000);
+  p.setDefaultTimeout(timeoutMs());
   await p.goto(BASE + '/', { waitUntil: 'networkidle' });
   await p.waitForSelector('.booth-stage[data-ready="true"]');
-  await p.waitForFunction(() => window.__boothSettled?.() === true);
+  await waitForBoothSettled(p, 'poster booth readiness');
   await p.waitForTimeout(1500);
   const bad = [];
   let laptopVisibility = null;
@@ -93,7 +94,7 @@ for (const [w, h, want] of MATRIX) {
       scrollTo({ top: y, behavior: 'instant' });
       return Math.abs(scrollY - from) > 0.5;
     }, y);
-    if (moved) await p.waitForFunction(() => window.__shScrolls > 0, null, { timeout: 120000 });
+    if (moved) await p.waitForFunction(() => window.__shScrolls > 0, null, { timeout: timeoutMs() });
     await p.waitForTimeout(1700);
     const r = await p.evaluate(() => {
       const panel = document.querySelector('.panel');

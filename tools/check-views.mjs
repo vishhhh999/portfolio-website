@@ -1,3 +1,4 @@
+import { launch, timeoutMs } from './lib/browser.mjs';
 /**
  * C1: what WebGL draws must land exactly on its DOM rect. Screenshots the page with a debug colour
  * and finds the coloured region; every edge must be within 2px. Widths 1280, 1568, 1920, 2560
@@ -13,7 +14,7 @@ import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 const pw = require(process.env.PLAYWRIGHT || 'playwright');
 const BASE = process.env.BASE || 'http://localhost:3100';
-const b = await pw.chromium.launch({ ignoreDefaultArgs: ['--hide-scrollbars'], args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const b = await launch({ ignoreDefaultArgs: ['--hide-scrollbars'], args: [] });
 // 2px, or 0.1% of the width on very wide screens (the fit is solved on the face plane; the chamfered
 // frame's projected outline differs from it by a fraction of a pixel per 1000px)
 const tolFor = (w) => Math.max(2, w * 0.001);
@@ -25,7 +26,7 @@ for (const route of routes) {
     const p = await b.newPage({ viewport: from ? { width: from[0], height: from[1] } : { width: w, height: h }, reducedMotion: 'reduce' });
     const home = route === '/';
     await p.goto(BASE + route + (home ? '?viewdebug=cabinet' : '?viewdebug') + '&gpu=high', { waitUntil: 'networkidle' });
-    await p.waitForSelector('.booth-stage[data-ready="true"]', { timeout: 180000 });
+    await p.waitForSelector('.booth-stage[data-ready="true"]', { timeout: timeoutMs() });
     if (from) {
       await p.waitForTimeout(400);
       await p.setViewportSize({ width: w, height: h });
@@ -51,7 +52,7 @@ for (const route of routes) {
       const top = Math.max(0, r.top), bottom = Math.min(innerHeight, r.bottom);
       return { left: r.left, right: Math.min(r.right, document.documentElement.clientWidth), top, bottom, sb };
     }, home);
-    const png = await p.screenshot({ timeout: 300000 });
+    const png = await p.screenshot({ timeout: timeoutMs() });
     const found = await p.evaluate(async (b64) => {
       const img = new Image();
       img.src = 'data:image/png;base64,' + b64;

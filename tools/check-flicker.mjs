@@ -1,3 +1,4 @@
+import { launch, timeoutMs } from './lib/browser.mjs';
 /**
  * A2, C7 (08): no frame of the booth may present black, partly cleared, or jump. Every presented
  * frame's mean stage luminance is recorded (window.__boothCapture, read straight after the frame is
@@ -22,7 +23,7 @@ const pw = require(process.env.PLAYWRIGHT || 'playwright');
 const BASE = process.env.BASE || 'http://localhost:3100';
 const W = +(process.argv[2] || 1280), H = Math.round(W * 0.62);
 const ONLY = process.env.ONLY ? process.env.ONLY.split(',') : null;
-const b = await pw.chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const b = await launch({ args: [] });
 let fails = 0;
 const run = (name) => !ONLY || ONLY.includes(name);
 
@@ -101,7 +102,7 @@ const key = (p, k) => p.evaluate((k) => window.dispatchEvent(new KeyboardEvent('
 // ── reveal: composited captures of the cabinet frame from first paint ───────────────────────
 if (run('reveal')) {
   const p = await b.newPage({ viewport: { width: 1568, height: 980 } });
-  p.setDefaultTimeout(900000);
+  p.setDefaultTimeout(timeoutMs());
   await p.addInitScript(() => sessionStorage.setItem('vm:opened:v1', '1'));
   await p.goto(BASE + '/?perf', { waitUntil: 'domcontentloaded' });
   await p.waitForSelector('.booth-frame');
@@ -113,7 +114,7 @@ if (run('reveal')) {
   const frames = [];
   let readyAt = -1;
   for (let i = 0; i < 400; i++) {
-    const png = await p.screenshot({ clip, timeout: 900000 });
+    const png = await p.screenshot({ clip, timeout: timeoutMs() });
     const { data } = await sharp(png).resize(392, Math.round((392 * r.height) / r.width), { fit: 'fill' }).greyscale().raw().toBuffer({ resolveWithObject: true });
     frames.push(data);
     const ready = await p.evaluate(() => document.documentElement.hasAttribute('data-booth-ready'));
@@ -148,9 +149,9 @@ await p.addInitScript(() => {
   }).observe(document, { childList: true, subtree: true });
 });
 await p.addInitScript(() => sessionStorage.setItem('vm:opened:v1', '1')); // J5: no opening strike in steady-state checks
-p.setDefaultTimeout(900000);
+p.setDefaultTimeout(timeoutMs());
 await p.goto(BASE + '/?perf&events', { waitUntil: 'networkidle' });
-await p.waitForSelector('.booth-stage[data-ready="true"]', { timeout: 900000 });
+await p.waitForSelector('.booth-stage[data-ready="true"]', { timeout: timeoutMs() });
 await p.waitForFunction(() => window.__boothSettled?.() === true);
 await p.addStyleTag({ content: '.sampletags,.boothhint,.cursorlabel{visibility:hidden!important}' });
 await p.waitForTimeout(2000);
@@ -182,7 +183,7 @@ if (run('lamp')) {
   await p.waitForTimeout(3500);
   // the lamps' interiors are captured while idle after the reveal (in software rendering that takes
   // minutes); wait for A's, so the switch measures the switch, then force a few steady frames on each side
-  await p.waitForFunction(() => window.__boothWarmEvents.A, null, { timeout: 900000 }).catch(() => {});
+  await p.waitForFunction(() => window.__boothWarmEvents.A, null, { timeout: timeoutMs() }).catch(() => {});
   const steady = () => p.evaluate(() => window.__boothBench?.(1)); // one presented frame, nothing changed
   const lums = await capture(p, async () => {
     for (const k of ['3', '1']) {
@@ -266,17 +267,17 @@ await p.close();
 // falsely dips as two different silhouettes crossfade; empty or black renders still fail.
 if (run('resize')) {
   const q = await b.newPage({ viewport: { width: 2560, height: 1440 } });
-  q.setDefaultTimeout(900000);
+  q.setDefaultTimeout(timeoutMs());
   await q.addInitScript(() => sessionStorage.setItem('vm:opened:v1', '1'));
   await q.goto(BASE + '/?perf', { waitUntil: 'networkidle' });
-  await q.waitForSelector('.booth-stage[data-ready="true"]', { timeout: 900000 });
+  await q.waitForSelector('.booth-stage[data-ready="true"]', { timeout: timeoutMs() });
   await q.waitForFunction(() => window.__boothSettled?.() === true);
   await q.addStyleTag({ content: '.sampletags,.boothhint,.cursorlabel{visibility:hidden!important}' });
   await q.waitForTimeout(2000);
   const settle = async (w, h) => {
     await q.setViewportSize({ width: w, height: h });
-    await q.waitForFunction(([w, h]) => { const s = window.__boothShape?.(); return s && s.w === w && Math.abs(s.h - h) < 2; }, [w, h], { timeout: 300000, polling: 500 });
-    await q.waitForFunction(() => !document.querySelector('.booth-cover') || document.querySelector('.booth-cover').hidden, null, { timeout: 300000, polling: 500 });
+    await q.waitForFunction(([w, h]) => { const s = window.__boothShape?.(); return s && s.w === w && Math.abs(s.h - h) < 2; }, [w, h], { timeout: timeoutMs(), polling: 500 });
+    await q.waitForFunction(() => !document.querySelector('.booth-cover') || document.querySelector('.booth-cover').hidden, null, { timeout: timeoutMs(), polling: 500 });
     for (let i = 0; i < 3; i++) (await q.evaluate(() => window.__boothBench?.(1)), await q.waitForTimeout(200));
   };
   const seqs = {

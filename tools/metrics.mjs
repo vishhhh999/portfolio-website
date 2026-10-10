@@ -1,3 +1,4 @@
+import { launch, timeoutMs } from './lib/browser.mjs';
 /**
  * Phase metrics against a running build: JS gz before/after the 3D loads,
  * first readable paint (FCP/LCP, unthrottled and on a 4x CPU + fast-4G profile),
@@ -8,7 +9,7 @@ import { gzipSync } from 'zlib';
 const require = createRequire(import.meta.url);
 const pw = require(process.env.PLAYWRIGHT || 'playwright');
 const BASE = process.env.BASE || 'http://localhost:3100';
-const b = await pw.chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--autoplay-policy=no-user-gesture-required'] });
+const b = await launch({ args: ['--autoplay-policy=no-user-gesture-required'] });
 const out = {};
 
 // JS sizes
@@ -43,7 +44,7 @@ for (const [label, throttle] of [['unthrottled', false], ['4x CPU + fast 4G', tr
   });
   const t0 = Date.now();
   await p.goto(BASE + '/', { waitUntil: 'load' });
-  await p.waitForSelector('.booth-stage[data-ready="true"]', { timeout: 120000 });
+  await p.waitForSelector('.booth-stage[data-ready="true"]', { timeout: timeoutMs() });
   const live = Date.now() - t0;
   const m = await p.evaluate(() => ({ fcp: performance.getEntriesByName('first-contentful-paint')[0]?.startTime, lcp: window.__lcp }));
   out[`paint (${label})`] = { firstReadablePaintMs: Math.round(m.fcp), lcpMs: Math.round(m.lcp), liveBoothMs: live, note: 'headline + poster are the first paint; live booth crossfades in later' };

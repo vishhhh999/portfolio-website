@@ -1,3 +1,4 @@
+import { launch, timeoutMs } from './lib/browser.mjs';
 /**
  * H3 / H4 / K7: bytes over the wire, measured with the DevTools protocol (encoded bytes as sent):
  *   JS (gzip) before the 3D loads and the lazy 3D chunk(s), on "/" at 1440×900
@@ -11,7 +12,7 @@ const require = createRequire(import.meta.url);
 const pw = require(process.env.PLAYWRIGHT || 'playwright');
 const BASE = process.env.BASE || 'http://localhost:3100';
 const SLUGS = ['too-yumm', 'jsw-sports', 'mitooshi', 'sonde', 'house-of-hex', 'bengal-t20', 'sook', 'shunya', 'indo-thai'];
-const b = await pw.chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const b = await launch({ args: [] });
 const MB = (n) => +(n / 1048576).toFixed(2);
 
 async function load(url, phone, settle = 5000) {
@@ -19,7 +20,7 @@ async function load(url, phone, settle = 5000) {
     ? { viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true, userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1' }
     : { viewport: { width: 1568, height: 980 } });
   const p = await ctx.newPage();
-  p.setDefaultTimeout(600000);
+  p.setDefaultTimeout(timeoutMs());
   await p.addInitScript(() => sessionStorage.setItem('vm:opened:v1', '1'));
   const cdp = await ctx.newCDPSession(p);
   await cdp.send('Network.enable');
@@ -52,7 +53,7 @@ async function load(url, phone, settle = 5000) {
   });
   await p.goto(BASE + '/', { waitUntil: 'load' });
   phase = 'lazy';
-  await p.waitForSelector('.booth-stage[data-ready="true"]', { timeout: 600000 });
+  await p.waitForSelector('.booth-stage[data-ready="true"]', { timeout: timeoutMs() });
   const sum = (ph) => +([...seen.values()].filter((v) => v.phase === ph).reduce((a, v) => a + v.gz, 0) / 1024).toFixed(1);
   console.log(`JS gz: before 3D ${sum('pre3d')} KB (budget 200) · lazy 3D ${sum('lazy')} KB (budget 480)`);
   await p.close();

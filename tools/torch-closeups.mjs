@@ -1,3 +1,4 @@
+import { launch, timeoutMs } from './lib/browser.mjs';
 /**
  * C2: AFTER DARK over the case-study images. For each proof: the torch is held still over it and a
  * 100% crop is saved; then the same crop under D50 (the plain file). Inside the torch's flat core
@@ -16,17 +17,17 @@ const BASE = process.env.BASE || 'http://localhost:3100';
 const OUT = new URL('./lamp-review/torch/', import.meta.url).pathname;
 mkdirSync(OUT, { recursive: true });
 const CASES = [['sonde', 2], ['too-yumm', 0], ['jsw-sports', 1]];
-const b = await pw.chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const b = await launch({ args: [] });
 const ctx = await b.newContext({ viewport: { width: 1568, height: 980 }, deviceScaleFactor: 1 });
 const p = await ctx.newPage();
 await p.addInitScript(() => sessionStorage.setItem('vm:opened:v1', '1')); // J5: no opening strike in steady-state checks
-p.setDefaultTimeout(600000);
+p.setDefaultTimeout(timeoutMs());
 let fails = 0;
 const key = (k) => p.evaluate((k) => window.dispatchEvent(new KeyboardEvent('keydown', { key: k })), k);
 for (const [slug, idx] of CASES) {
   // ?gpu=high: a software renderer is the low tier, where proofs stay plain DOM images (no torch planes)
   await p.goto(`${BASE}/work/${slug}?gpu=high`, { waitUntil: 'networkidle' });
-  await p.waitForSelector('.booth-stage[data-ready="true"]', { timeout: 600000 });
+  await p.waitForSelector('.booth-stage[data-ready="true"]', { timeout: timeoutMs() });
   await key('1');
   const r0 = await p.evaluate((i) => {
     const el = document.querySelectorAll('.proof__image img, .proof__image video')[i];

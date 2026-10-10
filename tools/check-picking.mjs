@@ -1,3 +1,4 @@
+import { launch, timeoutMs } from './lib/browser.mjs';
 /**
  * B4: picking. On every booth route, a grid of points over the stage: what a click there would
  * open (the real event filter) must be what is actually seen there (the nearest solid surface).
@@ -12,11 +13,11 @@ const BASE = process.env.BASE || 'http://localhost:3100';
 const SLUGS = ['too-yumm', 'jsw-sports', 'mitooshi', 'sonde', 'house-of-hex', 'bengal-t20', 'sook', 'shunya', 'indo-thai'];
 const ROUTES = ['/', ...SLUGS.map((s) => `/work/${s}`)];
 const SIZES = (process.env.SIZES || '1568x980,390x844,430x932').split(',').map((s) => s.split('x').map(Number));
-const b = await pw.chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const b = await launch({ args: [] });
 let bad = 0;
 for (const [w, h] of SIZES) {
   const p = await b.newPage({ viewport: { width: w, height: h }, reducedMotion: 'reduce' });
-  p.setDefaultTimeout(240000);
+  p.setDefaultTimeout(timeoutMs());
   for (const route of ROUTES) {
     await p.goto(BASE + route, { waitUntil: 'networkidle' });
     await p.waitForSelector('.booth-stage[data-ready="true"]');

@@ -1,3 +1,4 @@
+import { launch, timeoutMs } from './lib/browser.mjs';
 /**
  * Records GIFs of the booth at true speed on any machine (C9, J3). Software rendering can't keep
  * real time, so the page runs on Playwright's virtual clock (Date, performance.now, timers and
@@ -22,15 +23,15 @@ const KEYS = { D50: '1', TL84: '2', A: '3', UV: '4', FLOOD: '5', SCREEN: '6', AF
 const [mode = 'lamp', arg = 'D50', route = '/', secs = '10'] = process.argv.slice(2);
 
 const W = 1568, H = 980;
-const b = await pw.chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--autoplay-policy=no-user-gesture-required'] });
+const b = await launch({ args: ['--autoplay-policy=no-user-gesture-required'] });
 const ctx = await b.newContext({ viewport: { width: W, height: H } });
 const p = await ctx.newPage();
-p.setDefaultTimeout(600000);
+p.setDefaultTimeout(timeoutMs());
 
 async function boot(path) {
   // let the page load and the booth settle in real time first, then freeze the clock
   await p.goto(BASE + path, { waitUntil: 'networkidle' });
-  await p.waitForSelector('.booth-stage[data-ready="true"]', { timeout: 600000 });
+  await p.waitForSelector('.booth-stage[data-ready="true"]', { timeout: timeoutMs() });
   await p.waitForTimeout(1500);
   await p.clock.install();
   await p.clock.pauseAt(Date.now() + 1000);

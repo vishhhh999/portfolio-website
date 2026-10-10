@@ -1,3 +1,4 @@
+import { launch, timeoutMs } from './lib/browser.mjs';
 /**
  * A4: the booth → project transition, frame by frame. The page runs on Playwright's virtual clock
  * (so software rendering keeps true time): the sample is opened from the booth, then the clock
@@ -17,12 +18,12 @@ const slug = process.argv[2] || 'too-yumm';
 const out = process.argv[3] || new URL('./lamp-review/transition-sheet.png', import.meta.url).pathname;
 mkdirSync(dirname(out), { recursive: true });
 const W = 1568, H = 980;
-const b = await pw.chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const b = await launch({ args: [] });
 const p = await b.newPage({ viewport: { width: W, height: H } });
 await p.addInitScript(() => sessionStorage.setItem('vm:opened:v1', '1')); // J5: no opening strike in steady-state checks
-p.setDefaultTimeout(600000);
+p.setDefaultTimeout(timeoutMs());
 await p.goto(BASE + '/', { waitUntil: 'networkidle' });
-await p.waitForSelector('.booth-stage[data-ready="true"]', { timeout: 600000 });
+await p.waitForSelector('.booth-stage[data-ready="true"]', { timeout: timeoutMs() });
 await p.waitForTimeout(2500);
 // warm the route so the frames show the transition, not the network
 await p.evaluate((s) => fetch(`/work/${s}`).catch(() => {}), slug);

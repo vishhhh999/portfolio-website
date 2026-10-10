@@ -1,3 +1,4 @@
+import { launch, timeoutMs } from './lib/browser.mjs';
 /**
  * P1 (09): touch targets and type size. On every route, every visible interactive element (links,
  * buttons, controls) must be at least 24x24px on desktop (1568x980, mouse) and 44x44px on touch
@@ -11,13 +12,13 @@ const require = createRequire(import.meta.url);
 const pw = require(process.env.PLAYWRIGHT || 'playwright');
 const BASE = process.env.BASE || 'http://localhost:3100';
 const ROUTES = (process.env.ROUTES || '/,/about,/archive,/work/sonde,/work/jsw-sports,/house-lights,/nope-404').split(',');
-const b = await pw.chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const b = await launch({ args: [] });
 let fails = 0;
 for (const [name, vp, touch] of [['desktop', { width: 1568, height: 980 }, false], ['phone', { width: 390, height: 844 }, true], ['tablet', { width: 820, height: 1180 }, true]]) {
   const ctx = await b.newContext({ viewport: vp, isMobile: touch && vp.width < 600, hasTouch: touch, deviceScaleFactor: 1, reducedMotion: 'reduce' });
   await ctx.addInitScript(() => { try { sessionStorage.setItem('vm:opened:v1', '1'); sessionStorage.setItem('vm:hint:v1', '1'); } catch {} });
   const p = await ctx.newPage();
-  p.setDefaultTimeout(300000);
+  p.setDefaultTimeout(timeoutMs());
   for (const route of ROUTES) {
     await p.goto(BASE + route, { waitUntil: 'networkidle' });
     await p.waitForTimeout(1500);

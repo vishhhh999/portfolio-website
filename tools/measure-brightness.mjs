@@ -1,3 +1,4 @@
+import { launch, timeoutMs } from './lib/browser.mjs';
 /**
  * B5: the loupe readings. CIE L* (D50 white) of the back wall and of the certificate's white paper,
  * 9×9 px median around each probe point on the presented frame, per lamp, at 1568×980.
@@ -8,10 +9,10 @@ const require = createRequire(import.meta.url);
 const pw = require(process.env.PLAYWRIGHT || 'playwright');
 const BASE = process.env.BASE || 'http://localhost:3100';
 const LAMPS = (process.env.LAMPS || 'D50,TL84,A,FLOOD').split(',');
-const b = await pw.chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const b = await launch({ args: [] });
 const p = await b.newPage({ viewport: { width: 1568, height: 980 }, reducedMotion: 'reduce' });
 await p.goto(BASE + '/' + (process.env.Q || ''), { waitUntil: 'networkidle' });
-await p.waitForSelector('.booth-stage[data-ready="true"]', { timeout: 180000 });
+await p.waitForSelector('.booth-stage[data-ready="true"]', { timeout: timeoutMs() });
 await p.waitForTimeout(1500);
 const lin = (c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
 const Lstar = (r, g, bl) => {
@@ -24,7 +25,7 @@ for (const lamp of LAMPS) {
   await p.keyboard.press({ D50: '1', TL84: '2', A: '3', UV: '4', FLOOD: '5', SCREEN: '6' }[lamp]);
   await p.waitForTimeout(2500);
   const pts = await p.evaluate(() => window.__boothProbePoints());
-  const png = await p.screenshot({ timeout: 180000 });
+  const png = await p.screenshot({ timeout: timeoutMs() });
   const vals = await p.evaluate(async ({ data, pts }) => {
     const img = new Image();
     img.src = 'data:image/png;base64,' + data;

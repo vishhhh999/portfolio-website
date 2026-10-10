@@ -1,3 +1,4 @@
+import { launch, timeoutMs } from './lib/browser.mjs';
 /**
  * Batch 08 screenshots (I) into tools/lamp-review/08/shots/ (JPEG q88):
  *   2560x1440, 1568x980, 390x844: / under D50, A, SCREEN and AFTER DARK; / with a hover (desktop:
@@ -16,11 +17,11 @@ const BASE = process.env.BASE || 'http://localhost:3100';
 const OUT = new URL('./lamp-review/08/shots/', import.meta.url).pathname;
 mkdirSync(OUT, { recursive: true });
 const only = process.argv[2] ?? '';
-const b = await pw.chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const b = await launch({ args: [] });
 const open = async (w, h, url) => {
   const phone = w < 600;
   const p = await b.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: phone ? 2 : 1, isMobile: phone, hasTouch: phone });
-  p.setDefaultTimeout(900000);
+  p.setDefaultTimeout(timeoutMs());
   await p.addInitScript(() => sessionStorage.setItem('vm:opened:v1', '1'));
   await p.goto(BASE + url + (url.includes('?') ? '&' : '?') + 'gpu=high', { waitUntil: 'networkidle' });
   if (await p.locator('.booth-stage').count()) await p.waitForSelector('.booth-stage[data-ready="true"]');
@@ -28,7 +29,7 @@ const open = async (w, h, url) => {
   return p;
 };
 const snap = async (p, name) => {
-  const png = await p.screenshot({ timeout: 900000 });
+  const png = await p.screenshot({ timeout: timeoutMs() });
   await sharp(png).jpeg({ quality: 88 }).toFile(`${OUT}${name}.jpg`);
   console.log(name);
 };
@@ -87,7 +88,7 @@ if (!only || only.includes('reveal')) {
   // present neither in real time, so both are paused and stepped (Web Animations API,
   // window.__boothStrikeHold)
   const p = await b.newPage({ viewport: { width: 1568, height: 980 } });
-  p.setDefaultTimeout(900000);
+  p.setDefaultTimeout(timeoutMs());
   await p.addInitScript(() => {
     window.__boothStrikeHold = 0;
     // the 300ms crossfade stretched 1000× so it can be held (software rendering would finish it
@@ -116,7 +117,7 @@ if (!only || only.includes('reveal')) {
     pick.push({ png: await p.screenshot({ clip }), t: Date.now() - t0, label: 'poster, loading' });
     await p.waitForTimeout(2500);
   }
-  await p.waitForFunction(() => window.__fadeHeld === true, null, { timeout: 900000 });
+  await p.waitForFunction(() => window.__fadeHeld === true, null, { timeout: timeoutMs() });
   const readyAt = Date.now() - t0;
   await p.waitForTimeout(1500);
   const redraw = () => p.evaluate(() => window.dispatchEvent(new Event('resize')));

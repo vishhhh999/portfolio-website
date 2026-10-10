@@ -1,3 +1,4 @@
+import { launch, timeoutMs } from './lib/browser.mjs';
 /**
  * B2 (08): MSAA 4x vs SMAA at 2560x1440. For each, two frames a few pixels of pointer parallax apart
  * (a slow camera drift); crops of the plinth edges, a bezel and the frame, enlarged 2x, side by side,
@@ -13,11 +14,11 @@ const pw = require(process.env.PLAYWRIGHT || 'playwright');
 const BASE = process.env.BASE || 'http://localhost:3100';
 const OUT = new URL('./lamp-review/08/', import.meta.url).pathname;
 mkdirSync(OUT, { recursive: true });
-const b = await pw.chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const b = await launch({ args: [] });
 const shots = {};
 for (const [name, q] of [['MSAA 4x', '?gpu=high&perf&no=dof'], ['SMAA', '?gpu=high&perf&no=msaa,dof']]) {
   const p = await b.newPage({ viewport: { width: 2560, height: 1440 } });
-  p.setDefaultTimeout(900000);
+  p.setDefaultTimeout(timeoutMs());
   await p.addInitScript(() => sessionStorage.setItem('vm:opened:v1', '1'));
   await p.goto(BASE + '/' + q, { waitUntil: 'networkidle' });
   await p.waitForSelector('.booth-stage[data-ready="true"]');
@@ -26,7 +27,7 @@ for (const [name, q] of [['MSAA 4x', '?gpu=high&perf&no=dof'], ['SMAA', '?gpu=hi
   for (const x of [1180, 1186]) {
     await p.mouse.move(x, 700);
     await p.waitForTimeout(6000);
-    shots[name].push(await p.screenshot({ timeout: 900000 }));
+    shots[name].push(await p.screenshot({ timeout: timeoutMs() }));
   }
   await p.close();
 }

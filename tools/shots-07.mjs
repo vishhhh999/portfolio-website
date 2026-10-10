@@ -1,3 +1,4 @@
+import { launch, timeoutMs } from './lib/browser.mjs';
 /**
  * Batch 07 screenshots (K5) into tools/lamp-review/07/:
  *   2560x1440, 1568x980, 390x844: / under D50, A, SCREEN and AFTER DARK; / in the Index view;
@@ -15,10 +16,10 @@ const BASE = process.env.BASE || 'http://localhost:3100';
 const OUT = new URL('./lamp-review/07/', import.meta.url).pathname;
 mkdirSync(OUT, { recursive: true });
 const only = process.argv[2] ?? '';
-const b = await pw.chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const b = await launch({ args: [] });
 const open = async (w, h, url) => {
   const p = await b.newPage({ viewport: { width: w, height: h }, reducedMotion: 'reduce', deviceScaleFactor: w < 500 ? 2 : 1 });
-  p.setDefaultTimeout(600000);
+  p.setDefaultTimeout(timeoutMs());
   await p.addInitScript(() => sessionStorage.setItem('vm:opened:v1', '1'));
   await p.goto(BASE + url, { waitUntil: 'networkidle' });
   if (await p.locator('.booth-stage').count()) await p.waitForSelector('.booth-stage[data-ready="true"]');
@@ -26,7 +27,7 @@ const open = async (w, h, url) => {
   return p;
 };
 const snap = async (p, name, full = false) => {
-  await p.screenshot({ path: `${OUT}${name}.png`, fullPage: full, timeout: 600000 });
+  await p.screenshot({ path: `${OUT}${name}.png`, fullPage: full, timeout: timeoutMs() });
   console.log(name);
 };
 const lampKey = { D50: '1', A: '3', SCREEN: '6', AFTERDARK: '7' };
@@ -77,7 +78,7 @@ if (!only || only.includes('sheet')) {
     await q.waitForTimeout(700);
     const f = `${OUT}_sheet-${String(i).padStart(2, '0')}.png`;
     const r = await q.locator('.booth-stage').boundingBox();
-    await q.screenshot({ path: f, clip: { x: r.x, y: r.y, width: r.width, height: Math.min(r.height, 980 - r.y) }, timeout: 600000 });
+    await q.screenshot({ path: f, clip: { x: r.x, y: r.y, width: r.width, height: Math.min(r.height, 980 - r.y) }, timeout: timeoutMs() });
     frames.push(f);
   }
   await q.close();

@@ -1,3 +1,4 @@
+import { launch, timeoutMs } from './lib/browser.mjs';
 /**
  * L8 (09B): the delivery screenshots into tools/lamp-review/09b/shots/ (JPEG q86):
  *   / at every L7 viewport (width x svh height, first screen; the shelf also scrolled to its middle)
@@ -15,7 +16,7 @@ mkdirSync(OUT, { recursive: true });
 const MATRIX = [[390, 664], [393, 659], [393, 852], [430, 932], [750, 393], [932, 430], [768, 1024], [820, 1180], [1032, 1230], [1032, 1260], [1376, 940], [1376, 980], [1180, 820], [1024, 1366], [1440, 900], [1568, 980], [1920, 1080], [2560, 1440], [1180, 1000], [1024, 1000]];
 const PAGES = [[390, 664], [1032, 1230], [1376, 940], [1568, 980]];
 const only = process.env.ONLY?.split(',');
-const b = await pw.chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const b = await launch({ args: [] });
 async function shot(w, h, path, name, scrollMid = false) {
   const phone = w < 600;
   const ctx = await b.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: phone ? 2 : 1, isMobile: phone, hasTouch: phone, reducedMotion: 'reduce' });
@@ -24,7 +25,7 @@ async function shot(w, h, path, name, scrollMid = false) {
     sessionStorage.setItem('vm:hint:v1', '1');
   });
   const p = await ctx.newPage();
-  p.setDefaultTimeout(900000);
+  p.setDefaultTimeout(timeoutMs());
   await p.goto(BASE + path, { waitUntil: 'networkidle' });
   if (await p.locator('.booth-stage').count()) {
     await p.waitForSelector('.booth-stage[data-ready="true"]');

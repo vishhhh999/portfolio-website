@@ -1,3 +1,4 @@
+import { launch, timeoutMs } from './lib/browser.mjs';
 /**
  * G / L6: how bright the nearest objects read under SCREEN (the screens are the only light). On /,
  * after SCREEN has struck, the pouch (Too Yumm), the book (JSW Sports) and the SOOK boxes are
@@ -12,12 +13,12 @@ const require = createRequire(import.meta.url);
 const pw = require(process.env.PLAYWRIGHT || 'playwright');
 const BASE = process.env.BASE || 'http://localhost:3100';
 const label = process.argv[2] || BASE;
-const b = await pw.chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const b = await launch({ args: [] });
 const p = await b.newPage({ viewport: { width: 1568, height: 980 } });
 await p.addInitScript(() => sessionStorage.setItem('vm:opened:v1', '1')); // J5: no opening strike in steady-state checks
-p.setDefaultTimeout(600000);
+p.setDefaultTimeout(timeoutMs());
 await p.goto(BASE + '/' + (process.env.Q || ''), { waitUntil: 'networkidle' });
-await p.waitForSelector('.booth-stage[data-ready="true"]', { timeout: 600000 });
+await p.waitForSelector('.booth-stage[data-ready="true"]', { timeout: timeoutMs() });
 await p.waitForTimeout(2000);
 await p.evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown', { key: '6' })));
 await p.waitForTimeout(5000);

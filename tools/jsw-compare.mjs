@@ -1,3 +1,4 @@
+import { launch, timeoutMs } from './lib/browser.mjs';
 /**
  * F3 (08): the JSW book open on the tray at 2560x1440, cropped to the book, against the Blender
  * reference (assets-src/models/jsw-sports/jsw-sports.ref-open.png).
@@ -29,9 +30,9 @@ if (process.argv[2] === '--sheet') {
 }
 const pw = require(process.env.PLAYWRIGHT || 'playwright');
 const BASE = process.env.BASE || 'http://localhost:3100';
-const b = await pw.chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const b = await launch({ args: [] });
 const p = await b.newPage({ viewport: { width: 2560, height: 1440 } });
-p.setDefaultTimeout(900000);
+p.setDefaultTimeout(timeoutMs());
 await p.addInitScript(() => sessionStorage.setItem('vm:opened:v1', '1'));
 await p.goto(BASE + '/work/jsw-sports?gpu=high&perf&no=focus', { waitUntil: 'networkidle' });
 await p.waitForSelector('.booth-stage[data-ready="true"]');

@@ -1,3 +1,4 @@
+import { launch, timeoutMs } from './lib/browser.mjs';
 /**
  * A1 / A1b: no stale booth pixels anywhere. The page's DOM is hidden (visibility, so layout is
  * unchanged) over a pure magenta background, and the browser's own composite of the canvas is
@@ -15,7 +16,7 @@ const pw = require(process.env.PLAYWRIGHT || 'playwright');
 import sharp from 'sharp';
 const BASE = process.env.BASE || 'http://localhost:3100';
 const widths = (process.argv[2] || '1568,2560').split(',').map(Number);
-const b = await pw.chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const b = await launch({ args: [] });
 let fails = 0;
 const report = (ok, msg) => {
   if (!ok) fails++;
@@ -66,10 +67,10 @@ for (const W of widths) {
   const ctx = await b.newContext({ viewport: { width: W, height: Math.round(W * 0.496) }, deviceScaleFactor: 1 });
   const p = await ctx.newPage();
   await p.addInitScript(() => sessionStorage.setItem('vm:opened:v1', '1')); // J5: no opening strike in steady-state checks
-  p.setDefaultTimeout(600000);
+  p.setDefaultTimeout(timeoutMs());
   for (const route of ['/', '/work/too-yumm']) {
     await p.goto(BASE + route, { waitUntil: 'networkidle' });
-    await p.waitForSelector('.booth-stage[data-ready="true"]', { timeout: 600000 }).catch(() => {});
+    await p.waitForSelector('.booth-stage[data-ready="true"]', { timeout: timeoutMs() }).catch(() => {});
     await p.waitForTimeout(1500);
     for (const y of [0, 300, 700, 1200, 0]) {
       await p.mouse.wheel(0, 0);
@@ -79,7 +80,7 @@ for (const W of widths) {
   }
   // open a project from the booth (the same path as a click on a sample), then walk routes
   await p.goto(BASE + '/', { waitUntil: 'networkidle' });
-  await p.waitForSelector('.booth-stage[data-ready="true"]', { timeout: 600000 }).catch(() => {});
+  await p.waitForSelector('.booth-stage[data-ready="true"]', { timeout: timeoutMs() }).catch(() => {});
   await p.waitForTimeout(1000);
   await p.evaluate(() => (document.querySelector('.booth-focus__item[data-slug="too-yumm"]') || document.querySelector('a[href="/work/too-yumm"]'))?.click());
   await p.waitForURL('**/work/too-yumm');
@@ -109,9 +110,9 @@ if (!process.env.SKIP_SHAPES) {
     const ctx = await b.newContext({ viewport: { width: W, height: H }, deviceScaleFactor: 1, isMobile: W < 1100, hasTouch: W < 600 });
     const p = await ctx.newPage();
     await p.addInitScript(() => sessionStorage.setItem('vm:opened:v1', '1'));
-    p.setDefaultTimeout(600000);
+    p.setDefaultTimeout(timeoutMs());
     await p.goto(BASE + '/', { waitUntil: 'networkidle' });
-    await p.waitForSelector('.booth-stage[data-ready="true"]', { timeout: 600000 }).catch(() => {});
+    await p.waitForSelector('.booth-stage[data-ready="true"]', { timeout: timeoutMs() }).catch(() => {});
     await p.waitForTimeout(1500);
     for (const y of [0, 400, 900, 1600, 0]) {
       await scrollTo(p, y);
@@ -122,15 +123,15 @@ if (!process.env.SKIP_SHAPES) {
   const ctx = await b.newContext({ viewport: { width: 2560, height: 1440 }, deviceScaleFactor: 1 });
   const p = await ctx.newPage();
   await p.addInitScript(() => sessionStorage.setItem('vm:opened:v1', '1'));
-  p.setDefaultTimeout(900000);
+  p.setDefaultTimeout(timeoutMs());
   await p.goto(BASE + '/', { waitUntil: 'networkidle' });
   await p.waitForSelector('.booth-stage[data-ready="true"]');
   await p.waitForTimeout(1500);
   const want = { '2560x1440': 'wide', '1376x940': 'wide', '1376x980': 'wide', '1032x1230': 'shelf3', '393x659': 'shelf2' };
   for (const [w, h] of [[1376, 940], [1032, 1230], [393, 659], [1032, 1230], [1376, 940], [2560, 1440], [1032, 1230], [1376, 980], [1032, 1230], [1376, 980]]) {
     await p.setViewportSize({ width: w, height: h });
-    await p.waitForFunction(([w, h]) => { const s = window.__boothShape?.(); return s && s.w === w && Math.abs(s.h - h) < 2; }, [w, h], { timeout: 300000, polling: 500 });
-    await p.waitForFunction(() => !document.querySelector('.booth-cover') || document.querySelector('.booth-cover').hidden, null, { timeout: 300000, polling: 500 });
+    await p.waitForFunction(([w, h]) => { const s = window.__boothShape?.(); return s && s.w === w && Math.abs(s.h - h) < 2; }, [w, h], { timeout: timeoutMs(), polling: 500 });
+    await p.waitForFunction(() => !document.querySelector('.booth-cover') || document.querySelector('.booth-cover').hidden, null, { timeout: timeoutMs(), polling: 500 });
     await p.waitForTimeout(1500);
     const layout = await p.evaluate(() => document.documentElement.dataset.layout);
     report(layout === want[`${w}x${h}`], `resize → ${w}x${h}: arrangement ${layout} (want ${want[`${w}x${h}`]})`);
