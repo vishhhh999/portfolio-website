@@ -1,5 +1,9 @@
 # HANDOVER: The Booth (visheshmahendru.com)
 
+## Batch 10 tooling update (10 Oct 2026)
+
+Work directly on `main`. The current workflow is in `AGENTS.md`, and the outcomes and timing limits are in `BATCH-10-REPORT.md`. Use `npm run check:affected` after each step and `npm run check:full` before closing a batch or after a first-frame source change. The cloud uses software WebGL; `GL=gpu node tools/gpu-smoke.mjs` is for Vishesh's PC and refuses software rendering. Poster hashes are split into eight groups, and the build still rejects stale or swapped files. The first full software suite run in this batch was stopped after graphics checks exceeded the section time box; do not describe it as a pass.
+
 ## 09B verification (read this before the historical notes)
 
 The owner's current instructions supersede the branch and squash workflow below: finish the three corrections and the complete poster run on `claude/quirky-knuth-70j1df`, pass the local build and the full suite, then merge into `main` with both parents preserved. Close PR #8 after pushing that merge. Subsequent work goes directly to `main`, with a passing build and checks before every push. Changes to the first frame require a full poster re-render in the same commit.

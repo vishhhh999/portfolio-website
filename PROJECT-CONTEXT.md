@@ -369,6 +369,8 @@ The 3D pages can't be scored in a GPU-less container. Use PageSpeed Insights on 
 
 ## 9. Testing (run against a production build on port 3100)
 
+Batch 10 measured `check:fast` at 72 to 81 seconds under cloud software rendering. A full suite attempt was stopped under the time box after three graphics checks ran for more than 21 minutes each; its remaining results are unknown. See `BATCH-10-REPORT.md` for the completed check times. `check-console` now covers every public route at desktop and phone sizes with an empty error allowlist. `gpu-smoke` must run with a verified hardware renderer on Vishesh's PC.
+
 Batch 10 check tiers run against the production server on port 3100. The runner starts it if the port is free. After changing files under `public/`, restart an already running server before checking the new bytes.
 
 | Command | When to run | Coverage |
