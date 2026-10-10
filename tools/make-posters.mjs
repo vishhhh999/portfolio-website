@@ -13,8 +13,9 @@ import { launch, timeoutMs, waitForBoothSettled, settleAfterReady } from './lib/
  */
 import { createRequire } from 'module';
 import { mkdirSync, readFileSync, writeFileSync } from 'fs';
+import { cpus } from 'node:os';
 import sharp from 'sharp';
-import { posterFileHashes, posterHash } from './poster-hash.mjs';
+import { POSTER_GROUPS, GROUP_NAMES, changedFiles, groupHashes, readManifest, staleGroups, writeManifest } from './poster-hash.mjs';
 import { HIDE_HOME, HIDE_TRAY, HOME, SLUGS, TRAY as TRAYS } from './poster-matrix.mjs';
 const require = createRequire(import.meta.url);
 const pw = require(process.env.PLAYWRIGHT || 'playwright');
@@ -22,15 +23,27 @@ const BASE = process.env.BASE || 'http://localhost:3100';
 const OUT = new URL('../public/booth/', import.meta.url).pathname;
 mkdirSync(OUT, { recursive: true });
 
+const previous = readManifest();
+const stale = staleGroups(previous);
+const swapped = changedFiles(previous);
+const selected = GROUP_NAMES.filter((name) => process.env.ALL === '1' || stale.includes(name) || POSTER_GROUPS[name].files.some((file) => swapped.includes(file)));
+const jobs = process.env.JOBS === undefined ? Math.min(4, cpus().length) : Number(process.env.JOBS);
+if (!Number.isSafeInteger(jobs) || jobs < 1) throw new Error('JOBS must be a positive integer');
+if (!selected.length) {
+  console.log('All poster groups are current');
+  process.exit(0);
+}
+console.log('Rendering poster groups: ' + selected.join(', ') + ' with ' + Math.min(jobs, selected.length) + ' contexts');
 const browser = await launch({ args: [] });
 /**
  * The booth frame as the page shows it at this viewport (L6 09B: the shelf's frame runs past the first
  * screen, so its poster is the part on the first screen, at the frame's width).
  */
-async function capture(w, h, dpr, mobile, dark = false) {
+async function capture(context, w, h, dpr, mobile, dark = false) {
   // dark: the first visit of a session, the booth's own first frame with the tubes off (the opening
   // strike held at 0), shown as the poster on that visit so the strike starts from what was already there
-  const page = await browser.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: dpr, isMobile: mobile, hasTouch: mobile, reducedMotion: dark ? 'no-preference' : 'reduce' });
+  const page = await context.newPage();
+  await page.emulateMedia({ reducedMotion: dark ? 'no-preference' : 'reduce' });
   page.setDefaultTimeout(timeoutMs());
   if (dark) await page.addInitScript(() => (window.__boothStrikeHold = 0));
   else await page.addInitScript(() => sessionStorage.setItem('vm:opened:v1', '1'));
@@ -67,9 +80,9 @@ async function capture(w, h, dpr, mobile, dark = false) {
 }
 // the paper colour behind the booth (the frame box shows the page around the booth's shadow)
 const flat = (buf) => sharp(buf).flatten({ background: '#f2f0ea' });
-async function home(entry, dark) {
+async function home(context, entry, dark) {
   const [w, h, dpr, mobile] = entry.render;
-  const png = await capture(w, h, dpr, mobile, dark);
+  const png = await capture(context, w, h, dpr, mobile, dark);
   const files = dark ? entry.dark : entry.files;
   if (entry.name === 'cabinet') {
     for (const [i, px] of [1200, 2400].entries()) await flat(png).resize({ width: px }).webp({ quality: 80, effort: 6 }).toFile(`${OUT}${files[i]}`);
@@ -81,18 +94,14 @@ async function home(entry, dark) {
   }
   console.log('home poster', entry.name, dark ? '(first visit, dark)' : '');
 }
-// DARK_ONLY=1 re-renders only the first-visit posters; ONLY_HOME=shelf2,shelf3 limits the home posters
-const homes = HOME.filter((e) => !process.env.ONLY_HOME || process.env.ONLY_HOME.split(',').includes(e.name));
-if (!process.env.DARK_ONLY && !process.env.TRAY_ONLY) for (const e of homes) await home(e, false);
 // P2 (09): each project header's poster, its tray shot lit by D50 (the JSW book held open), desktop
 // 1568x980 and phone 390x844, cropped to the header stage; M1: the same shot is the base of the
 // project's 1200x630 share card (project name in Geist), and the cabinet poster of the site's card
-const TRAY = process.env.TRAY ? process.env.TRAY.split(',').filter(Boolean) : process.env.HOME_ONLY ? [] : SLUGS;
 mkdirSync(`${OUT}tray`, { recursive: true });
 const OG = new URL('../public/og/', import.meta.url).pathname;
 mkdirSync(OG, { recursive: true });
-async function trayCapture(slug, w, h, dpr, mobile) {
-  const page = await browser.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: dpr, isMobile: mobile, hasTouch: mobile, reducedMotion: 'reduce' });
+async function trayCapture(context, slug, w, h, dpr, mobile) {
+  const page = await context.newPage();
   page.setDefaultTimeout(timeoutMs());
   await page.addInitScript(() => {
     sessionStorage.setItem('vm:opened:v1', '1');
@@ -117,8 +126,9 @@ async function trayCapture(slug, w, h, dpr, mobile) {
   return { png, meta };
 }
 const fontData = (f) => readFileSync(new URL(`../app/fonts/${f}`, import.meta.url)).toString('base64');
-async function shareCard(imgBuf, title, line, out) {
-  const page = await browser.newPage({ viewport: { width: 1200, height: 630 } });
+async function shareCard(context, imgBuf, title, line, out) {
+  const page = await context.newPage();
+  await page.setViewportSize({ width: 1200, height: 630 });
   const img = (await sharp(imgBuf).webp({ quality: 90 }).toBuffer()).toString('base64');
   await page.setContent(`<!doctype html><html><head><style>
     @font-face { font-family: G; src: url(data:font/woff2;base64,${fontData('geist-sans-subset.woff2')}) format('woff2'); font-weight: 100 900; }
@@ -135,23 +145,37 @@ async function shareCard(imgBuf, title, line, out) {
   await page.screenshot({ path: out, type: 'jpeg', quality: 86 });
   await page.close();
 }
-for (const slug of TRAY) {
-  // L6 (09B): one per shape (the header's proportions, and so the tray shot, differ)
-  let desk = null;
-  for (const t of TRAYS) {
-    const shot = await trayCapture(slug, ...t.render);
-    await flat(shot.png).webp({ quality: t.quality, effort: 6 }).toFile(`${OUT}tray/${slug}${t.suffix}.webp`);
-    if (t.suffix === '') desk = shot;
+async function renderGroup(name) {
+  const entry = HOME.find((e) => e.name === name);
+  const tray = name.startsWith('tray-') ? TRAYS.find((t) => name === 'tray-' + (t.suffix ? t.suffix.slice(1) : 'wide')) : null;
+  const [w, h, dpr, mobile] = entry ? entry.render : tray.render;
+  const context = await browser.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: dpr, isMobile: mobile, hasTouch: mobile, reducedMotion: 'reduce' });
+  try {
+    if (entry) {
+      await home(context, entry, false);
+      if (name === 'cabinet') await shareCard(context, readFileSync(`${OUT}poster-cabinet-2400.webp`), 'Tested under every light.', 'Brand and digital design · India', `${OG}site.jpg`);
+      await home(context, entry, true);
+    } else {
+      for (const slug of SLUGS) {
+        const shot = await trayCapture(context, slug, ...tray.render);
+        await flat(shot.png).webp({ quality: tray.quality, effort: 6 }).toFile(`${OUT}tray/${slug}${tray.suffix}.webp`);
+        if (name === 'tray-wide') await shareCard(context, shot.png, shot.meta.title, `${shot.meta.disciplines} · ${shot.meta.year}`, `${OG}${slug}.jpg`);
+        console.log(name + ' poster ' + slug);
+      }
+    }
+    console.log('Completed poster group ' + name);
+  } finally {
+    await context.close();
   }
-  await shareCard(desk.png, desk.meta.title, `${desk.meta.disciplines} · ${desk.meta.year}`, `${OG}${slug}.jpg`);
-  console.log('tray posters + share card', slug);
 }
-if (!process.env.DARK_ONLY && !process.env.TRAY_ONLY && homes.some((e) => e.name === 'cabinet')) {
-  await shareCard(readFileSync(`${OUT}poster-cabinet-2400.webp`), 'Tested under every light.', 'Brand and digital design · India', `${OG}site.jpg`);
-  console.log('share card site');
+const pending = [...selected];
+try {
+  await Promise.all(Array.from({ length: Math.min(jobs, selected.length) }, async () => {
+    while (pending.length) await renderGroup(pending.shift());
+  }));
+} finally {
+  await browser.close();
 }
-if (!process.env.TRAY_ONLY) for (const e of homes) await home(e, true);
-await browser.close();
-const hash = posterHash();
-writeFileSync(`${OUT}posters.json`, JSON.stringify({ hash, files: posterFileHashes(), rendered: new Date().toISOString() }, null, 2) + '\n');
-console.log('posters written', hash.slice(0, 12));
+const current = groupHashes();
+writeManifest({ ...previous.groups, ...Object.fromEntries(selected.map((name) => [name, current[name]])) });
+console.log('Rendered and stamped groups: ' + selected.join(', '));
