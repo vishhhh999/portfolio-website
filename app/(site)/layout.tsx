@@ -17,12 +17,13 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
   return (
     <Providers>
       <JsonLd data={personLd} />
-      <BoothLayer />
       <a className="skiplink" href="#main">Skip to content</a>
       <header className="masthead">
         <Link href="/" className="wordmark">Vishesh Mahendru</Link>
         <SiteNav />
       </header>
+      {/* after the masthead in reading order: Tab goes nav, then the objects in the booth, then the page */}
+      <BoothLayer />
       <LampPanel />
       <Shortcuts />
       <Notice />

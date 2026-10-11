@@ -29,8 +29,8 @@ for (const phone of [false, true]) {
     const t0 = Date.now();
     await page.goto(BASE + path, { waitUntil: 'load' });
     let ready = null;
-    if (await page.locator('.booth-stage').count()) {
-      await page.waitForSelector('.booth-stage[data-ready="true"]', { timeout: 300_000 }).then(() => { ready = Date.now() - t0; }).catch(() => {});
+    if (await page.locator('.booth-frame, .work-stage').count() && !path.includes('gpu=low')) {
+      await page.waitForFunction(() => document.documentElement.hasAttribute('data-booth-ready'), null, { timeout: 300_000 }).then(() => { ready = Date.now() - t0; }).catch(() => {});
     }
     await page.waitForTimeout(3000);
     const lcp = await page.evaluate(() => Math.round(window.__lcp));

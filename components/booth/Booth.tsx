@@ -11,7 +11,7 @@ import { autoHouseLights } from '@/lib/resilience';
 import { KEY_STEP, nudgeSpin, resetSpins, setSpinDragging, spinOf, RAD_PER_PX, DRAG_PX } from '@/lib/spin';
 import { cabinetFace, LAYOUTS, WIDE_LAYOUT } from './composition';
 import { registerFrame, setLayer } from './frames';
-import { onBoxes } from './overlay';
+import { onBoxes } from './boxes';
 import { kick } from './activity';
 
 const BoothCanvas = dynamic(() => import('./BoothCanvas'), { ssr: false });

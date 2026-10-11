@@ -2,6 +2,7 @@
 
 import { Box3, Vector3, type Camera } from 'three';
 import type { FrameRect } from './frames';
+import { emitBoxes, type Boxes } from './boxes';
 import { objects, worldBox } from './registry';
 
 /**
@@ -9,8 +10,6 @@ import { objects, worldBox } from './registry';
  * to the view). The DOM links and the spec chip sit on these boxes, so clicking, hovering and
  * keyboard focus all work on real page elements while the canvas stays aria-hidden.
  */
-export type Boxes = Map<string, { x: number; y: number; w: number; h: number; top: number }>;
-const listeners = new Set<(b: Boxes, view: FrameRect | null) => void>();
 const boxes: Boxes = new Map();
 const wb = new Box3();
 const v = new Vector3();
@@ -37,10 +36,5 @@ export function publishBoxes(camera: Camera | null, cw: number, ch: number, view
       boxes.set(slug, { x: cx0, y: cy0, w: cx1 - cx0, h: cy1 - cy0, top });
     }
   }
-  listeners.forEach((fn) => fn(boxes, view));
-}
-
-export function onBoxes(fn: (b: Boxes, view: FrameRect | null) => void) {
-  listeners.add(fn);
-  return () => void listeners.delete(fn);
+  emitBoxes(boxes, view);
 }
