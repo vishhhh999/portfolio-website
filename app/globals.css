@@ -54,6 +54,7 @@ h1, h2, h3, p { margin: 0; }
 ::selection { background: var(--ink); color: var(--paper); }
 /* mono is for data only: Kelvin readouts, numbers, years, keys */
 .data, kbd { font-family: var(--mono); font-size: 0.8em; letter-spacing: 0.02em; font-variant-numeric: tabular-nums; }
+.mono { font-family: var(--mono); font-size: var(--t-caption); letter-spacing: 0.02em; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 .skiplink { position: absolute; left: var(--gutter); top: var(--s-2); z-index: 60; padding: var(--s-3) var(--s-4); background: var(--ink); color: var(--paper); text-decoration: none; transform: translateY(-160%); }
 .skiplink:focus-visible { transform: none; }
@@ -132,7 +133,7 @@ html[data-type='grotesk'] .hero__title em { font-style: normal; font-weight: 300
 @media (max-aspect-ratio: 11/10) {
   .booth-frame { width: min(100%, calc((100svh - var(--masthead-h) - 220px) * var(--tall))); aspect-ratio: var(--tall); }
 }
-@media (max-width: 900px) {
+@media (max-width: 1180px) {
   .hero__copy { grid-template-columns: 1fr; }
   .hero__aside { padding-bottom: 0; }
 }

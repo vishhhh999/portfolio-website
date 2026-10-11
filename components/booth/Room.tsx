@@ -70,10 +70,10 @@ export function Room({ layout }: { layout: Layout }) {
     <group>
       <mesh ref={recv} geometry={sweep} material={m.floor} />
       {/* side walls and ceiling: faces into the room */}
-      <mesh ref={recv} position={[-w / 2, h / 2, 0]} rotation={[0, Math.PI / 2, 0]} material={m.wall}>
+      <mesh position={[-w / 2, h / 2, 0]} rotation={[0, Math.PI / 2, 0]} material={m.wall}>
         <planeGeometry args={[d, h]} />
       </mesh>
-      <mesh ref={recv} position={[w / 2, h / 2, 0]} rotation={[0, -Math.PI / 2, 0]} material={m.wall}>
+      <mesh position={[w / 2, h / 2, 0]} rotation={[0, -Math.PI / 2, 0]} material={m.wall}>
         <planeGeometry args={[d, h]} />
       </mesh>
       <mesh position={[0, h, 0]} rotation={[Math.PI / 2, 0, 0]} material={m.wall}>

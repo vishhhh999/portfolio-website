@@ -52,6 +52,8 @@ export type Layout = {
   slots: Record<string, Slot>;
   /** The presentation tray, front centre: a low turntable the project object slides onto. */
   tray: { x: number; z: number; r: number; h: number };
+  /** Every object's display scale times this (the portrait booth is narrower). */
+  objectScale?: number;
   /** Camera: eye height above the floor and the point it looks at (both scale with the room). */
   eye: { y: number; lookY: number; fov: number };
 };
@@ -88,43 +90,45 @@ const ROWS: Layout = {
  */
 const TRAY: Layout = {
   key: 'tray',
-  room: { w: 2.1, h: 0.86, d: 1.0 },
-  risers: [{ x: 0, z: -0.12, w: 2.1, d: 0.5, h: 0.035 }],
+  room: { w: 2.0, h: 0.6, d: 1.0 },
+  risers: [{ x: 0, z: -0.12, w: 1.92, d: 0.56, h: 0.03 }],
   slots: {
-    'bengal-t20': { x: -0.86, y: 0.035, z: -0.2 },
-    sook: { x: -0.6, y: 0.035, z: -0.06 },
-    mitooshi: { x: -0.34, y: 0.035, z: -0.24 },
-    'too-yumm': { x: -0.11, y: 0.035, z: -0.02 },
-    'jsw-sports': { x: 0.13, y: 0.035, z: -0.24 },
-    shunya: { x: 0.37, y: 0.035, z: -0.04 },
-    sonde: { x: 0.6, y: 0.035, z: -0.26 },
-    'indo-thai': { x: 0.83, y: 0.035, z: -0.04 },
-    'house-of-hex': { x: -0.82, y: 0.035, z: 0.08 },
+    'bengal-t20': { x: -0.82, y: 0.03, z: -0.24 },
+    sook: { x: -0.62, y: 0.03, z: 0.04 },
+    mitooshi: { x: -0.41, y: 0.03, z: -0.26 },
+    'too-yumm': { x: -0.2, y: 0.03, z: 0.02 },
+    'jsw-sports': { x: 0, y: 0.03, z: -0.27 },
+    shunya: { x: 0.21, y: 0.03, z: 0.04 },
+    sonde: { x: 0.41, y: 0.03, z: -0.26 },
+    'house-of-hex': { x: 0.6, y: 0.03, z: 0.03 },
+    'indo-thai': { x: 0.81, y: 0.03, z: -0.22 },
   },
-  tray: { x: 0, z: 0.3, r: 0.17, h: 0.018 },
-  eye: { y: 0.42, lookY: 0.2, fov: 24 },
+  tray: { x: 0, z: 0.34, r: 0.15, h: 0.016 },
+  eye: { y: 0.56, lookY: 0.16, fov: 24 },
 };
 
 /** Tall screens: a portrait booth, three pieces on each of three tiers (two stepped risers and the floor). */
 const GRID: Layout = {
   key: 'grid',
+  objectScale: 1.08,
   room: { w: 1.06, h: 1.1, d: 0.8 },
   risers: [
     { x: 0, z: -0.21, w: 1.06, d: 0.38, h: 0.36 },
-    { x: 0, z: -0.28, w: 1.06, d: 0.24, h: 0.71 },
+    { x: 0, z: -0.27, w: 1.06, d: 0.26, h: 0.71 },
+    { x: 0, z: 0.08, w: 1.0, d: 0.2, h: 0.06 },
   ],
   slots: {
-    'jsw-sports': { x: -0.33, y: 0.71, z: -0.29 },
-    mitooshi: { x: 0.02, y: 0.71, z: -0.28 },
-    'house-of-hex': { x: 0.34, y: 0.71, z: -0.27 },
+    'jsw-sports': { x: -0.33, y: 0.71, z: -0.27 },
+    mitooshi: { x: 0.02, y: 0.71, z: -0.25 },
+    'house-of-hex': { x: 0.34, y: 0.71, z: -0.26 },
     'too-yumm': { x: -0.34, y: 0.36, z: -0.08 },
     sonde: { x: 0, y: 0.36, z: -0.1 },
     sook: { x: 0.34, y: 0.36, z: -0.07 },
-    'bengal-t20': { x: -0.33, y: 0, z: 0.1 },
-    shunya: { x: 0, y: 0, z: 0.08 },
-    'indo-thai': { x: 0.33, y: 0, z: 0.1 },
+    'bengal-t20': { x: -0.33, y: 0.06, z: 0.1 },
+    shunya: { x: 0, y: 0.06, z: 0.09 },
+    'indo-thai': { x: 0.33, y: 0.06, z: 0.1 },
   },
-  tray: { x: 0, z: 0.28, r: 0.11, h: 0.016 },
+  tray: { x: 0, z: 0.3, r: 0.1, h: 0.016 },
   eye: { y: 0.66, lookY: 0.52, fov: 28 },
 };
 

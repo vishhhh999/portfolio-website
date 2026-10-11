@@ -3,7 +3,7 @@
 import { useFrame } from '@react-three/fiber';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  AnimationMixer, Box3, CanvasTexture, ExtrudeGeometry, Group, LoopOnce, MathUtils, Mesh, MeshBasicMaterial, MeshStandardMaterial,
+  AdditiveBlending, AnimationMixer, Box3, CanvasTexture, PlaneGeometry, SRGBColorSpace, ExtrudeGeometry, Group, LoopOnce, MathUtils, Mesh, MeshBasicMaterial, MeshStandardMaterial,
   Shape, Vector3, type AnimationAction, type Object3D,
 } from 'three';
 import type { Work } from '@/lib/types';
@@ -14,7 +14,7 @@ import { kick } from './activity';
 import { ease } from './camera';
 import { PRESENT, TRAY_PRESENT, type Layout, type Presentation } from './composition';
 import { loadModel, track } from './loader';
-import { patch, prepareModel, screenMaterial, setHover } from './materials';
+import { patch, prepareModel, screenMaterial, setHover, shared } from './materials';
 import { objects, screenAnchors } from './registry';
 import { COLOURS } from './Room';
 
@@ -85,11 +85,34 @@ function wedgeFor(size: Vector3, rx: number) {
   return g;
 }
 
+/** A proofer's note in fluorescent ink: pale cyan text on transparent, seen only under UV. */
+function inkNote(text: string) {
+  const c = document.createElement('canvas');
+  const g = c.getContext('2d')!;
+  const fontPx = 44;
+  g.font = `500 ${fontPx}px ui-monospace, Menlo, monospace`;
+  c.width = Math.ceil(g.measureText(text).width + 24);
+  c.height = fontPx + 20;
+  g.font = `500 ${fontPx}px ui-monospace, Menlo, monospace`;
+  g.fillStyle = '#c9fff3';
+  g.shadowColor = 'rgba(120,255,236,0.9)';
+  g.shadowBlur = 10;
+  g.textBaseline = 'middle';
+  g.fillText(text, 12, c.height / 2);
+  const tex = new CanvasTexture(c);
+  tex.colorSpace = SRGBColorSpace;
+  const h = 0.014;
+  const mat = new MeshBasicMaterial({ map: tex, transparent: true, opacity: 0, depthWrite: false, blending: AdditiveBlending, toneMapped: false });
+  const mesh = new Mesh(new PlaneGeometry((h * c.width) / c.height, h), mat);
+  mesh.renderOrder = 4;
+  return mesh;
+}
+
 const standMat = new MeshStandardMaterial({ color: COLOURS.riser, roughness: 0.78 });
 patch(standMat, 0.35);
 const easelMat = new MeshStandardMaterial({ color: '#e9e9e6', roughness: 0.1, transparent: true, opacity: 0.35, depthWrite: false });
 
-type Built = { holder: Group; size: Vector3; mixer?: AnimationMixer; action?: AnimationAction; wedge?: ExtrudeGeometry };
+type Built = { holder: Group; size: Vector3; mixer?: AnimationMixer; action?: AnimationAction; wedge?: ExtrudeGeometry; notes?: Group };
 
 export function Specimen({ work, layout, index }: { work: Work; layout: Layout; index: number }) {
   const slug = work.slug;
@@ -100,6 +123,7 @@ export function Specimen({ work, layout, index }: { work: Work; layout: Layout; 
   const ao = useRef<Mesh>(null!);
   const active = useBooth((s) => s.activeSlug === slug);
   const hovered = useBooth((s) => s.hoverSlug === slug);
+  const recede = useBooth((s) => s.activeSlug !== null && s.activeSlug !== slug);
   const [built, setBuilt] = useState<Built | null>(null);
   const [detail, setDetail] = useState(false);
 
@@ -115,7 +139,10 @@ export function Specimen({ work, layout, index }: { work: Work; layout: Layout; 
     };
   }, [wantDetail, m.src]);
 
-  const presentation = useMemo<Presentation>(() => ({ ...PRESENT[slug], ...(active ? TRAY_PRESENT[slug] : {}) }), [slug, active]);
+  const presentation = useMemo<Presentation>(() => {
+    const p = { ...PRESENT[slug], ...(active ? TRAY_PRESENT[slug] : {}) };
+    return { ...p, scale: p.scale * (layout.objectScale ?? 1) };
+  }, [slug, active, layout.objectScale]);
 
   useEffect(() => {
     let live = true;
@@ -134,6 +161,18 @@ export function Specimen({ work, layout, index }: { work: Work; layout: Layout; 
         }
       }
       const out: Built = { holder, size };
+      // the approved UV notes, stacked down the object's front in invisible ink
+      if (work.uvNotes.length) {
+        const notes = new Group();
+        work.uvNotes.forEach((n, i) => {
+          const m = inkNote(n.text);
+          m.position.set(0, Math.max(0.03, size.y * (0.78 - i * 0.2)), size.z / 2 + 0.012);
+          m.layers.set(1 + index);
+          notes.add(m);
+        });
+        notes.visible = false;
+        out.notes = notes;
+      }
       if (presentation.stand === 'wedge') out.wedge = wedgeFor(size, presentation.rx ?? 0);
       if (m.animation) {
         const clip = gltf.animations.find((c) => c.name === m.animation) ?? gltf.animations[0];
@@ -182,6 +221,7 @@ export function Specimen({ work, layout, index }: { work: Work; layout: Layout; 
   }, [active, home, tray]);
 
   const hoverV = useRef(0);
+  const dimV = useRef(0);
   const open = useRef(0);
   useEffect(() => {
     kick(400);
@@ -205,7 +245,11 @@ export function Specimen({ work, layout, index }: { work: Work; layout: Layout; 
     hoverV.current = MathUtils.damp(hoverV.current, hv, 14, dt);
     if (Math.abs(hoverV.current - hv) > 0.002) kick(32);
     lift.current.position.y = hoverV.current * LIFT;
-    if (built) setHover(built.holder, hoverV.current);
+    // on a project page the other objects step back a little (at most 18% darker), never hidden
+    const dv = recede && !hovered ? 0.18 : 0;
+    dimV.current = MathUtils.damp(dimV.current, dv, 8, dt);
+    if (Math.abs(dimV.current - dv) > 0.002) kick(32);
+    if (built) setHover(built.holder, hoverV.current, dimV.current);
     if (ao.current) (ao.current.material as MeshBasicMaterial).opacity = 0.5 * (1 - hoverV.current * 0.35);
     // turn (drag, keys) with inertia; faces front again when it leaves the tray
     const s = spinOf(slug);
@@ -219,6 +263,18 @@ export function Specimen({ work, layout, index }: { work: Work; layout: Layout; 
       kick(32);
     }
     spinG.current.rotation.y = s.yaw;
+    // invisible ink: under UV, on the object in focus (on the tray, or hovered)
+    if (built?.notes) {
+      const want = shared.uUV.value * (active || hovered ? 1 : 0);
+      let any = false;
+      for (const m of built.notes.children as Mesh[]) {
+        const mat = m.material as MeshBasicMaterial;
+        mat.opacity = MathUtils.damp(mat.opacity, want, 8, dt);
+        if (Math.abs(mat.opacity - want) > 0.004) kick(32);
+        any ||= mat.opacity > 0.01;
+      }
+      built.notes.visible = any;
+    }
     // the book opens on the tray and closes when it leaves
     if (built?.mixer && built.action) {
       const want = active && mv.t0 < 0 ? 1 : 0;
@@ -237,6 +293,7 @@ export function Specimen({ work, layout, index }: { work: Work; layout: Layout; 
       <group ref={lift}>
         <group ref={spinG}>
           {built && <primitive object={built.holder} />}
+          {built?.notes && <primitive object={built.notes} />}
           {built?.wedge && <mesh geometry={built.wedge} material={standMat} castShadow receiveShadow layers={1 + index} />}
           {size && presentation.stand === 'easel' && (
             <mesh material={easelMat} position={[0, size.y * 0.42, -size.z / 2 - 0.004]} rotation={[-(Math.abs(presentation.rx ?? 0)), 0, 0]} layers={1 + index}>

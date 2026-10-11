@@ -4,7 +4,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
 import {
   AdditiveBlending, CanvasTexture, Color, DoubleSide, ConeGeometry, DataTexture, HemisphereLight, Mesh, MeshBasicMaterial, Object3D, PlaneGeometry, PMREMGenerator,
-  Scene, ShaderMaterial, SpotLight, Vector2, Vector3, type Texture,
+  MathUtils, Scene, ShaderMaterial, SpotLight, Vector2, Vector3, type Texture,
 } from 'three';
 import { useBooth } from '@/lib/store';
 import { lampById, strikeChannels, strikeKelvin, type LampPreset } from '@/lib/lampPresets';
@@ -76,8 +76,9 @@ export function Rig({ layout }: { layout: Layout }) {
     l.castShadow = true;
     const n = perfInfo().shadowMap;
     l.shadow.mapSize.set(n, n);
-    l.shadow.bias = -0.0004;
-    l.shadow.normalBias = 0.012;
+    l.shadow.bias = -0.0002;
+    l.shadow.normalBias = 0.004;
+    l.shadow.blurSamples = 12;
     l.shadow.camera.near = 0.3;
     l.shadow.camera.far = 6;
     l.shadow.camera.layers.enableAll();
@@ -92,6 +93,10 @@ export function Rig({ layout }: { layout: Layout }) {
     return s;
   }), []);
   const spillTargets = useMemo(() => spills.map(() => new Object3D()), [spills]);
+  // the tray's own light: a soft spot from above the opening, up on a project page, off at home
+  const trayLight = useMemo(() => new SpotLight('#ffffff', 0, 3, 0.32, 0.9, 2), []);
+  const trayTarget = useMemo(() => new Object3D(), []);
+  const trayLevel = useRef(0);
   const cookie = useMemo(() => (typeof document !== 'undefined' ? torchCookie() : white), []);
 
   // the haze cone: an additive beam from the flood to the floor
@@ -116,11 +121,12 @@ export function Rig({ layout }: { layout: Layout }) {
   const place = (v: [number, number, number], out: Vector3) => out.set(v[0] * sx, v[1] * sy, v[2] * sz);
 
   useEffect(() => {
-    scene.add(key, target, fill, haze, ...spills, ...spillTargets);
+    scene.add(key, target, fill, haze, trayLight, trayTarget, ...spills, ...spillTargets);
     key.target = target;
+    trayLight.target = trayTarget;
     spills.forEach((s, i) => (s.target = spillTargets[i]));
-    return () => void scene.remove(key, target, fill, haze, ...spills, ...spillTargets);
-  }, [scene, key, target, fill, haze, spills, spillTargets]);
+    return () => void scene.remove(key, target, fill, haze, trayLight, trayTarget, ...spills, ...spillTargets);
+  }, [scene, key, target, fill, haze, spills, spillTargets, trayLight, trayTarget]);
 
   useEffect(() => {
     scene.environment = envFor(gl, lamp);
@@ -214,6 +220,15 @@ export function Rig({ layout }: { layout: Layout }) {
       (haze.material as ShaderMaterial).uniforms.uLevel.value = hz;
       (haze.material as ShaderMaterial).uniforms.uColour.value.copy(c);
     }
+    // the tray light follows the key's colour; it stays off in the dark lamps (they have their own story)
+    const wantTray = useBooth.getState().activeSlug && !lamp.dark ? 1 : 0;
+    trayLevel.current = MathUtils.damp(trayLevel.current, wantTray, 6, dt);
+    if (Math.abs(trayLevel.current - wantTray) > 0.003) kick(32);
+    trayLight.color.copy(c);
+    trayLight.intensity = trayLevel.current * k3.intensity * 0.45 * ch.light;
+    trayLight.position.set(layout.tray.x + 0.25 * sx, layout.room.h * 1.6, layout.tray.z + 0.9 * sz);
+    trayTarget.position.set(layout.tray.x, 0.1, layout.tray.z);
+    trayTarget.updateMatrixWorld();
     torch.level = lamp.id === 'AFTERDARK' ? ch.light : 1;
   });
   return null;

@@ -2,7 +2,7 @@
 
 import { advance, Canvas, useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { MathUtils, NeutralToneMapping, PCFShadowMap, PerspectiveCamera, SRGBColorSpace, Vector3 } from 'three';
+import { MathUtils, NeutralToneMapping, VSMShadowMap, PerspectiveCamera, SRGBColorSpace, Vector3 } from 'three';
 import { lineup } from '@/content/work';
 import { useBooth } from '@/lib/store';
 import { perfInfo } from '@/lib/perfTier';
@@ -264,7 +264,7 @@ export default function BoothCanvas({ onReady }: { onReady: () => void }) {
   return (
     <Canvas
       frameloop="demand"
-      shadows={{ type: PCFShadowMap }}
+      shadows={{ type: VSMShadowMap }}
       dpr={perf.dprStart}
       flat={false}
       gl={{ antialias: true, alpha: true, powerPreference: 'high-performance', stencil: false, premultipliedAlpha: true }}

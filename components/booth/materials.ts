@@ -18,7 +18,7 @@ export const shared = {
   uFluor: { value: new Color(0.62, 0.52, 1.0) },
 };
 
-type Patched = Material & { userData: { hover?: { value: number }; booth?: boolean } };
+type Patched = Material & { userData: { hover?: { value: number }; dim?: { value: number }; booth?: boolean } };
 
 /** Adds fluorescence and the hover rim to a lit material (idempotent). */
 export function patch(m: Material, fluor = 1) {
@@ -26,15 +26,18 @@ export function patch(m: Material, fluor = 1) {
   if (pm.userData.booth) return;
   pm.userData.booth = true;
   const hover = { value: 0 };
+  const dim = { value: 0 };
   pm.userData.hover = hover;
+  pm.userData.dim = dim;
   const fl = { value: fluor };
   m.onBeforeCompile = (shader: WebGLProgramParametersWithUniforms) => {
     shader.uniforms.uUV = shared.uUV;
     shader.uniforms.uFluorColor = shared.uFluor;
     shader.uniforms.uHover = hover;
+    shader.uniforms.uDim = dim;
     shader.uniforms.uFluorAmt = fl;
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nuniform float uUV;\nuniform vec3 uFluorColor;\nuniform float uHover;\nuniform float uFluorAmt;')
+      .replace('#include <common>', '#include <common>\nuniform float uUV;\nuniform vec3 uFluorColor;\nuniform float uHover;\nuniform float uDim;\nuniform float uFluorAmt;')
       .replace(
         '#include <emissivemap_fragment>',
         `#include <emissivemap_fragment>
@@ -50,6 +53,7 @@ export function patch(m: Material, fluor = 1) {
         `{
           float rim = pow(1.0 - saturate(dot(normal, normalize(vViewPosition))), 3.0);
           outgoingLight += uHover * rim * 0.18 * (1.0 - uUV);
+          outgoingLight *= 1.0 - uDim;
         }
         #include <output_fragment>`,
       );
@@ -57,11 +61,14 @@ export function patch(m: Material, fluor = 1) {
   m.customProgramCacheKey = () => 'booth-v1';
 }
 
-export function setHover(root: Object3D, v: number) {
+export function setHover(root: Object3D, v: number, dimV = 0) {
   root.traverse((o) => {
     const m = (o as Mesh).material as Patched | Patched[] | undefined;
     if (!m) return;
-    for (const x of Array.isArray(m) ? m : [m]) if (x.userData.hover) x.userData.hover.value = v;
+    for (const x of Array.isArray(m) ? m : [m]) {
+      if (x.userData.hover) x.userData.hover.value = v;
+      if (x.userData.dim) x.userData.dim.value = dimV;
+    }
   });
 }
 

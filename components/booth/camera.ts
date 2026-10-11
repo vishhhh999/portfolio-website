@@ -91,7 +91,7 @@ export function openingBox(L: Layout, inset = 0.04) {
 /** The tray and a little of the booth around it (project header on tall screens). */
 export function trayBox(L: Layout, objectH: number) {
   const t = L.tray;
-  const r = t.r * 1.55;
+  const r = t.r * 1.8;
   return new Box3(new Vector3(t.x - r, 0, t.z - r * 0.6), new Vector3(t.x + r, t.h + Math.max(objectH, 0.18) * 1.15, t.z + r * 0.6));
 }
 
