@@ -19,53 +19,39 @@ export function readLampPreference(): Lamp {
 
 type BoothState = {
   lamp: Lamp;
-  /** 0 → 1 while a lamp strikes. Driven by the lamp controller. */
+  /** 0 to 1 while a lamp strikes. Driven by the lamp controller. */
   strikeProgress: number;
+  /** The project on the tray (its page is open), or null at home. */
   activeSlug: string | null;
+  /** The object under the pointer or keyboard focus: it lifts and shows its spec chip. */
+  hoverSlug: string | null;
   /** House lights mode (lib/houseLights.ts sets it; <html data-house-lights> mirrors it). */
   houseLights: boolean;
   /** One quiet line when the booth stepped aside on its own (resilience), or null. */
   notice: string | null;
   sound: boolean;
-  /** The visitor has picked a lamp themselves. Until then proof-strip photos stay D50-faithful. */
   lampPicked: boolean;
-  /** Mobile portrait crop: the sample the cabinet is panned to (swipe between samples). */
-  focusSlug: string | null;
-  /** A booth object focused from the keyboard (lifts and shows its spec chip, like a hover). */
-  keySlug: string | null;
-  /** C5: the home page's view, swapped in place by the nav (URL unchanged): the 3D booth or the Index list. */
-  homeIndex: boolean;
-  /** J5: the first-visit opening strike is running (the rig uses its curve instead of the lamp's). */
-  opening: boolean;
-  setHomeIndex: (on: boolean) => void;
   setLamp: (lamp: Lamp) => void;
   setStrikeProgress: (p: number) => void;
   setActiveSlug: (slug: string | null) => void;
+  setHoverSlug: (slug: string | null) => void;
   setSound: (on: boolean) => void;
   setLampPicked: () => void;
-  setFocusSlug: (slug: string | null) => void;
-  setKeySlug: (slug: string | null) => void;
 };
 
 export const useBooth = create<BoothState>((set) => ({
   lamp: 'D50',
   strikeProgress: 1,
   activeSlug: null,
+  hoverSlug: null,
   houseLights: false,
   notice: null,
   sound: false,
   lampPicked: false,
-  focusSlug: null,
-  keySlug: null,
-  homeIndex: false,
-  opening: false,
-  setHomeIndex: (homeIndex) => set({ homeIndex }),
   setLamp: (lamp) => set({ lamp }),
   setStrikeProgress: (strikeProgress) => set({ strikeProgress }),
   setActiveSlug: (activeSlug) => set({ activeSlug }),
+  setHoverSlug: (hoverSlug) => set({ hoverSlug }),
   setSound: (sound) => set({ sound }),
   setLampPicked: () => set({ lampPicked: true }),
-  setFocusSlug: (focusSlug) => set({ focusSlug }),
-  setKeySlug: (keySlug) => set({ keySlug }),
 }));
-

@@ -162,7 +162,7 @@ async function build(slug, tier) {
   const srcName = tier === 'mobile' ? `${slug}.mobile.glb` : `${slug}.glb`;
   const src = join(ROOT, 'assets-src/models', slug, srcName);
   if (!existsSync(src)) return null;
-  const size = SIZES[slug]?.[tier] ?? { art: tier === 'mobile' ? 512 : 1024, data: 512 };
+  const size = { webp: 90, ...(SIZES[slug]?.[tier] ?? { art: tier === 'mobile' ? 512 : 1024, data: 512 }), ...(tier === 'desktop' ? { dataWebp: true } : {}) };
   const doc = await io.read(src);
   const inTris = triangles(doc);
   // A (09): Blender exports can carry extra empty scenes (a reference-image scene, a diagnostics one);

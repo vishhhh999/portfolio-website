@@ -2,13 +2,15 @@ import type { Metadata, Viewport } from 'next';
 import localFont from 'next/font/local';
 import { Analytics } from '@vercel/analytics/next';
 import './globals.css';
-import { shapeBootScript } from '@/lib/shape';
 
 /**
  * Geist + Geist Mono, subset to the characters the site uses (tools/subset-fonts.sh: 141 KB → 50 KB),
  * preloaded, swapped in over metric-matched fallbacks so nothing shifts.
  */
 const GeistSans = localFont({ src: './fonts/geist-sans-subset.woff2', variable: '--font-geist-sans', weight: '100 900', display: 'swap', preload: true, adjustFontFallback: 'Arial' });
+/** The display face: Instrument Serif (direction A) or Bricolage Grotesque (direction B), both SIL Open Font License. */
+const DisplaySerif = localFont({ src: [{ path: './fonts/instrument-serif.woff2', style: 'normal' }, { path: './fonts/instrument-serif-italic.woff2', style: 'italic' }], variable: '--font-display-serif', weight: '400', display: 'swap', preload: true, adjustFontFallback: 'Times New Roman' });
+const DisplayGrotesk = localFont({ src: './fonts/bricolage-grotesque.woff2', variable: '--font-display-grotesk', weight: '200 800', display: 'swap', preload: false, adjustFontFallback: 'Arial' });
 const GeistMono = localFont({ src: './fonts/geist-mono-subset.woff2', variable: '--font-geist-mono', weight: '100 900', display: 'swap', preload: true, adjustFontFallback: false, fallback: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'] });
 
 export const metadata: Metadata = {
@@ -37,24 +39,20 @@ export const metadata: Metadata = {
   },
 };
 
-export const viewport: Viewport = { themeColor: '#A8A8A6' };
+export const viewport: Viewport = { themeColor: '#F2F0EA', viewportFit: 'cover' };
 
 /**
- * Runs before first paint: the visitor's lamp pick for this session is on <html data-lamp> before
- * anything renders, and a visitor who chose house lights gets every page's flat version from the first paint (B: a
- * mode, never a redirect).
- * Same keys as lib/store.ts. Only the visitor's own choices ever set them.
- * M4 (09): `?type=a|b|c` swaps the home headline's face for the type test (data-type on <html>).
+ * Runs before first paint: the visitor's lamp for this session on <html data-lamp>, house lights on
+ * <html data-house-lights> if the visitor chose it (a mode, never a redirect). Same keys as lib/store.ts.
+ * `?type=serif|grotesk` previews a display face.
  */
-const HOUSE_LIGHTS_BOOT = `(function(){try{var l=sessionStorage.getItem('vm:lamp:v1');if(l)document.documentElement.setAttribute('data-lamp',l);}catch(e){}try{if(localStorage.getItem('vm:houseLights:v2')==='1'||sessionStorage.getItem('vm:autoHouseLights:v1')==='1')document.documentElement.setAttribute('data-house-lights','');}catch(e){}try{var t=new URLSearchParams(location.search).get('type');if(t==='a'||t==='b'||t==='c')document.documentElement.setAttribute('data-type',t);}catch(e){}try{var d=document.documentElement;if(location.pathname==='/'&&!sessionStorage.getItem('vm:opened:v1')&&!d.hasAttribute('data-house-lights')&&(!l||l==='D50')&&!matchMedia('(prefers-reduced-motion: reduce)').matches)d.setAttribute('data-opening','');}catch(e){}})();`;
+const BOOT = `(function(){var d=document.documentElement;try{var l=sessionStorage.getItem('vm:lamp:v1');if(l)d.setAttribute('data-lamp',l);}catch(e){}try{if(localStorage.getItem('vm:houseLights:v2')==='1'||sessionStorage.getItem('vm:autoHouseLights:v1')==='1')d.setAttribute('data-house-lights','');}catch(e){}try{var t=new URLSearchParams(location.search).get('type');if(t==='serif'||t==='grotesk')d.setAttribute('data-type',t);}catch(e){}})();`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable}`} suppressHydrationWarning>
+    <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable} ${DisplaySerif.variable} ${DisplayGrotesk.variable}`} suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: HOUSE_LIGHTS_BOOT }} />
-        {/* L1 (09B): the page's shape (wide / square / tall / phone-landscape) before first paint, so the first poster is the right one */}
-        <script dangerouslySetInnerHTML={{ __html: shapeBootScript() }} />
+        <script dangerouslySetInnerHTML={{ __html: BOOT }} />
         <link rel="manifest" href="/manifest.webmanifest" crossOrigin="use-credentials" />
       </head>
       <body>

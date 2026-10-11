@@ -3,12 +3,12 @@
 import { useEffect, useRef, useState } from 'react';
 
 const KEYS: [string, string][] = [
-  ['1 – 7', 'Lamps: D50, TL84, A, UV, Flood, Screen, After Dark'],
-  ['I', 'House lights (the plain index)'],
-  ['S', 'Sound on / off'],
-  ['L', 'Spectro loupe (or hold Alt): measure a colour'],
-  ['← →', 'Between the samples in the booth'],
-  ['Enter', 'Open the focused sample'],
+  ['1 to 7', 'Lamps: D50, TL84, A, UV, Flood, Screen, After Dark'],
+  ['I', 'House lights: the flat version of the page'],
+  ['S', 'Sound on or off'],
+  ['Tab', 'Move between the objects in the booth'],
+  ['Enter', 'Open the focused object'],
+  ['← →', 'Turn the object on the tray'],
   ['Esc', 'Close'],
   ['?', 'This list'],
 ];
@@ -38,7 +38,7 @@ export function Shortcuts() {
   return (
     // P8 (09): the dialog is named by its own heading ("Keyboard shortcuts"), never a bare "Keyboard"
     <dialog ref={dialog} className="shortcuts" aria-labelledby="shortcuts-title" onClose={() => setOpen(false)}>
-      <h2 className="mono" id="shortcuts-title">Keyboard shortcuts</h2>
+      <h2 id="shortcuts-title">Keyboard shortcuts</h2>
       <dl>
         {KEYS.map(([k, v]) => (
           <div key={k}>
@@ -50,7 +50,7 @@ export function Shortcuts() {
         ))}
       </dl>
       <form method="dialog">
-        <button className="shortcuts__close mono" type="submit">
+        <button className="shortcuts__close" type="submit">
           Close
         </button>
       </form>

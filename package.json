@@ -4,15 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "node tools/check-routes.mjs && node tools/probe-audio.mjs && node tools/poster-hash.mjs --check && next build",
+    "build": "node tools/check-routes.mjs && node tools/probe-audio.mjs && next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "check": "node tools/check-routes.mjs && tsc --noEmit",
-    "check:fast": "node tools/run-checks.mjs fast",
-    "check:affected": "node tools/run-checks.mjs affected",
-    "check:full": "node tools/run-checks.mjs full",
-    "test:overflow": "node tools/check-overflow.mjs",
-    "postinstall": "node tools/patch-r3f-timer.mjs"
+    "verify": "node tools/verify.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.9",

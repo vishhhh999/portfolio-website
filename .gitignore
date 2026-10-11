@@ -19,3 +19,7 @@ tools/import/masters/
 booth-*.zip
 suite.log
 gpu-smoke.md
+
+# local scratch
+tools/_scratch/
+review/latest/

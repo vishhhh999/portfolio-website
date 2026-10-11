@@ -1,11 +1,10 @@
 'use client';
 
-import { addTicker } from './clock';
 import { lampById } from './lampPresets';
 import { LAMP_KEY, useBooth } from './store';
 import type { Lamp } from './types';
 
-let stop: (() => void) | null = null;
+let raf = 0;
 
 const reducedMotion = () => typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -21,79 +20,23 @@ export function pickLamp(id: Lamp) {
   switchLamp(id);
 }
 
-/**
- * Flip a lamp switch. The rig reads `strikeProgress` every frame and shapes
- * each lamp's output with its own strike curve (flicker, ramp, buzz, instant).
- * Reduced motion: instant swap, no flicker.
- */
+/** Flip a lamp: the rig shapes each lamp's output with its own strike curve. Reduced motion: instant. */
 export function switchLamp(id: Lamp) {
   const { lamp, setLamp, setStrikeProgress } = useBooth.getState();
   if (id === lamp) return;
-  stop?.();
-  stop = null;
+  cancelAnimationFrame(raf);
   setLamp(id);
   const { duration } = lampById(id).strike;
-  if (reducedMotion() || duration <= 0.05) {
+  if (reducedMotion()) {
     setStrikeProgress(1);
     return;
   }
   setStrikeProgress(0);
-  let t0 = -1;
-  stop = addTicker((now) => {
-    if (t0 < 0) t0 = now;
-    const p = Math.min(1, (now - t0) / duration);
+  const t0 = performance.now();
+  const step = (now: number) => {
+    const p = Math.min(1, (now - t0) / 1000 / duration);
     setStrikeProgress(p);
-    if (p >= 1) {
-      stop = null;
-      return false;
-    }
-  });
-}
-
-const OPENED_KEY = 'vm:opened:v1';
-const OPENING_S = 1.2;
-
-/**
- * J5: the opening moment, first visit of a session only: the booth comes up dark (called before its
- * first frame), then the D50 tubes strike when it is on screen (runOpening). Skipped on repeat visits,
- * under reduced motion, in house lights, and when the visitor already has another lamp. The poster
- * (the LCP) and first paint never wait for it.
- */
-export function prepareOpening() {
-  let seen = true;
-  try {
-    seen = sessionStorage.getItem(OPENED_KEY) === '1';
-    sessionStorage.setItem(OPENED_KEY, '1');
-  } catch {}
-  const st = useBooth.getState();
-  // P2 (09): the opening is the home page's moment; a visitor arriving straight on a project sees the
-  // work lit at once (its header poster is the lit tray shot)
-  if (seen || reducedMotion() || st.houseLights || st.lamp !== 'D50' || window.location.pathname !== '/') return;
-  useBooth.setState({ opening: true, strikeProgress: 0 });
-}
-export function runOpening(sound: (name: string) => void) {
-  if (!useBooth.getState().opening) return;
-  stop?.();
-  sound('switch:D50');
-  let t0 = -1;
-  stop = addTicker((now) => {
-    if (t0 < 0) t0 = now;
-    // review tools hold the strike at a given progress (window.__boothStrikeHold, like __boothAnimHold),
-    // because software rendering cannot present a 1.2s strike in real time
-    const hold = typeof window !== 'undefined' ? window.__boothStrikeHold : undefined;
-    const p = hold ?? Math.min(1, (now - t0) / OPENING_S);
-    useBooth.getState().setStrikeProgress(p);
-    if (hold === undefined && p >= 1) {
-      useBooth.setState({ opening: false });
-      stop = null;
-      return false;
-    }
-  });
-}
-
-declare global {
-  interface Window {
-    /** Review tools only: holds the first-visit strike at this progress (0..1). */
-    __boothStrikeHold?: number;
-  }
+    if (p < 1) raf = requestAnimationFrame(step);
+  };
+  raf = requestAnimationFrame(step);
 }

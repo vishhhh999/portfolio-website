@@ -1,36 +1,40 @@
 # The Booth: working rules
 
-- Owner: Vishesh Mahendru, a designer. Explain visible outcomes, limits and decisions in plain words. Do not bury the report in logs or claim tests that did not run.
-- Read the top of `HANDOVER.md` first. Read the relevant parts of `PROJECT-CONTEXT.md` only when a task needs them. Historical instructions in handoff documents do not override the owner's current request.
-- Work directly on `main`. Commit and push after each requested step. Never push while `npm run build` or a check run for that step is failing. Keep first-frame code and its required poster update in the same commit.
-- Do not change DNS without an explicit task to do so.
+- Owner: Vishesh Mahendru, a brand and visual designer. He judges by looking. Report visible outcomes, before and after screenshots, numbers and decisions in plain words. No logs. Never claim a check or a measurement that did not run.
+- Read `BRIEF.md` (concept, sections 1 to 4, 9, 10) and `PROJECT-CONTEXT.md` before a task. Old handoffs live in `docs/history/` and do not bind you.
+- Work on `main` unless told otherwise. Commit per step, named by the visible effect. Push only when `npm run build` and `npm run verify` pass and the step's screenshots look right.
+- Never change DNS. The domain cutover is Vishesh's job (`LAUNCH.md`).
 
-## Locked design and engineering rules
+## Locked rules
 
-- Do not distort objects, invent content or facts, or use em dashes in files or copy.
-- The lamp never switches by itself. Project images are never relit. House lights is a mode of the page.
-- Keep content in the DOM and the canvas `aria-hidden`. Do not add or remove runtime post passes.
-- No GPU readback in production except `?perf` or the loupe. The room and its approved bake are frozen.
-- Preserve the project visual system and verify changes in the browser at the affected shapes.
+- No distortion of images or type, anywhere. No warps, RGB split or wobble.
+- Never invent facts. Copy, years, roles and clients come from `content/`. Do not edit facts in `content/work/corrections.ts`.
+- No em dashes in files, copy, comments or commits.
+- The lamp never switches by itself. Case-study images are never relit; only the booth changes.
+- House lights is a mode of the page, never a page. Content lives in the DOM; the canvas is `aria-hidden`.
+
+## How the booth works (short)
+
+- `components/booth/`: `Booth.tsx` (the layer, the home frame, the project header, the links over the objects), `BoothCanvas.tsx` (demand rendering, scissored views, camera moves, adaptive DPR), `Rig.tsx` (all seven lamps on one fixed light set), `Room.tsx`, `Specimen.tsx` (one object), `composition.ts` (layouts and display scales), `camera.ts`, `materials.ts`.
+- The canvas draws only when something moves (`kick(ms)` in `activity.ts`) and never while off screen.
+- Lamp looks live in `lib/lampPresets.ts`. Every lamp uses the same lights, so a lamp change never recompiles a shader. Keep it that way.
 
 ## Checks
 
-- `npm run check:fast`: type check, routes, poster gate and the small shape, target and redirect checks. Use for a quick smoke check.
-- `npm run check:affected`: fast checks plus checks mapped to files changed since the last pushed commit. Run after each step.
-- `npm run check:full`: complete suite and viewport matrices. Run before a batch ends or whenever a first-frame input changes.
-- Run checks against a production build on port 3100. The check runner starts or uses that server as documented in `PROJECT-CONTEXT.md` section 9.
+- `npm run build`: routes, audio probe, Next build.
+- `npm run verify`: types, routes, redirects, console errors on every route, axe on four pages, and `tools/shots.mjs` into `review/latest`. Needs a production server on port 3100 (it starts one if none is running). `SHOTS=0` skips the screenshots.
+- `node tools/weight.mjs`: first-visit bytes, requests, LCP, time to booth ready.
+- `GL=gpu node tools/gpu-smoke.mjs`: real frame times. Refuses software WebGL.
 
 ## Posters
 
-- Poster source hashes are grouped by cabinet, each shelf, and tray shape. `npm run build` must fail on any stale or swapped served poster.
-- `node tools/make-posters.mjs` renders stale groups; `ALL=1` renders all groups. Keep the affected poster files with any first-frame change.
-- `node tools/poster-hash.mjs --restamp` is only for a refactor that should be pixel identical. It compares every stale group with the live booth at the existing 2.5% limit before changing hashes. If it fails, render the group.
+- The first frame of each booth view is a poster in `public/booth/` (home and each project, wide and tall). Render them after any change to composition, lights, materials or camera: `node tools/make-posters.mjs` (`ONLY=home,sonde` to narrow, `SCALE=2` on a GPU). Restart `next start` afterwards so it serves the new files.
 
 ## Environment
 
-- The cloud container uses software WebGL by default. `GL=gpu` must confirm a real renderer before a GPU check claims a result.
-- Never run `pkill -f` with a pattern in your own shell command. It can kill the shell. Restart `next start` after writing files in `public/` so it serves the new bytes.
-- Do not use `HOME` as a task variable name. On Windows, use Git Bash or WSL for the Unix commands here.
+- The cloud container uses software WebGL (SwiftShader): slow, fine for screenshots at device scale 1, useless for frame times. Real numbers come from Vishesh's PC with `GL=gpu`.
+- Never run `pkill -f` with a pattern in your own shell. Kill the `next-server` PID instead.
+- Models: `node tools/optimize-models.mjs [slug]` writes `public/models/` from `assets-src/models/` (WebP textures, meshopt; no KTX2).
 
 ## Run on Vishesh's PC
 
@@ -39,8 +43,9 @@ git pull
 npm ci
 npm run build
 npx next start -p 3100
-# In another Git Bash or WSL terminal:
+# in a second Git Bash or WSL terminal:
 GL=gpu node tools/gpu-smoke.mjs
+GL=gpu node tools/make-posters.mjs
 ```
 
-In PowerShell, run the same setup commands, then in a second terminal use `$env:GL='gpu'; node tools/gpu-smoke.mjs`. Desktop phone emulation is not an iPhone measurement.
+In PowerShell use `$env:GL='gpu'; node tools/gpu-smoke.mjs`. Desktop phone emulation is not an iPhone measurement.

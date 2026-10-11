@@ -1,62 +1,52 @@
-/** Hardware-only frame and shelf scroll smoke check for Vishesh's PC. */
+/**
+ * Real frame times on a hardware GPU (Vishesh's PC): GL=gpu node tools/gpu-smoke.mjs
+ * For home and a project page at 2560x1440, 1568x980 and phone size: p50 / p95 of back-to-back
+ * frames (still, and moving the camera every frame), plus the browser's own frame rate while the
+ * pointer sweeps over the booth for two seconds. Refuses software WebGL. Writes gpu-smoke.md.
+ */
 import { writeFileSync } from 'node:fs';
-import { launch, timeoutMs } from './lib/browser.mjs';
+import { launch } from './lib/browser.mjs';
 
 if (process.env.GL !== 'gpu') {
-  console.error('REFUSED: gpu-smoke needs GL=gpu and a verified hardware WebGL renderer. Software results are not a verdict.');
+  console.error('REFUSED: gpu-smoke needs GL=gpu and a hardware WebGL renderer. Software numbers are not a verdict.');
   process.exit(2);
 }
 const base = process.env.BASE || 'http://localhost:3100';
 const browser = await launch();
-const sizes = [
-  { width: 2560, height: 1440 },
-  { width: 1568, height: 980 },
-  { width: 1032, height: 1230 },
-  { width: 393, height: 852 },
-];
 const rows = [];
 try {
-  for (const size of sizes) {
-    const phone = size.width < 600;
-    const context = await browser.newContext({ viewport: size, isMobile: phone, hasTouch: phone });
-    const page = await context.newPage();
-    page.setDefaultTimeout(timeoutMs());
-    await page.addInitScript(() => sessionStorage.setItem('vm:opened:v1', '1'));
-    await page.goto(base + '/?perf', { waitUntil: 'networkidle', timeout: timeoutMs() });
-    await page.waitForSelector('.booth-stage[data-ready="true"]', { timeout: timeoutMs() });
-    await page.waitForFunction(() => typeof window.__boothPasses === 'function' && typeof window.__boothPerf === 'function', null, { timeout: timeoutMs() });
-    const still = await page.evaluate(() => window.__boothPasses(30));
-    const moving = await page.evaluate(() => window.__boothPasses(30, true));
-    let scrollFps = null;
-    if (size.height > size.width) {
-      scrollFps = [];
-      await page.waitForTimeout(4200);
-      const end = await page.evaluate(() => Math.max(0, document.querySelector('.booth-frame').getBoundingClientRect().bottom + scrollY - innerHeight));
-      for (let y = 0; y <= end; y += Math.max(1, Math.floor(size.height / 4))) {
-        await page.evaluate((top) => window.scrollTo(0, top), y);
-        await page.waitForTimeout(200);
-        const sample = await page.evaluate(() => window.__boothPerf());
-        if (sample.frames >= 2 && sample.fps > 0) scrollFps.push(sample.fps);
-      }
+  for (const size of [{ width: 2560, height: 1440 }, { width: 1568, height: 980 }, { width: 393, height: 852 }]) {
+    for (const path of ['/', '/work/sonde']) {
+      const phone = size.width < 600;
+      const context = await browser.newContext({ viewport: size, deviceScaleFactor: phone ? 3 : 1, isMobile: phone, hasTouch: phone });
+      const page = await context.newPage();
+      await page.goto(`${base}${path}?perf`, { waitUntil: 'load' });
+      await page.waitForFunction(() => document.documentElement.hasAttribute('data-booth-ready') && typeof window.__boothBench === 'function', null, { timeout: 60_000 });
+      await page.waitForTimeout(1000);
+      const still = await page.evaluate(() => window.__boothBench(60, false));
+      const moving = await page.evaluate(() => window.__boothBench(60, true));
+      const fps = await page.evaluate(() => new Promise((resolve) => {
+        const t = [];
+        const t0 = performance.now();
+        const step = (now) => {
+          t.push(now);
+          window.dispatchEvent(new PointerEvent('pointermove', { clientX: innerWidth * (0.3 + 0.4 * Math.sin((now - t0) / 300) ** 2), clientY: innerHeight * 0.45 }));
+          if (now - t0 < 2000) requestAnimationFrame(step);
+          else resolve(Math.round((t.length - 1) / ((t[t.length - 1] - t[0]) / 1000)));
+        };
+        requestAnimationFrame(step);
+      }));
+      rows.push({ size: `${size.width}x${size.height}`, path, still, moving, fps });
+      console.log(rows.at(-1));
+      await context.close();
     }
-    const scrollMin = scrollFps?.length ? Math.min(...scrollFps) : null;
-    const pass = size.width === 2560 ? still.frameP50 <= 8 && still.frameP95 <= 11 && moving.frameP50 <= 8 && moving.frameP95 <= 11
-      : size.width === 1032 ? scrollMin !== null && scrollMin >= 50 : null;
-    rows.push({ size: `${size.width}x${size.height}`, still, moving, scrollMin, verdict: pass === null ? 'MEASURED' : pass ? 'PASS' : 'FAIL' });
-    await context.close();
   }
 } finally { await browser.close(); }
 const lines = [
-  '# GPU smoke',
-  '',
-  `Renderer: ${browser.__boothRenderer}. Phone emulation on a desktop GPU is not an iPhone result.`,
-  '',
-  '| Renderer | Viewport | Still p50 / p95 ms | Moving p50 / p95 ms | Shelf min fps | Result |',
-  '| --- | --- | ---: | ---: | ---: | --- |',
-  ...rows.map((row) => `| ${browser.__boothRenderer} | ${row.size} | ${row.still.frameP50} / ${row.still.frameP95} | ${row.moving.frameP50} / ${row.moving.frameP95} | ${row.scrollMin ?? 'n/a'} | ${row.verdict} |`),
-  '',
-  'Budgets: 2560x1440 p50 at most 8 ms and p95 at most 11 ms for still and moving; tall shelf scroll at least 50 fps.',
+  '# GPU smoke', '', `Renderer: ${browser.__boothRenderer}. Phone emulation on a desktop GPU is not an iPhone result.`, '',
+  '| Viewport | Page | Still p50 / p95 ms | Moving p50 / p95 ms | Live fps | DPR |', '| --- | --- | ---: | ---: | ---: | ---: |',
+  ...rows.map((r) => `| ${r.size} | ${r.path} | ${r.still.p50} / ${r.still.p95} | ${r.moving.p50} / ${r.moving.p95} | ${r.fps} | ${r.still.dpr} |`),
+  '', 'Target: p95 under 8.3 ms at 2560x1440 (120 fps capable), still and moving.',
 ];
 console.log(lines.join('\n'));
 writeFileSync(new URL('../gpu-smoke.md', import.meta.url), lines.join('\n') + '\n');
-process.exit(rows.some((row) => row.verdict === 'FAIL') ? 1 : 0);

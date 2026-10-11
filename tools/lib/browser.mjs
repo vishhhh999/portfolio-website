@@ -35,7 +35,9 @@ export async function launch(opts = {}) {
     : ['--ignore-gpu-blocklist', '--enable-gpu-rasterization', ...(process.platform === 'win32' ? ['--use-angle=d3d11'] : ['--use-angle=gl'])];
   let browser;
   try {
-    const systemChromium = process.platform === 'linux' && existsSync('/usr/lib/chromium/chromium') ? '/usr/lib/chromium/chromium' : undefined;
+    const systemChromium = process.platform !== 'linux' ? undefined
+      : existsSync('/usr/lib/chromium/chromium') ? '/usr/lib/chromium/chromium'
+      : existsSync('/opt/pw-browsers/chromium') ? '/opt/pw-browsers/chromium' : undefined;
     browser = await playwright.chromium.launch({ channel: mode === 'gpu' ? 'chrome' : undefined, executablePath: mode === 'soft' ? systemChromium : undefined, ...opts, args: [...flags, ...(opts.args || [])] });
     const page = await browser.newPage();
     page.setDefaultTimeout(timeoutMs());

@@ -5,39 +5,21 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useLayoutEffect, useRef, type ReactNode } from 'react';
 import { readLampPreference, useBooth } from '@/lib/store';
 import { playEvent, restoreSoundPreference } from '@/lib/sound';
-import { attachLenis, startClock } from '@/lib/clock';
-import { measure } from '@/lib/views';
 import { houseLightsOnLoad } from '@/lib/houseLights';
+import { measure } from '@/components/booth/frames';
 
-/** Set just before a "next project" navigation: scroll up smoothly while the next sample slides onto the tray. */
-export const navIntent = { smoothTop: false };
-
-/**
- * Lenis smooth scroll on the page's single clock (lib/clock.ts): the shared
- * clock runs Lenis, then the canvas, in that order, every tick.
- */
+/** Lenis smooth scroll (its own rAF) and the per-route housekeeping: lamp and house lights on load, top of page on a route change. */
 export function Providers({ children }: { children: ReactNode }) {
   const lenisRef = useRef<LenisRef>(null);
   const pathname = usePathname();
 
-  // The visitor's lamp pick for this session, applied before the first paint after hydration
-  // (server HTML is always D50, so hydration matches). A route never changes it.
   useLayoutEffect(() => {
     const lamp = readLampPreference();
     if (lamp !== 'D50') useBooth.setState({ lamp, lampPicked: true, strikeProgress: 1 });
-    // house lights mode as the pre-paint script set it from the stored preference
     if (houseLightsOnLoad()) useBooth.setState({ houseLights: true });
     restoreSoundPreference();
   }, []);
 
-  useEffect(() => {
-    attachLenis(() => lenisRef.current?.lenis);
-    startClock();
-    return () => attachLenis(() => null);
-  }, []);
-
-  // Route change: Lenis keeps its old scroll target and page height unless told otherwise, which can
-  // pin a new page at the old offset (or stop it scrolling at all). Re-measure and go to the top.
   const first = useRef(true);
   useEffect(() => {
     if (first.current) {
@@ -45,14 +27,13 @@ export function Providers({ children }: { children: ReactNode }) {
       return;
     }
     const lenis = lenisRef.current?.lenis;
+    const hash = window.location.hash;
     if (lenis) {
       lenis.resize();
-      if (navIntent.smoothTop) lenis.scrollTo(0, { duration: 1.1 });
+      if (hash) lenis.scrollTo(hash, { immediate: true, force: true });
       else lenis.scrollTo(0, { immediate: true, force: true });
-    } else window.scrollTo(0, 0);
-    navIntent.smoothTop = false;
+    } else if (!hash) window.scrollTo(0, 0);
     playEvent('route');
-    // the plain crossfade for the page (also Back, and wherever View Transitions are missing)
     const main = document.getElementById('main');
     if (main) {
       main.removeAttribute('data-arrive');
@@ -66,7 +47,7 @@ export function Providers({ children }: { children: ReactNode }) {
   }, [pathname]);
 
   return (
-    <ReactLenis root ref={lenisRef} options={{ autoRaf: false, lerp: 0.12 }}>
+    <ReactLenis root ref={lenisRef} options={{ autoRaf: true, lerp: 0.14 }}>
       {children}
     </ReactLenis>
   );
